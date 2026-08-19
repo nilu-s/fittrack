@@ -46,6 +46,17 @@ export async function logout(): Promise<void> {
   authEmail.set(null);
 }
 
+export async function disconnectGoogle(): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/auth/google/disconnect`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch {
+    // ignore
+  }
+}
+
 export function googleLogin(): void {
   window.location.href = `${API_BASE}/auth/google/login`;
 }

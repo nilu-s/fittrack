@@ -3,7 +3,7 @@
   import { dailyGoals } from '$lib/stores';
   import { api } from '$lib/api';
   import { db } from '$lib/db';
-  import { isAuthenticated, authEmail, logout } from '$lib/auth';
+  import { isAuthenticated, authEmail, logout, disconnectGoogle } from '$lib/auth';
   import { goto } from '$app/navigation';
 
   let goals = { kcal: 2480, protein: 194, carbs: 258, fat: 78, steps: 10000, sleepHours: 8 };
@@ -15,6 +15,12 @@
     if (typeof window !== 'undefined') {
       window.history.back();
     }
+  }
+
+  async function handleDisconnectGoogle() {
+    await disconnectGoogle();
+    // Stay on settings, just update the UI
+    window.location.reload();
   }
 
   async function handleLogout() {
@@ -144,7 +150,7 @@
             <span class="int-name">Verbunden als</span>
             <span class="int-status connected">{$authEmail}</span>
           </div>
-          <button class="btn" onclick={handleLogout}>Trennen</button>
+          <button class="btn" onclick={handleDisconnectGoogle}>Trennen</button>
         </div>
       {:else}
         <div class="muted text-sm" style="padding:0.5rem 0">Nicht verbunden</div>

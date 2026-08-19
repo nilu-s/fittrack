@@ -225,12 +225,12 @@ async def google_callback(request: Request):
             timeout=30,
         )
 
+    logger.info(f"Token exchange response: status={token_resp.status_code}, body={token_resp.text[:500]}")
+
     if token_resp.status_code != 200:
-        logger.error(f"Token exchange failed: {token_resp.text}")
-        return JSONResponse(
-            status_code=400,
-            content={"detail": "Failed to exchange code for tokens"},
-        )
+        logger.error(f"Token exchange failed: status={token_resp.status_code}, body={token_resp.text[:500]}")
+        # Redirect to login with error (instead of JSON, so browser doesn't get stuck)
+        return RedirectResponse(url="/login?error=token_exchange_failed", status_code=302)
 
     token_data = token_resp.json()
     access_token = token_data.get("access_token")
@@ -349,12 +349,7 @@ async def google_status():
 
 @router.post("/logout")
 async def logout(request: Request):
-    """Logout — clear session cookie and delete stored Google token."""
-    async with async_session() as session:
-        await session.execute(
-            delete(GoogleToken).where(GoogleToken.user_id == "luis")
-        )
-        await session.commit()
+    """Logout — clear session cookie only (keep Google tokens for re-login)."""
     response = JSONResponse(content={"detail": "Logged out"})
     response.delete_cookie(
         key=SESSION_COOKIE_NAME,
@@ -364,3 +359,14 @@ async def logout(request: Request):
         samesite="lax",
     )
     return response
+
+
+@router.post("/google/disconnect")
+async def google_disconnect(request: Request):
+    """Disconnect Google — delete Google tokens from DB, but keep session cookie."""
+    async with async_session() as session:
+        await session.execute(
+            delete(GoogleToken).where(GoogleToken.user_id == "luis")
+        )
+        await session.commit()
+    return {"detail": "Google disconnected"}
