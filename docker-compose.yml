@@ -1,0 +1,46 @@
+services:
+  fittrack-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: fittrack
+      POSTGRES_USER: fittrack
+      POSTGRES_PASSWORD: ${FITTRACK_DB_PASSWORD}
+    volumes:
+      - fittrack_pgdata:/var/lib/postgresql/data
+    networks:
+      - fittrack-net
+    restart: unless-stopped
+
+  fittrack-api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://fittrack:${FITTRACK_DB_PASSWORD}@fittrack-db:5432/fittrack
+      OLLAMA_URL: http://host.docker.internal:11434
+      OLLAMA_VISION_MODEL: kimi-k3:cloud
+      PHOTO_DIR: /app/photos
+      JWT_SECRET: ${FITTRACK_JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      ALLOWED_EMAIL: ${ALLOWED_EMAIL}
+    volumes:
+      - ./photos:/app/photos
+    depends_on:
+      - fittrack-db
+    networks:
+      - fittrack-net
+    restart: unless-stopped
+
+  fittrack-web:
+    build: ./frontend
+    depends_on:
+      - fittrack-api
+    networks:
+      - fittrack-net
+    restart: unless-stopped
+
+volumes:
+  fittrack_pgdata:
+
+networks:
+  fittrack-net:
+    driver: bridge
