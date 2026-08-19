@@ -4,11 +4,12 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 
 from app.database import async_session
 from app.models import DayEntry, Meal, Todo, SyncLog
+from app.routes.auth import get_current_user
 from app.schemas import SyncConflictItem, SyncRequest, SyncResponse
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ ENTITY_MODELS = {
 
 
 @router.post("", response_model=SyncResponse)
-async def sync_changes(body: SyncRequest):
+async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user)):
     async with async_session() as session:
         conflicts: list[SyncConflictItem] = []
         applied: list[dict[str, Any]] = []

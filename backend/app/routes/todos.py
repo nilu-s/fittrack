@@ -4,11 +4,12 @@ import uuid
 from datetime import date as date_type, datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 
 from app.database import async_session
 from app.models import Todo
+from app.routes.auth import get_current_user
 from app.schemas import TodoCreate, TodoResponse, TodoUpdate
 
 router = APIRouter(prefix="/todos", tags=["todos"])
@@ -23,6 +24,7 @@ async def list_todos(
     date: Optional[date_type] = Query(None),
     status: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
+    user: str = Depends(get_current_user),
 ):
     async with async_session() as session:
         stmt = select(Todo).where(Todo.user_id == "luis")
@@ -39,7 +41,7 @@ async def list_todos(
 
 
 @router.post("", response_model=TodoResponse, status_code=201)
-async def create_todo(body: TodoCreate):
+async def create_todo(body: TodoCreate, user: str = Depends(get_current_user)):
     async with async_session() as session:
         todo = Todo(**body.model_dump())
         session.add(todo)
@@ -49,7 +51,7 @@ async def create_todo(body: TodoCreate):
 
 
 @router.put("/{todo_id}", response_model=TodoResponse)
-async def update_todo(todo_id: uuid.UUID, body: TodoUpdate):
+async def update_todo(todo_id: uuid.UUID, body: TodoUpdate, user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(select(Todo).where(Todo.id == todo_id))
         todo = result.scalars().first()
@@ -63,7 +65,7 @@ async def update_todo(todo_id: uuid.UUID, body: TodoUpdate):
 
 
 @router.delete("/{todo_id}", status_code=204)
-async def delete_todo(todo_id: uuid.UUID):
+async def delete_todo(todo_id: uuid.UUID, user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(select(Todo).where(Todo.id == todo_id))
         todo = result.scalars().first()
@@ -74,7 +76,7 @@ async def delete_todo(todo_id: uuid.UUID):
 
 
 @router.post("/{todo_id}/done", response_model=TodoResponse)
-async def mark_todo_done(todo_id: uuid.UUID):
+async def mark_todo_done(todo_id: uuid.UUID, user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(select(Todo).where(Todo.id == todo_id))
         todo = result.scalars().first()

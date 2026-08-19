@@ -6,11 +6,12 @@ from datetime import date as date_type, timedelta
 from decimal import Decimal
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, func, select
 
 from app.database import async_session
 from app.models import DayEntry, Exercise, TrainingRotation, TrainingSet
+from app.routes.auth import get_current_user
 from app.schemas import (
     ExerciseCreate,
     ExerciseResponse,
@@ -91,7 +92,7 @@ async def _build_suggestion(session, target_date: date_type, training_type: str,
 # GET /api/training?date=  — training for date (auto-suggest from rotation)
 # ---------------------------------------------------------------------------
 @router.get("/training", response_model=TrainingSuggestion)
-async def get_training_for_date(date: date_type = Query(...)):
+async def get_training_for_date(date: date_type = Query(...), user: str = Depends(get_current_user)):
     async with async_session() as session:
         slot, rotation = await _get_rotation_slot_for_date(session, date)
         training_type = rotation.training_type if rotation else "Oberkörper A"
@@ -106,6 +107,7 @@ async def get_training_for_date(date: date_type = Query(...)):
 async def get_next_training(
     training_type: str = Query(...),
     date: Optional[date_type] = Query(None),
+    user: str = Depends(get_current_user),
 ):
     target_date = date or date_type.today()
     async with async_session() as session:
@@ -133,7 +135,7 @@ async def get_next_training(
 # POST /api/training/complete — save sets, apply progression, update exercises
 # ---------------------------------------------------------------------------
 @router.post("/training/complete", response_model=TrainingCompleteResponse)
-async def complete_training(body: TrainingCompleteRequest):
+async def complete_training(body: TrainingCompleteRequest, user: str = Depends(get_current_user)):
     async with async_session() as session:
         # 1. Save all training_sets
         saved_count = 0
@@ -238,7 +240,7 @@ exercises_router = APIRouter(prefix="/exercises", tags=["exercises"])
 
 
 @exercises_router.get("", response_model=list[ExerciseResponse])
-async def list_exercises(training_type: Optional[str] = Query(None)):
+async def list_exercises(training_type: Optional[str] = Query(None), user: str = Depends(get_current_user)):
     async with async_session() as session:
         stmt = select(Exercise).where(Exercise.user_id == USER_ID)
         if training_type:
@@ -250,7 +252,7 @@ async def list_exercises(training_type: Optional[str] = Query(None)):
 
 
 @exercises_router.post("", response_model=ExerciseResponse, status_code=201)
-async def create_exercise(body: ExerciseCreate):
+async def create_exercise(body: ExerciseCreate, user: str = Depends(get_current_user)):
     async with async_session() as session:
         ex = Exercise(**body.model_dump())
         session.add(ex)
@@ -260,7 +262,7 @@ async def create_exercise(body: ExerciseCreate):
 
 
 @exercises_router.put("/{exercise_id}", response_model=ExerciseResponse)
-async def update_exercise(exercise_id: uuid.UUID, body: ExerciseUpdate):
+async def update_exercise(exercise_id: uuid.UUID, body: ExerciseUpdate, user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(select(Exercise).where(Exercise.id == exercise_id))
         ex = result.scalars().first()
@@ -283,7 +285,7 @@ rotation_router = APIRouter(prefix="/templates/rotation", tags=["rotation"])
 
 
 @rotation_router.get("", response_model=list[TrainingRotationResponse])
-async def list_rotation():
+async def list_rotation(user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(
             select(TrainingRotation).where(TrainingRotation.user_id == USER_ID).order_by(TrainingRotation.slot)
@@ -293,7 +295,7 @@ async def list_rotation():
 
 
 @rotation_router.put("/{slot}", response_model=TrainingRotationResponse)
-async def update_rotation(slot: int, body: TrainingRotationUpdate):
+async def update_rotation(slot: int, body: TrainingRotationUpdate, user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(
             select(TrainingRotation).where(TrainingRotation.user_id == USER_ID, TrainingRotation.slot == slot)

@@ -6,8 +6,9 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse
+from jose import jwt as jose_jwt
 from sqlalchemy import delete, select
 
 from app.config import settings
@@ -37,6 +38,46 @@ GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 
 # In-memory state store (single-user, sufficient — only used for CSRF during OAuth flow)
 _state_store: dict[str, str] = {}
+
+
+# --- JWT session helpers ---
+
+SESSION_COOKIE_NAME = "fittrack_session"
+SESSION_TTL_DAYS = 7
+
+
+def _create_session_jwt(email: str) -> str:
+    """Create a JWT session token for the given email."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "email": email,
+        "iat": now,
+        "exp": now + timedelta(days=SESSION_TTL_DAYS),
+    }
+    return jose_jwt.encode(payload, settings.FITTRACK_JWT_SECRET, algorithm="HS256")
+
+
+def _verify_session_jwt(token: str) -> str | None:
+    """Verify a JWT session token and return the email, or None if invalid."""
+    try:
+        payload = jose_jwt.decode(token, settings.FITTRACK_JWT_SECRET, algorithms=["HS256"])
+        return payload.get("email")
+    except Exception:
+        return None
+
+
+async def get_current_user(request: Request) -> str:
+    """FastAPI dependency: reads fittrack_session cookie, verifies JWT, returns email.
+
+    Raises HTTPException(401) if not authenticated.
+    """
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    email = _verify_session_jwt(token)
+    if not email:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    return email
 
 
 # --- Token refresh helpers ---
@@ -240,28 +281,31 @@ async def google_callback(request: Request):
 
     logger.info(f"Google OAuth success for {email} — tokens persisted to DB")
 
-    # Redirect to settings page with success indicator
-    return RedirectResponse(
-        url="/settings?google_connected=true",
-        status_code=302,
+    # Create JWT session token and set as httpOnly cookie, then redirect to /
+    session_jwt = _create_session_jwt(email)
+    response = RedirectResponse(url="/", status_code=302)
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=session_jwt,
+        max_age=SESSION_TTL_DAYS * 86400,
+        path="/",
+        httponly=True,
+        secure=True,
+        samesite="lax",
     )
+    return response
 
 
 @router.get("/me")
-async def auth_me():
-    """Return current auth status."""
-    async with async_session() as session:
-        result = await session.execute(
-            select(GoogleToken).where(GoogleToken.user_id == "luis")
-        )
-        token_row = result.scalar_one_or_none()
-
-    connected = token_row is not None and bool(token_row.access_token)
-    return {
-        "authenticated": connected,
-        "google_connected": connected,
-        "email": token_row.email if token_row else None,
-    }
+async def auth_me(request: Request):
+    """Return current auth status based on JWT session cookie."""
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
+        return {"authenticated": False, "email": None}
+    email = _verify_session_jwt(token)
+    if not email:
+        return {"authenticated": False, "email": None}
+    return {"authenticated": True, "email": email}
 
 
 @router.get("/google/status")
@@ -282,11 +326,19 @@ async def google_status():
 
 
 @router.post("/logout")
-async def logout():
-    """Logout — delete stored Google token for user_id='luis'."""
+async def logout(request: Request):
+    """Logout — clear session cookie and delete stored Google token."""
     async with async_session() as session:
         await session.execute(
             delete(GoogleToken).where(GoogleToken.user_id == "luis")
         )
         await session.commit()
-    return {"detail": "Logged out"}
+    response = JSONResponse(content={"detail": "Logged out"})
+    response.delete_cookie(
+        key=SESSION_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+    return response

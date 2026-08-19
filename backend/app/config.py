@@ -8,6 +8,7 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "postgresql+asyncpg://fittrack:fittrack@localhost:5432/fittrack"
     JWT_SECRET: str = "change-me-in-production"
+    FITTRACK_JWT_SECRET: str = "fittrack_jwt_secret_2026"
     OLLAMA_URL: str = "http://127.0.0.1:11434"
     OLLAMA_VISION_MODEL: str = "kimi-k3:cloud"
     PHOTO_DIR: str = "/app/photos"

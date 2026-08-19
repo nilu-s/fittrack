@@ -7,12 +7,13 @@
   import { initSync } from '$lib/sync';
   import { api } from '$lib/api';
   import { db } from '$lib/db';
-  import { isAuthenticated, initAuth, isPinSet, logout } from '$lib/auth';
+  import { isAuthenticated, authEmail, checkAuth, logout } from '$lib/auth';
   import type { DayData, DayEntry, Meal, Todo, TrainingSet, TrainingRotation } from '$lib/types';
 
   let syncIcon = '✓';
   let syncClass = 'synced';
   let dateDisplay = '';
+  let authChecked = false;
 
   // Format date for header
   $: dateDisplay = formatDate($currentDate);
@@ -74,7 +75,7 @@
   }
 
   // React to date changes
-  $: if ($currentDate) {
+  $: if ($currentDate && authChecked && $isAuthenticated) {
     loadDayData($currentDate);
   }
 
@@ -88,18 +89,19 @@
     });
   }
 
-  onMount(() => {
-    initAuth();
+  onMount(async () => {
+    await checkAuth();
+    authChecked = true;
 
-    // Auth gate: redirect to login if not authenticated and PIN is set
-    const checkAuth = () => {
+    // Auth gate: redirect to login if not authenticated and not on /login
+    const checkAuthGate = () => {
       const path = $page?.url?.pathname ?? '';
       if (path === '/login') return;
-      if (isPinSet() && !$isAuthenticated) {
+      if (!$isAuthenticated) {
         goto('/login');
       }
     };
-    checkAuth();
+    checkAuthGate();
 
     // Register service worker
     if ('serviceWorker' in navigator) {
@@ -127,13 +129,13 @@
   afterUpdate(() => {
     const path = $page?.url?.pathname ?? '';
     if (path === '/login') return;
-    if (isPinSet() && !$isAuthenticated) {
+    if (authChecked && !$isAuthenticated) {
       goto('/login');
     }
   });
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     goto('/login');
   }
 </script>
@@ -148,7 +150,7 @@
     </div>
     <div class="header-right">
       <a href="/settings" class="header-link" title="Einstellungen">⚙️</a>
-      {#if isPinSet()}
+      {#if $isAuthenticated}
         <button class="header-link" onclick={handleLogout} title="Logout">🔒</button>
       {/if}
       <span class="sync-icon {syncClass}">{syncIcon}</span>

@@ -4,11 +4,12 @@ import uuid
 from datetime import date as date_type, time
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 
 from app.database import async_session
 from app.models import Meal, MealTemplate
+from app.routes.auth import get_current_user
 from app.schemas import (
     MealCreate,
     MealResponse,
@@ -65,7 +66,7 @@ async def _auto_create_from_templates(session, user_id: str, day: date_type) -> 
 # --- Meal endpoints ---
 
 @router.get("", response_model=list[MealResponse])
-async def get_meals(date: date_type = Query(...)):
+async def get_meals(date: date_type = Query(...), user: str = Depends(get_current_user)):
     async with async_session() as session:
         meals = await _auto_create_from_templates(session, "luis", date)
         await session.commit()
@@ -73,7 +74,7 @@ async def get_meals(date: date_type = Query(...)):
 
 
 @router.post("", response_model=MealResponse, status_code=201)
-async def create_meal(body: MealCreate):
+async def create_meal(body: MealCreate, user: str = Depends(get_current_user)):
     async with async_session() as session:
         meal = Meal(**body.model_dump())
         session.add(meal)
@@ -83,7 +84,7 @@ async def create_meal(body: MealCreate):
 
 
 @router.put("/{meal_id}", response_model=MealResponse)
-async def update_meal(meal_id: uuid.UUID, body: MealUpdate):
+async def update_meal(meal_id: uuid.UUID, body: MealUpdate, user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(select(Meal).where(Meal.id == meal_id))
         meal = result.scalars().first()
@@ -97,7 +98,7 @@ async def update_meal(meal_id: uuid.UUID, body: MealUpdate):
 
 
 @router.delete("/{meal_id}", status_code=204)
-async def delete_meal(meal_id: uuid.UUID):
+async def delete_meal(meal_id: uuid.UUID, user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(select(Meal).where(Meal.id == meal_id))
         meal = result.scalars().first()
@@ -108,7 +109,7 @@ async def delete_meal(meal_id: uuid.UUID):
 
 
 @router.post("/{meal_id}/done", response_model=MealResponse)
-async def mark_meal_done(meal_id: uuid.UUID):
+async def mark_meal_done(meal_id: uuid.UUID, user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(select(Meal).where(Meal.id == meal_id))
         meal = result.scalars().first()
@@ -126,7 +127,7 @@ templates_router = APIRouter(prefix="/meal-templates", tags=["meal-templates"])
 
 
 @templates_router.get("", response_model=list[MealTemplateResponse])
-async def list_meal_templates():
+async def list_meal_templates(user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(
             select(MealTemplate).where(MealTemplate.user_id == "luis").order_by(MealTemplate.slot)
@@ -136,7 +137,7 @@ async def list_meal_templates():
 
 
 @templates_router.put("/{slot}", response_model=MealTemplateResponse)
-async def update_meal_template(slot: int, body: MealTemplateUpdate):
+async def update_meal_template(slot: int, body: MealTemplateUpdate, user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(
             select(MealTemplate).where(MealTemplate.user_id == "luis", MealTemplate.slot == slot)

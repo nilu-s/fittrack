@@ -4,12 +4,13 @@ import uuid
 from datetime import date as date_type
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import async_session
 from app.models import DayEntry
+from app.routes.auth import get_current_user
 from app.schemas import (
     DayEntryBulkRequest,
     DayEntryBulkResponse,
@@ -38,7 +39,7 @@ async def _get_or_create(session, user_id: str, day: date_type) -> DayEntry:
 
 
 @router.get("", response_model=DayEntryResponse)
-async def get_or_create_day_entry(date: date_type = Query(...)):
+async def get_or_create_day_entry(date: date_type = Query(...), user: str = Depends(get_current_user)):
     async with async_session() as session:
         entry = await _get_or_create(session, "luis", date)
         await session.commit()
@@ -46,7 +47,7 @@ async def get_or_create_day_entry(date: date_type = Query(...)):
 
 
 @router.put("", response_model=DayEntryResponse)
-async def upsert_day_entry(body: DayEntryCreate):
+async def upsert_day_entry(body: DayEntryCreate, user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(
             select(DayEntry).where(DayEntry.user_id == body.user_id, DayEntry.date == body.date)
@@ -64,7 +65,7 @@ async def upsert_day_entry(body: DayEntryCreate):
 
 
 @router.post("/bulk", response_model=DayEntryBulkResponse)
-async def get_bulk_day_entries(body: DayEntryBulkRequest):
+async def get_bulk_day_entries(body: DayEntryBulkRequest, user: str = Depends(get_current_user)):
     async with async_session() as session:
         entries: list[DayEntryResponse] = []
         for d in body.dates:

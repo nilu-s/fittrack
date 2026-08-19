@@ -1,60 +1,50 @@
 import { writable } from 'svelte/store';
 
 export const isAuthenticated = writable<boolean>(false);
+export const authEmail = writable<string | null>(null);
 
-const PIN_KEY = 'fittrack-pin-set';
-const AUTH_KEY = 'fittrack-authed';
+const API_BASE =
+  typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:8000/api'
+    : '/api';
 
-function hashPin(pin: string): string {
-  return btoa(`fittrack:${pin}`);
-}
-
-export function isPinSet(): boolean {
-  if (typeof localStorage === 'undefined') return false;
-  return localStorage.getItem(PIN_KEY) !== null;
-}
-
-export function setPin(pin: string): void {
-  if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(PIN_KEY, hashPin(pin));
-  sessionStorage.setItem(AUTH_KEY, 'true');
-  isAuthenticated.set(true);
-}
-
-export function verifyPin(pin: string): boolean {
-  if (typeof localStorage === 'undefined') return false;
-  const stored = localStorage.getItem(PIN_KEY);
-  if (!stored) return false;
-  return stored === hashPin(pin);
-}
-
-export function login(pin: string): boolean {
-  if (verifyPin(pin)) {
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem(AUTH_KEY, 'true');
+export async function checkAuth(): Promise<void> {
+  try {
+    const resp = await fetch(`${API_BASE}/auth/me`, {
+      credentials: 'include',
+    });
+    if (!resp.ok) {
+      isAuthenticated.set(false);
+      authEmail.set(null);
+      return;
     }
-    isAuthenticated.set(true);
-    return true;
+    const data = await resp.json();
+    if (data.authenticated) {
+      isAuthenticated.set(true);
+      authEmail.set(data.email);
+    } else {
+      isAuthenticated.set(false);
+      authEmail.set(null);
+    }
+  } catch {
+    isAuthenticated.set(false);
+    authEmail.set(null);
   }
-  return false;
 }
 
-export function logout(): void {
-  if (typeof sessionStorage !== 'undefined') {
-    sessionStorage.removeItem(AUTH_KEY);
+export async function logout(): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch {
+    // ignore network errors
   }
   isAuthenticated.set(false);
+  authEmail.set(null);
 }
 
-export function changePin(oldPin: string, newPin: string): boolean {
-  if (!verifyPin(oldPin)) return false;
-  setPin(newPin);
-  return true;
-}
-
-export function initAuth(): void {
-  if (typeof localStorage === 'undefined' || typeof sessionStorage === 'undefined') return;
-  const pinSet = localStorage.getItem(PIN_KEY) !== null;
-  const authed = sessionStorage.getItem(AUTH_KEY) === 'true';
-  isAuthenticated.set(!pinSet || authed);
+export function googleLogin(): void {
+  window.location.href = `${API_BASE}/auth/google/login`;
 }

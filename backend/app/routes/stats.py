@@ -4,11 +4,12 @@ from datetime import date as date_type, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 
 from app.database import async_session
 from app.models import DayEntry, Meal, Todo
+from app.routes.auth import get_current_user
 from app.schemas import TrendPoint, TrendResponse, WeekSummary
 
 router = APIRouter(prefix="/stats", tags=["stats"])
@@ -17,7 +18,7 @@ USER_ID = "luis"
 
 
 @router.get("/week", response_model=WeekSummary)
-async def week_summary(date: Optional[date_type] = Query(None)):
+async def week_summary(date: Optional[date_type] = Query(None), user: str = Depends(get_current_user)):
     """Summary for the week containing `date` (defaults to today)."""
     target = date or date_type.today()
     # Monday of that week
@@ -86,6 +87,7 @@ async def week_summary(date: Optional[date_type] = Query(None)):
 async def trend(
     metric: str = Query(..., description="weight | kcal | steps | sleep_hours"),
     days: int = Query(30, ge=1, le=365),
+    user: str = Depends(get_current_user),
 ):
     """Trend data as array of {date, value}."""
     end = date_type.today()

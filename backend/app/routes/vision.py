@@ -5,7 +5,9 @@ This module exists so the vision endpoint can be extended independently
 """
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from app.routes.auth import get_current_user
 
 router = APIRouter(tags=["vision"])
 

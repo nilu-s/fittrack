@@ -7,11 +7,12 @@ import uuid
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from app.config import settings
 from app.database import async_session
 from app.models import Photo
+from app.routes.auth import get_current_user
 from app.schemas import PhotoAnalysisResponse
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/photos", tags=["photos"])
 
 
 @router.post("/analyze", response_model=PhotoAnalysisResponse)
-async def analyze_photo(file: UploadFile = File(...)):
+async def analyze_photo(file: UploadFile = File(...), user: str = Depends(get_current_user)):
     """Upload a food photo → save → call Ollama Vision → return analysis."""
     # Read file content
     contents = await file.read()
