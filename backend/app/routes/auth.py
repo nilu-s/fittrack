@@ -15,6 +15,8 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+# Separate router for /google/* paths (matching Google Console redirect URI)
+google_router = APIRouter(prefix="/google", tags=["auth"])
 
 # --- Google OAuth2 Configuration ---
 
@@ -41,9 +43,8 @@ async def google_login(request: Request):
     if not settings.GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID not configured")
 
-    # Determine redirect URI from request (use the configured redirect_uris)
     # The redirect URI must match what's in Google Cloud Console
-    redirect_uri = f"https://fittrack.49.12.225.84.sslip.io/api/auth/google/callback"
+    redirect_uri = f"https://fittrack.49.12.225.84.sslip.io/api/google/callback"
 
     state = secrets.token_urlsafe(32)
     _state_store[state] = "pending"
@@ -62,7 +63,7 @@ async def google_login(request: Request):
     return RedirectResponse(url=auth_url)
 
 
-@router.get("/google/callback")
+@google_router.get("/callback")
 async def google_callback(request: Request):
     """Handle OAuth callback — exchange code for tokens."""
     code = request.query_params.get("code")
@@ -89,7 +90,7 @@ async def google_callback(request: Request):
         )
     _state_store.pop(state, None)
 
-    redirect_uri = f"https://fittrack.49.12.225.84.sslip.io/api/auth/google/callback"
+    redirect_uri = f"https://fittrack.49.12.225.84.sslip.io/api/google/callback"
 
     # Exchange authorization code for tokens
     async with httpx.AsyncClient() as client:

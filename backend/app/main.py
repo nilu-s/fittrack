@@ -42,7 +42,7 @@ async def health():
 
 
 # --- Register routers ---
-from app.routes.auth import router as auth_router
+from app.routes.auth import router as auth_router, google_router as auth_google_router
 from app.routes.day_entries import router as day_entries_router
 from app.routes.meals import router as meals_router, templates_router as meal_templates_router
 from app.routes.photos import router as photos_router
@@ -53,6 +53,7 @@ from app.routes.training import router as training_router
 from app.routes.vision import router as vision_router
 
 app.include_router(auth_router, prefix="/api")
+app.include_router(auth_google_router, prefix="/api")
 app.include_router(day_entries_router, prefix="/api")
 app.include_router(meals_router, prefix="/api")
 app.include_router(meal_templates_router, prefix="/api")
