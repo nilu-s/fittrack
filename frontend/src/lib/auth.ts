@@ -27,6 +27,7 @@ export async function checkAuth(): Promise<void> {
       authEmail.set(null);
     }
   } catch {
+    // Network/SSL error — assume not authenticated, show login
     isAuthenticated.set(false);
     authEmail.set(null);
   }

@@ -6,7 +6,10 @@
   let loading = true;
 
   onMount(async () => {
-    await checkAuth();
+    // Race checkAuth against a 3s timeout — if it hangs, show login anyway
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
+    await Promise.race([checkAuth(), timeout]);
+
     if ($isAuthenticated) {
       goto('/');
       return;

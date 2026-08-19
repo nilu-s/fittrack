@@ -90,7 +90,9 @@
   }
 
   onMount(async () => {
-    await checkAuth();
+    // Race checkAuth against a 3s timeout
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
+    await Promise.race([checkAuth(), timeout]);
     authChecked = true;
 
     // Auth gate: redirect to login if not authenticated and not on /login
