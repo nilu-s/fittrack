@@ -8,8 +8,18 @@
   let templates: any[] = [];
   let googleFitConnected = false;
   let googleCalConnected = false;
+  let googleConnecting = false;
 
   $: goals = $dailyGoals;
+
+  function connectGoogle() {
+    // Redirect to Google OAuth login
+    googleConnecting = true;
+    const apiBase = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+      ? 'http://localhost:8000/api'
+      : 'https://fittrack.49.12.225.84.sslip.io/api';
+    window.location.href = `${apiBase}/auth/google/login`;
+  }
 
   function goBack() {
     if (typeof window !== 'undefined') {
@@ -45,6 +55,24 @@
   }
 
   onMount(async () => {
+    // Check if we just connected successfully
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('google_connected') === 'true') {
+        googleFitConnected = true;
+        googleCalConnected = true;
+      }
+    }
+
+    // Check Google connection status from API
+    try {
+      const resp = await fetch(`${apiBaseURL}/auth/google/status`);
+      const data = await resp.json();
+      if (data.has_credentials) {
+        // Credentials are configured — show connect button
+      }
+    } catch {}
+
     if (typeof localStorage !== 'undefined') {
       const saved = localStorage.getItem('fittrack-goals');
       if (saved) {
@@ -62,6 +90,10 @@
       // graceful
     }
   });
+
+  const apiBaseURL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:8000/api'
+    : 'https://fittrack.49.12.225.84.sslip.io/api';
 </script>
 
 <svelte:head>
@@ -141,7 +173,9 @@
             {googleFitConnected ? '✓ Verbunden' : '○ Nicht verbunden'}
           </span>
         </div>
-        <button class="btn">{googleFitConnected ? 'Trennen' : 'Verbinden'}</button>
+        <button class="btn" onclick={connectGoogle} disabled={googleConnecting}>
+          {googleConnecting ? '...' : (googleFitConnected ? 'Trennen' : 'Verbinden')}
+        </button>
       </div>
       <div class="integration-row">
         <span class="int-icon">📅</span>
@@ -151,7 +185,9 @@
             {googleCalConnected ? '✓ Verbunden' : '○ Nicht verbunden'}
           </span>
         </div>
-        <button class="btn">{googleCalConnected ? 'Trennen' : 'Verbinden'}</button>
+        <button class="btn" onclick={connectGoogle} disabled={googleConnecting}>
+          {googleConnecting ? '...' : (googleCalConnected ? 'Trennen' : 'Verbinden')}
+        </button>
       </div>
     </div>
   </section>
