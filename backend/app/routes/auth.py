@@ -36,8 +36,32 @@ GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 
-# In-memory state store (single-user, sufficient — only used for CSRF during OAuth flow)
-_state_store: dict[str, str] = {}
+import hashlib
+import hmac
+
+# Stateless HMAC-signed state (no in-memory storage needed — survives container restarts)
+def _create_state() -> str:
+    """Create a self-verifying state token: random nonce + HMAC signature."""
+    nonce = secrets.token_urlsafe(16)
+    sig = hmac.new(
+        settings.FITTRACK_JWT_SECRET.encode(),
+        nonce.encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"{nonce}.{sig}"
+
+def _verify_state(state: str) -> bool:
+    """Verify a state token's HMAC signature."""
+    try:
+        nonce, sig = state.split(".", 1)
+        expected = hmac.new(
+            settings.FITTRACK_JWT_SECRET.encode(),
+            nonce.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        return hmac.compare_digest(sig, expected)
+    except Exception:
+        return False
 
 
 # --- JWT session helpers ---
@@ -143,8 +167,7 @@ async def google_login(request: Request):
     # The redirect URI must match what's in Google Cloud Console
     redirect_uri = f"https://fittrack.49.12.225.84.sslip.io/api/google/callback"
 
-    state = secrets.token_urlsafe(32)
-    _state_store[state] = "pending"
+    state = _create_state()
 
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
@@ -179,13 +202,12 @@ async def google_callback(request: Request):
             content={"detail": "Missing code or state parameter"},
         )
 
-    # Verify state
-    if state not in _state_store:
+    # Verify state (HMAC-signed, stateless — survives container restarts)
+    if not _verify_state(state):
         return JSONResponse(
             status_code=400,
             content={"detail": "Invalid state parameter"},
         )
-    _state_store.pop(state, None)
 
     redirect_uri = f"https://fittrack.49.12.225.84.sslip.io/api/google/callback"
 
