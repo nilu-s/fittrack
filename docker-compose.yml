@@ -28,6 +28,7 @@ services:
       - fittrack-db
     networks:
       - fittrack-net
+      - worldweave_default
     restart: unless-stopped
 
   fittrack-web:
@@ -36,6 +37,7 @@ services:
       - fittrack-api
     networks:
       - fittrack-net
+      - worldweave_default
     restart: unless-stopped
 
 volumes:
@@ -44,3 +46,5 @@ volumes:
 networks:
   fittrack-net:
     driver: bridge
+  worldweave_default:
+    external: true

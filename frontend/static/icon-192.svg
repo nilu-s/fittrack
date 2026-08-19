@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="32" fill="#1a1a1a"/>
+  <path d="M48 96 L72 72 L96 120 L120 48 L144 96" stroke="#22c55e" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <text x="96" y="168" font-family="-apple-system, sans-serif" font-size="18" fill="#e0e0e0" text-anchor="middle">FitTrack</text>
+</svg>
