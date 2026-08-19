@@ -21,19 +21,19 @@ export interface DayEntry {
 }
 
 export interface Meal {
-  id?: number;
-  day_entry_id?: number;
+  id?: string;
+  user_id?: string;
   date: string; // YYYY-MM-DD
-  meal_slot: string; // breakfast, lunch, dinner, snack
+  meal_slot: number; // 1=breakfast, 2=lunch, 3=dinner, 4=snack
   name?: string;
-  time?: string; // HH:MM
-  kcal?: number;
-  protein?: number;
-  carbs?: number;
-  fat?: number;
+  default_time?: string; // HH:MM:SS
+  kcal?: string | number;
+  protein_g?: string | number;
+  carbs_g?: string | number;
+  fat_g?: string | number;
+  is_standard?: boolean;
   is_done?: boolean;
   photo_url?: string | null;
-  default_time?: string;
   updated_at?: string;
 }
 
@@ -43,7 +43,7 @@ export interface Todo {
   title: string;
   description?: string;
   status: 'open' | 'done';
-  priority: 'low' | 'medium' | 'high';
+  priority: number; // 1=low, 2=medium, 3=high
   category?: string;
   due_date?: string | null;
   due_time?: string | null;

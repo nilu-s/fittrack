@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, text
 
 from app.database import Base, async_session, engine
-from app.models import MealTemplate  # noqa: F401  (ensure models registered)
+from app.models import GoogleToken, MealTemplate  # noqa: F401  (ensure models registered)
 from app.seed import seed_default_data
 
 logger = logging.getLogger(__name__)

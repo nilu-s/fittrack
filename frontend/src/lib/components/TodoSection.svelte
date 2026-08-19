@@ -32,8 +32,7 @@
 
     // Sort
     if (sort === 'priority') {
-      const priOrder = { high: 0, medium: 1, low: 2 };
-      result.sort((a, b) => (priOrder[a.priority] ?? 3) - (priOrder[b.priority] ?? 3));
+      result.sort((a, b) => (b.priority ?? 2) - (a.priority ?? 2));
     } else if (sort === 'due') {
       result.sort((a, b) => {
         const ad = a.due_date ?? '9999';
@@ -88,10 +87,10 @@
     if (!title) return;
     try {
       const newTodo = await api.createTodo({
-        date: currentDate,
+        due_date: currentDate,
         title,
         status: 'open',
-        priority: 'medium',
+        priority: 2,
         source: 'manual',
       });
       if (newTodo) {

@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-import base64
-import json
 import logging
 import secrets
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
+from sqlalchemy import delete, select
 
 from app.config import settings
+from app.database import async_session
+from app.models import GoogleToken
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +35,62 @@ GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 
-# In-memory state store (single-user, sufficient)
+# In-memory state store (single-user, sufficient — only used for CSRF during OAuth flow)
 _state_store: dict[str, str] = {}
+
+
+# --- Token refresh helpers ---
+
+
+async def refresh_access_token(refresh_token: str) -> dict | None:
+    """Refresh the Google access token using the refresh token."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            GOOGLE_TOKEN_URL,
+            data={
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "refresh_token": refresh_token,
+                "grant_type": "refresh_token",
+            },
+            timeout=30,
+        )
+    if resp.status_code == 200:
+        return resp.json()
+    logger.error(f"Token refresh failed: {resp.text}")
+    return None
+
+
+async def get_valid_access_token(session) -> str | None:
+    """Get a valid access token for user_id='luis', refreshing if necessary.
+
+    Returns the access_token string, or None if no token is stored / refresh fails.
+    """
+    result = await session.execute(
+        select(GoogleToken).where(GoogleToken.user_id == "luis")
+    )
+    token_row = result.scalar_one_or_none()
+    if not token_row or not token_row.refresh_token:
+        return None
+
+    now = datetime.now(timezone.utc)
+    # Refresh if expired or within 5 minutes of expiry
+    if token_row.expires_at and token_row.expires_at > now + timedelta(minutes=5):
+        return token_row.access_token
+
+    refreshed = await refresh_access_token(token_row.refresh_token)
+    if not refreshed:
+        return None
+
+    new_access = refreshed.get("access_token")
+    new_expires_in = refreshed.get("expires_in", 3600)
+    token_row.access_token = new_access
+    token_row.expires_at = datetime.now(timezone.utc) + timedelta(seconds=new_expires_in)
+    await session.commit()
+    return new_access
+
+
+# --- Routes ---
 
 
 @router.get("/google/login")
@@ -65,7 +121,7 @@ async def google_login(request: Request):
 
 @google_router.get("/callback")
 async def google_callback(request: Request):
-    """Handle OAuth callback — exchange code for tokens."""
+    """Handle OAuth callback — exchange code for tokens and persist to DB."""
     code = request.query_params.get("code")
     state = request.query_params.get("state")
     error = request.query_params.get("error")
@@ -117,6 +173,8 @@ async def google_callback(request: Request):
     access_token = token_data.get("access_token")
     refresh_token = token_data.get("refresh_token")
     expires_in = token_data.get("expires_in", 3600)
+    token_type = token_data.get("token_type", "Bearer")
+    scope = token_data.get("scope", " ".join(SCOPES))
 
     if not access_token:
         return JSONResponse(
@@ -149,18 +207,38 @@ async def google_callback(request: Request):
             content={"detail": f"Email {email} not allowed"},
         )
 
-    # Store tokens (in-memory for now — single user)
-    # In production, store in DB with refresh_token for background sync
-    _token_store = {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "expires_in": expires_in,
-        "email": email,
-        "name": user_info.get("name", ""),
-        "picture": user_info.get("picture", ""),
-    }
+    # Persist tokens to DB (upsert for user_id='luis')
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
-    logger.info(f"Google OAuth success for {email}")
+    async with async_session() as session:
+        result = await session.execute(
+            select(GoogleToken).where(GoogleToken.user_id == "luis")
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            existing.email = email
+            existing.access_token = access_token
+            if refresh_token:
+                existing.refresh_token = refresh_token
+            existing.token_type = token_type
+            existing.expires_at = expires_at
+            existing.scope = scope
+        else:
+            new_token = GoogleToken(
+                user_id="luis",
+                email=email,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                token_type=token_type,
+                expires_at=expires_at,
+                scope=scope,
+            )
+            session.add(new_token)
+
+        await session.commit()
+
+    logger.info(f"Google OAuth success for {email} — tokens persisted to DB")
 
     # Redirect to settings page with success indicator
     return RedirectResponse(
@@ -172,25 +250,43 @@ async def google_callback(request: Request):
 @router.get("/me")
 async def auth_me():
     """Return current auth status."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(GoogleToken).where(GoogleToken.user_id == "luis")
+        )
+        token_row = result.scalar_one_or_none()
+
+    connected = token_row is not None and bool(token_row.access_token)
     return {
-        "authenticated": False,
-        "google_connected": False,
-        "email": None,
-        "detail": "Auth status endpoint — OAuth tokens stored in-memory",
+        "authenticated": connected,
+        "google_connected": connected,
+        "email": token_row.email if token_row else None,
     }
 
 
 @router.get("/google/status")
 async def google_status():
-    """Check if Google is connected."""
+    """Check if Google is connected (valid token in DB)."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(GoogleToken).where(GoogleToken.user_id == "luis")
+        )
+        token_row = result.scalar_one_or_none()
+
+    connected = token_row is not None and bool(token_row.access_token)
     return {
-        "connected": False,
+        "connected": connected,
         "has_credentials": bool(settings.GOOGLE_CLIENT_ID),
-        "detail": "Google OAuth status — tokens stored in-memory",
+        "email": token_row.email if token_row else None,
     }
 
 
 @router.post("/logout")
 async def logout():
-    """Logout — clear tokens."""
+    """Logout — delete stored Google token for user_id='luis'."""
+    async with async_session() as session:
+        await session.execute(
+            delete(GoogleToken).where(GoogleToken.user_id == "luis")
+        )
+        await session.commit()
     return {"detail": "Logged out"}

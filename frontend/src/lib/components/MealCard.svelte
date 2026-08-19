@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import PillBadge from './PillBadge.svelte';
+  import { api } from '$lib/api';
   import type { Meal } from '$lib/types';
 
   export let meal: Meal;
@@ -14,6 +15,8 @@
   let editCarbs = '';
   let editFat = '';
   let lastTap = 0;
+  let photoInput: HTMLInputElement;
+  let photoLoading = false;
 
   function handleTap() {
     const now = Date.now();
@@ -31,9 +34,9 @@
           if (expanded) {
             editName = meal.name ?? '';
             editKcal = String(meal.kcal ?? '');
-            editProtein = String(meal.protein ?? '');
-            editCarbs = String(meal.carbs ?? '');
-            editFat = String(meal.fat ?? '');
+            editProtein = String(meal.protein_g ?? '');
+            editCarbs = String(meal.carbs_g ?? '');
+            editFat = String(meal.fat_g ?? '');
           }
         }
       }, 320);
@@ -46,27 +49,51 @@
       data: {
         name: editName,
         kcal: parseFloat(editKcal) || 0,
-        protein: parseFloat(editProtein) || 0,
-        carbs: parseFloat(editCarbs) || 0,
-        fat: parseFloat(editFat) || 0,
+        protein_g: parseFloat(editProtein) || 0,
+        carbs_g: parseFloat(editCarbs) || 0,
+        fat_g: parseFloat(editFat) || 0,
       },
     });
     expanded = false;
   }
 
-  function handlePhoto() {
-    dispatch('photo', meal.id);
+  function triggerPhoto() {
+    photoInput?.click();
   }
+
+  async function onPhotoSelected(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    photoLoading = true;
+    try {
+      const result = await api.analyzePhoto(file, meal.id);
+      dispatch('photo', { id: meal.id, file, result });
+    } catch {
+      // graceful
+    } finally {
+      photoLoading = false;
+      input.value = '';
+    }
+  }
+
+  const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Abend', 4: 'Snack' };
+  $: slotName = SLOT_NAMES[meal.meal_slot] ?? String(meal.meal_slot);
+  $: displayTime = meal.default_time ? meal.default_time.slice(0, 5) : '';
+  $: kcalNum = Number(meal.kcal) || 0;
+  $: proteinNum = Number(meal.protein_g) || 0;
+  $: carbsNum = Number(meal.carbs_g) || 0;
+  $: fatNum = Number(meal.fat_g) || 0;
 </script>
 
-<div class="meal-card tap-area" class:done={meal.is_done} class:expanded onclick={handleTap}>
+<div class="meal-card tap-area" class:done={meal.is_done} class:expanded={expanded} onclick={handleTap}>
   <div class="meal-header">
     {#if meal.is_done}
       <span class="done-check">✓</span>
     {/if}
-    <span class="meal-name">{meal.name || meal.meal_slot}</span>
-    {#if meal.time}
-      <span class="meal-time">{meal.time}</span>
+    <span class="meal-name">{meal.name || slotName}</span>
+    {#if displayTime}
+      <span class="meal-time">{displayTime}</span>
     {/if}
   </div>
 
@@ -77,17 +104,17 @@
   {/if}
 
   <div class="meal-pills">
-    {#if meal.kcal != null}
-      <PillBadge value={meal.kcal} unit="kcal" color="#f59e0b" />
+    {#if kcalNum > 0}
+      <PillBadge value={kcalNum} unit="kcal" color="#f59e0b" />
     {/if}
-    {#if meal.protein != null && meal.protein > 0}
-      <PillBadge value={meal.protein} unit="g" color="#3b82f6" />
+    {#if proteinNum > 0}
+      <PillBadge value={proteinNum} unit="g" color="#3b82f6" />
     {/if}
-    {#if meal.carbs != null && meal.carbs > 0}
-      <PillBadge value={meal.carbs} unit="g" color="#8b5cf6" />
+    {#if carbsNum > 0}
+      <PillBadge value={carbsNum} unit="g" color="#8b5cf6" />
     {/if}
-    {#if meal.fat != null && meal.fat > 0}
-      <PillBadge value={meal.fat} unit="g" color="#ec4899" />
+    {#if fatNum > 0}
+      <PillBadge value={fatNum} unit="g" color="#ec4899" />
     {/if}
   </div>
 
@@ -102,10 +129,21 @@
       </div>
       <div class="edit-actions">
         <button class="btn" onclick={saveEdit}>Speichern</button>
-        <button class="btn btn-photo" onclick={handlePhoto}>📷 Foto</button>
+        <button class="btn btn-photo" onclick={triggerPhoto} disabled={photoLoading}>
+          {photoLoading ? '⏳ …' : '📷 Foto'}
+        </button>
       </div>
     </div>
   {/if}
+
+  <input
+    bind:this={photoInput}
+    type="file"
+    accept="image/*"
+    capture="environment"
+    class="hidden-input"
+    onchange={onPhotoSelected}
+  />
 </div>
 
 <style>
@@ -209,5 +247,9 @@
 
   .btn-photo {
     background: #333;
+  }
+
+  .hidden-input {
+    display: none;
   }
 </style>

@@ -52,12 +52,12 @@ class ApiClient {
 
   // Day Entry
   async getDayEntry(date: string): Promise<DayEntry | null> {
-    return this.request<DayEntry>(`/day-entries/${date}`);
+    return this.request<DayEntry>(`/day-entries?date=${date}`);
   }
 
   async upsertDayEntry(data: Partial<DayEntry>): Promise<DayEntry | null> {
     return this.request<DayEntry>(`/day-entries`, {
-      method: 'POST',
+      method: 'PUT',
       body: JSON.stringify(data),
     });
   }
@@ -74,20 +74,20 @@ class ApiClient {
     });
   }
 
-  async updateMeal(id: number, data: Partial<Meal>): Promise<Meal | null> {
+  async updateMeal(id: string | number, data: Partial<Meal>): Promise<Meal | null> {
     return this.request<Meal>(`/meals/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  async deleteMeal(id: number): Promise<boolean> {
+  async deleteMeal(id: string | number): Promise<boolean> {
     await this.request(`/meals/${id}`, { method: 'DELETE' });
     return true;
   }
 
-  async markMealDone(id: number): Promise<Meal | null> {
-    return this.request<Meal>(`/meals/${id}/done`, { method: 'PATCH' });
+  async markMealDone(id: string | number): Promise<Meal | null> {
+    return this.request<Meal>(`/meals/${id}/done`, { method: 'POST' });
   }
 
   async getMealTemplates(): Promise<MealTemplate[]> {
@@ -124,8 +124,8 @@ class ApiClient {
     return true;
   }
 
-  async markTodoDone(id: number): Promise<Todo | null> {
-    return this.request<Todo>(`/todos/${id}/done`, { method: 'PATCH' });
+  async markTodoDone(id: number | string): Promise<Todo | null> {
+    return this.request<Todo>(`/todos/${id}/done`, { method: 'POST' });
   }
 
   // Training
@@ -159,6 +159,37 @@ class ApiClient {
 
   async getStatsTrend(metric: string, days: number): Promise<TrendData | null> {
     return this.request<TrendData>(`/stats/trend?metric=${encodeURIComponent(metric)}&days=${days}`);
+  }
+
+  // Photos
+  async analyzePhoto(file: File, mealId?: string): Promise<any | null> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (mealId) {
+      formData.append('meal_id', mealId);
+    }
+    try {
+      const url = `${this.baseUrl}/photos/analyze`;
+      const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        console.warn(`API error: ${response.status} ${response.statusText} for /photos/analyze`);
+        return null;
+      }
+      const text = await response.text();
+      if (!text) return null;
+      return JSON.parse(text);
+    } catch (err) {
+      console.warn('API request failed for /photos/analyze:', err);
+      return null;
+    }
+  }
+
+  // Google Auth
+  async getGoogleStatus(): Promise<any | null> {
+    return this.request<any>(`/auth/google/status`);
   }
 
   // Sync

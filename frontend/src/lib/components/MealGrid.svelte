@@ -10,17 +10,16 @@
   export let currentDate: string;
 
   $: sortedMeals = [...(meals ?? [])].sort((a, b) => {
-    const order = ['breakfast', 'lunch', 'dinner', 'snack'];
-    return order.indexOf(a.meal_slot) - order.indexOf(b.meal_slot);
+    return (a.meal_slot ?? 99) - (b.meal_slot ?? 99);
   });
 
-  $: totalKcal = (meals ?? []).reduce((s, m) => s + (m.kcal ?? 0), 0);
-  $: totalP = (meals ?? []).reduce((s, m) => s + (m.protein ?? 0), 0);
-  $: totalKH = (meals ?? []).reduce((s, m) => s + (m.carbs ?? 0), 0);
-  $: totalF = (meals ?? []).reduce((s, m) => s + (m.fat ?? 0), 0);
+  $: totalKcal = (meals ?? []).reduce((s, m) => s + (Number(m.kcal) || 0), 0);
+  $: totalP = (meals ?? []).reduce((s, m) => s + (Number(m.protein_g) || 0), 0);
+  $: totalKH = (meals ?? []).reduce((s, m) => s + (Number(m.carbs_g) || 0), 0);
+  $: totalF = (meals ?? []).reduce((s, m) => s + (Number(m.fat_g) || 0), 0);
   $: goals = $dailyGoals;
 
-  async function markDone(id: number) {
+  async function markDone(id: string | number) {
     if (!id) return;
     try {
       await api.markMealDone(id);
@@ -41,9 +40,29 @@
     }
   }
 
-  async function handlePhoto(_id: number) {
-    // Photo upload - placeholder
+  async function handlePhoto(event: CustomEvent) {
+    const { id, file } = event.detail;
+    if (!file) return;
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
+    try {
+      const result = await api.analyzePhoto(file, id);
+      if (result) {
+        // Update meal with analysis result
+        const updated: Partial<Meal> = {
+          name: result.name ?? result.meal_name,
+          kcal: result.kcal,
+          protein_g: result.protein_g ?? result.protein,
+          carbs_g: result.carbs_g ?? result.carbs,
+          fat_g: result.fat_g ?? result.fat,
+        };
+        if (id) {
+          await api.updateMeal(id, updated);
+          meals = meals.map((m) => (m.id === id ? { ...m, ...updated } : m));
+        }
+      }
+    } catch {
+      // graceful
+    }
   }
 </script>
 
@@ -56,7 +75,7 @@
   <div class="card-body">
     <div class="meal-grid">
       {#each sortedMeals as meal (meal.id ?? meal.meal_slot)}
-        <MealCard {meal} ondon={(e) => markDone(e.detail)} onupdate={updateMeal} onphoto={(e) => handlePhoto(e.detail)} />
+        <MealCard {meal} ondon={(e) => markDone(e.detail)} onupdate={updateMeal} onphoto={handlePhoto} />
       {:else}
         <div class="no-meals muted text-sm">Keine Mahlzeiten</div>
       {/each}

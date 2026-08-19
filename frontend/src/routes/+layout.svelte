@@ -1,10 +1,13 @@
 <script lang="ts">
   import '../app.css';
-  import { onMount } from 'svelte';
+  import { onMount, afterUpdate } from 'svelte';
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import { currentDate, dayData, onlineStatus } from '$lib/stores';
   import { initSync } from '$lib/sync';
   import { api } from '$lib/api';
   import { db } from '$lib/db';
+  import { isAuthenticated, initAuth, isPinSet, logout } from '$lib/auth';
   import type { DayData, DayEntry, Meal, Todo, TrainingSet, TrainingRotation } from '$lib/types';
 
   let syncIcon = '✓';
@@ -86,6 +89,18 @@
   }
 
   onMount(() => {
+    initAuth();
+
+    // Auth gate: redirect to login if not authenticated and PIN is set
+    const checkAuth = () => {
+      const path = $page?.url?.pathname ?? '';
+      if (path === '/login') return;
+      if (isPinSet() && !$isAuthenticated) {
+        goto('/login');
+      }
+    };
+    checkAuth();
+
     // Register service worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch((e) => {
@@ -107,6 +122,20 @@
       window.removeEventListener('offline', onOffline);
     };
   });
+
+  // Re-check auth when page or auth state changes
+  afterUpdate(() => {
+    const path = $page?.url?.pathname ?? '';
+    if (path === '/login') return;
+    if (isPinSet() && !$isAuthenticated) {
+      goto('/login');
+    }
+  });
+
+  function handleLogout() {
+    logout();
+    goto('/login');
+  }
 </script>
 
 <div class="app-shell">
@@ -118,6 +147,10 @@
       <span class="date-display">{dateDisplay}</span>
     </div>
     <div class="header-right">
+      <a href="/settings" class="header-link" title="Einstellungen">⚙️</a>
+      {#if isPinSet()}
+        <button class="header-link" onclick={handleLogout} title="Logout">🔒</button>
+      {/if}
       <span class="sync-icon {syncClass}">{syncIcon}</span>
     </div>
   </header>
@@ -158,8 +191,21 @@
 
   .header-right {
     flex: 0 0 auto;
-    width: 24px;
-    text-align: right;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .header-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 1rem;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
   }
 
   .app-title {
