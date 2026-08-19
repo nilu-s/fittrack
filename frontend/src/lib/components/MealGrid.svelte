@@ -56,7 +56,7 @@
   <div class="card-body">
     <div class="meal-grid">
       {#each sortedMeals as meal (meal.id ?? meal.meal_slot)}
-        <MealCard {meal} on:done={(e) => markDone(e.detail)} on:update={updateMeal} on:photo={(e) => handlePhoto(e.detail)} />
+        <MealCard {meal} ondon={(e) => markDone(e.detail)} onupdate={updateMeal} onphoto={(e) => handlePhoto(e.detail)} />
       {:else}
         <div class="no-meals muted text-sm">Keine Mahlzeiten</div>
       {/each}

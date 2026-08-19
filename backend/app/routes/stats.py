@@ -17,9 +17,9 @@ USER_ID = "luis"
 
 
 @router.get("/week", response_model=WeekSummary)
-async def week_summary(date: Optional[date] = Query(None)):
+async def week_summary(date: Optional[date_type] = Query(None)):
     """Summary for the week containing `date` (defaults to today)."""
-    target = date or date.today()
+    target = date or date_type.today()
     # Monday of that week
     week_start = target - timedelta(days=target.weekday())
     week_end = week_start + timedelta(days=6)
@@ -88,7 +88,7 @@ async def trend(
     days: int = Query(30, ge=1, le=365),
 ):
     """Trend data as array of {date, value}."""
-    end = date.today()
+    end = date_type.today()
     start = end - timedelta(days=days - 1)
 
     async with async_session() as session:

@@ -63,21 +63,22 @@
 
 <div
   class="date-nav"
+  role="application"
   ontouchstart={onTouchStart}
   ontouchend={onTouchEnd}
 >
-  <button class="nav-btn" on:click={() => changeDate(-1)} aria-label="Vorheriger Tag">
+  <button class="nav-btn" onclick={() => changeDate(-1)} aria-label="Vorheriger Tag">
     ‹
   </button>
 
-  <div class="date-display" on:click={goToday}>
+  <button class="date-display" onclick={goToday} aria-label="Heute">
     <span class="date-label">{dateLabel}</span>
     {#if !isToday}
       <span class="today-link">Heute</span>
     {/if}
-  </div>
+  </button>
 
-  <button class="nav-btn" on:click={() => changeDate(1)} aria-label="Nächster Tag">
+  <button class="nav-btn" onclick={() => changeDate(1)} aria-label="Nächster Tag">
     ›
   </button>
 </div>

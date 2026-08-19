@@ -152,4 +152,5 @@ async def update_meal_template(slot: int, body: MealTemplateUpdate):
 
 
 # Attach templates_router to the main router so it's reachable under /api/meal-templates
-router.include_router(templates_router)
+# NOTE: templates_router is exported and included at the app level in main.py
+# to avoid nesting under /meals prefix.

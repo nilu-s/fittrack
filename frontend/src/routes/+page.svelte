@@ -39,6 +39,7 @@
 
 <div
   class="page"
+  role="application"
   ontouchstart={onTouchStart}
   ontouchend={onTouchEnd}
 >

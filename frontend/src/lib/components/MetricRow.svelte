@@ -62,12 +62,12 @@
       type="text"
       inputmode="decimal"
       bind:value={editValue}
-      on:blur={commitEdit}
-      on:keydown={handleKey}
+      onblur={commitEdit}
+      onkeydown={handleKey}
       use:focusInput
     />
   {:else}
-    <span class="metric-value tap-area" on:click={startEdit}>
+    <span class="metric-value tap-area" onclick={startEdit}>
       {value != null && value !== '' ? value : '—'}
       {#if unit && value != null && value !== ''}
         <span class="metric-unit">{unit}</span>
@@ -79,7 +79,7 @@
     <button
       class="check-btn"
       class:is-checked={checked}
-      on:click={onCheck}
+      onclick={onCheck}
       aria-label={checked ? 'Erledigt' : 'Als erledigt markieren'}
     >
       {checked ? '✓' : '○'}

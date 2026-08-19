@@ -59,7 +59,7 @@
   }
 </script>
 
-<div class="meal-card tap-area" class:done={meal.is_done} class:expanded on:click={handleTap}>
+<div class="meal-card tap-area" class:done={meal.is_done} class:expanded onclick={handleTap}>
   <div class="meal-header">
     {#if meal.is_done}
       <span class="done-check">✓</span>
@@ -92,7 +92,7 @@
   </div>
 
   {#if expanded}
-    <div class="meal-edit slide-down" on:click|stopPropagation>
+    <div class="meal-edit slide-down" onclick={(e) => e.stopPropagation()}>
       <input class="edit-input" placeholder="Name" bind:value={editName} />
       <div class="edit-grid">
         <input class="edit-input" type="number" placeholder="kcal" bind:value={editKcal} />
@@ -101,8 +101,8 @@
         <input class="edit-input" type="number" placeholder="F" bind:value={editFat} />
       </div>
       <div class="edit-actions">
-        <button class="btn" on:click={saveEdit}>Speichern</button>
-        <button class="btn btn-photo" on:click={handlePhoto}>📷 Foto</button>
+        <button class="btn" onclick={saveEdit}>Speichern</button>
+        <button class="btn btn-photo" onclick={handlePhoto}>📷 Foto</button>
       </div>
     </div>
   {/if}

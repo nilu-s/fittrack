@@ -88,8 +88,8 @@
         editable
         checkable
         checked={entry?.weight_done ?? false}
-        on:change={(e) => updateField('weight', e.detail)}
-        on:check={() => toggleCheck('weight')}
+        onchange={(e) => updateField('weight', e.detail)}
+        oncheck={() => toggleCheck('weight')}
       />
       <div class="spark-wrap">
         <Sparkline data={weightTrend} color="#3b82f6" height={24} width={70} fill={true} />
@@ -104,8 +104,8 @@
         value={entry?.steps ?? null}
         checkable
         checked={entry?.steps_done ?? false}
-        on:change={(e) => updateField('steps', e.detail)}
-        on:check={() => toggleCheck('steps')}
+        onchange={(e) => updateField('steps', e.detail)}
+        oncheck={() => toggleCheck('steps')}
       />
       <ProgressBar current={entry?.steps ?? 0} target={goals.steps} color="#666" />
     </div>
@@ -119,8 +119,8 @@
         unit="h"
         checkable
         checked={entry?.sleep_done ?? false}
-        on:change={(e) => updateField('sleep_hours', e.detail)}
-        on:check={() => toggleCheck('sleep')
+        onchange={(e) => updateField('sleep_hours', e.detail)}
+        oncheck={() => toggleCheck('sleep')
         }
       />
       <ProgressBar current={entry?.sleep_hours ?? 0} target={goals.sleepHours} color="#666" />
@@ -134,8 +134,8 @@
       unit="min"
       checkable
       checked={entry?.cardio_done ?? false}
-      on:change={(e) => updateField('cardio_minutes', e.detail)}
-      on:check={() => toggleCheck('cardio')}
+      onchange={(e) => updateField('cardio_minutes', e.detail)}
+      oncheck={() => toggleCheck('cardio')}
     />
 
     <!-- Training with karussell -->
@@ -146,11 +146,11 @@
         value={currentTrainingType}
         checkable
         checked={entry?.training_done ?? false}
-        on:check={() => toggleCheck('training')}
+        oncheck={() => toggleCheck('training')}
       />
       <div class="karussell">
-        <button class="karussell-btn" on:click={prevTraining}>◄</button>
-        <button class="karussell-btn" on:click={nextTraining}>►</button>
+        <button class="karussell-btn" onclick={prevTraining}>◄</button>
+        <button class="karussell-btn" onclick={nextTraining}>►</button>
       </div>
     </div>
 
@@ -158,7 +158,7 @@
     <div class="metric-row-custom">
       <span class="metric-icon">💊</span>
       <span class="metric-label">Kreatin</span>
-      <button class="toggle-btn" class:active={entry?.creatine ?? false} on:click={() => updateField('creatine', !entry?.creatine)}>
+      <button class="toggle-btn" class:active={entry?.creatine ?? false} onclick={() => updateField('creatine', !entry?.creatine)}>
         {entry?.creatine ? '✓ Eingenommen' : '○ Ausstehend'}
       </button>
     </div>
@@ -170,7 +170,7 @@
       value={entry?.belly_circumference ?? null}
       unit="cm"
       editable
-      on:change={(e) => updateField('belly_circumference', e.detail)}
+      onchange={(e) => updateField('belly_circumference', e.detail)}
     />
 
     <!-- Kcal sparkline -->
