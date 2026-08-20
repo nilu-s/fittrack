@@ -73,68 +73,27 @@ async def analyze_photo(
         session.add(photo)
         await session.commit()
 
-    # Call Ollama Vision
+    # Call vision proxy (GPT-5.5 via Codex) — one-step, handles food detection + JSON
     analysis: Optional[dict[str, Any]] = None
     error: Optional[str] = None
     try:
         b64_image = base64.b64encode(contents).decode("utf-8")
-        prompt = (
-            "You are a nutrition expert. Analyze this food photo. "
-            "Identify the dish and estimate nutritional values. "
-            "Respond ONLY with valid JSON in this exact format, no other text:\n"
-            '{"items": [{"name": "dish name", "kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}], '
-            '"total": {"kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}}'
-        )
+        proxy_url = settings.VISION_PROXY_URL
 
-        payload = {
-            "model": settings.OLLAMA_VISION_MODEL,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt,
-                    "images": [b64_image],
-                }
-            ],
-            "stream": False,
-        }
-
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(
-                f"{settings.OLLAMA_URL}/api/chat",
-                json=payload,
+                f"{proxy_url}/analyze",
+                json={"image_base64": b64_image},
             )
             resp.raise_for_status()
             data = resp.json()
-            # Extract the message content and parse JSON
-            content = data.get("message", {}).get("content", "")
-            # Try to extract JSON from the response
-            import json
-            try:
-                # The model might return JSON directly or wrapped in markdown
-                content = content.strip()
-                if content.startswith("```"):
-                    # Strip markdown code fences
-                    lines = content.split("\n")
-                    lines = lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
-                    content = "\n".join(lines)
-                analysis = json.loads(content)
-                assert analysis is not None and isinstance(analysis, dict), f"Invalid JSON: {type(analysis)}"
-                # Normalize: ensure items[] and total{} exist
-                if "items" not in analysis and "name" in analysis:
-                    # Model returned flat format → wrap it
-                    item = {k: analysis[k] for k in ("name", "kcal", "protein_g", "carbs_g", "fat_g") if k in analysis}
-                    analysis = {"items": [item], "total": {k: analysis.get(k, 0) for k in ("kcal", "protein_g", "carbs_g", "fat_g")}}
-                if "items" in analysis and "total" not in analysis:
-                    items = analysis["items"]
-                    analysis["total"] = {
-                        "kcal": sum(float(i.get("kcal", 0)) for i in items),
-                        "protein_g": sum(float(i.get("protein_g", 0)) for i in items),
-                        "carbs_g": sum(float(i.get("carbs_g", 0)) for i in items),
-                        "fat_g": sum(float(i.get("fat_g", 0)) for i in items),
-                    }
-            except (json.JSONDecodeError, IndexError):
-                error = f"Could not parse vision response: {content[:200]}"
-                logger.warning(error)
+
+            if data.get("not_food"):
+                error = "Kein Essen erkannt — Foto zeigt kein Gericht"
+            elif data.get("analysis"):
+                analysis = data["analysis"]
+            else:
+                error = data.get("error", "Unbekannter Fehler")
     except Exception as e:
         error = f"Vision API error: {e}"
         logger.exception("Vision API call failed")

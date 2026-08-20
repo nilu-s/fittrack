@@ -20,6 +20,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://fittrack:${FITTRACK_DB_PASSWORD}@fittrack-db:5432/fittrack
       OLLAMA_URL: http://ollama:11434
       OLLAMA_VISION_MODEL: moondream:1.8b
+      OLLAMA_TEXT_MODEL: kimi-k3:cloud
+      VISION_PROXY_URL: http://vision-proxy:8100
       PHOTO_DIR: /app/photos
       JWT_SECRET: ${FITTRACK_JWT_SECRET}
       FITTRACK_JWT_SECRET: ${FITTRACK_JWT_SECRET}
@@ -48,6 +50,17 @@ services:
     networks:
       - fittrack-net
       - worldweave_default
+    restart: unless-stopped
+
+  vision-proxy:
+    build: ./vision-proxy
+    environment:
+      TZ: Europe/Berlin
+      HERMES_AUTH_FILE: /auth/auth.json
+    volumes:
+      - /root/.hermes/auth.json:/auth/auth.json:ro
+    networks:
+      - fittrack-net
     restart: unless-stopped
 
 volumes:
