@@ -16,18 +16,24 @@
   const PRIORITY_COLORS: Record<number, string> = { 1: 'var(--text-faint)', 2: 'var(--amber)', 3: 'var(--red)' };
   $: priorityColor = PRIORITY_COLORS[todo.priority] ?? 'var(--text-faint)';
   $: isRoutine = todo.source === 'meal_routine' || todo.source === 'cardio';
+  $: isMealRoutine = todo.source === 'meal_routine';
   $: canEdit = !isRoutine && todo.source !== 'training';
+  $: canLongPress = canEdit || isMealRoutine;  // meals can be long-pressed to swap dish
 
   let longPressTimer: ReturnType<typeof setTimeout> | null = null;
   let longPressTriggered = false;
 
   function handleTouchStart() {
     longPressTriggered = false;
-    if (!canEdit) return;
+    if (!canLongPress) return;
     longPressTimer = setTimeout(() => {
       longPressTriggered = true;
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-      showActionSheet = true;
+      if (isMealRoutine) {
+        dispatch('editmeal', todo.id);
+      } else {
+        showActionSheet = true;
+      }
     }, 500);
   }
 
@@ -40,9 +46,13 @@
   }
 
   function handleContextMenu(e: MouseEvent) {
-    if (!canEdit) return;
+    if (!canLongPress) return;
     e.preventDefault();
-    showActionSheet = true;
+    if (isMealRoutine) {
+      dispatch('editmeal', todo.id);
+    } else {
+      showActionSheet = true;
+    }
   }
 
   function handleTap() {
