@@ -62,6 +62,7 @@
         currentDate={$currentDate}
         dayEntry={data.dayEntry}
         meals={data.meals}
+        trainingSuggestion={data.trainingSuggestion}
         ontrainingtoggle={(e) => {
           const updated = { ...data.dayEntry, training_done: e.detail };
           dayData.set({ ...data, dayEntry: updated });

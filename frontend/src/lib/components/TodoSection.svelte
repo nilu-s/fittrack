@@ -2,19 +2,20 @@
   import { createEventDispatcher } from 'svelte';
   import TodoItem from './TodoItem.svelte';
   import { api } from '$lib/api';
-  import type { Todo, DayEntry, Meal } from '$lib/types';
+  import type { Todo, DayEntry, Meal, TrainingSuggestion } from '$lib/types';
 
   export let todos: Todo[];
   export let currentDate: string;
   export let dayEntry: DayEntry | null = null;
   export let meals: Meal[] = [];
+  export let trainingSuggestion: TrainingSuggestion | null = null;
 
   const dispatch = createEventDispatcher();
 
   type FilterMode = 'all' | 'open' | 'done' | 'today';
   type SortMode = 'time' | 'priority' | 'due';
 
-  let filter: FilterMode = 'open';
+  let filter: FilterMode = 'all';
   let sort: SortMode = 'time';
   let categoryFilter: string = '';
   let quickAdd = '';
@@ -42,9 +43,9 @@
       });
     }
 
-    // Training as routine todo
+    // Training as routine todo — use dayEntry.training_type, fallback to rotation suggestion
     if (entry) {
-      const trainingType = entry.training_type ?? 'Training';
+      const trainingType = entry.training_type ?? trainingSuggestion?.training_type ?? 'Training';
       items.push({
         id: 'routine-training',
         title: trainingType,
