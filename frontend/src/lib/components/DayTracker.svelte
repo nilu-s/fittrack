@@ -6,6 +6,7 @@
   import { api } from '$lib/api';
   import { dailyGoals } from '$lib/stores';
   import type { DayData } from '$lib/types';
+  import { writable } from 'svelte/store';
 
   export let dayData: DayData;
   export let currentDate: string;
@@ -58,7 +59,7 @@
 
   // Training karussell
   let rotationIdx = 0;
-  let showDetail = false;
+  const showDetailStore = writable(false);
   let lastTrainingTap = 0;
   $: rotationTypes = dayData.nextTraining
     ? [dayData.nextTraining.training_type]
@@ -78,25 +79,13 @@
       training_done: true,
       training_type: currentTrainingType === '—' ? null : currentTrainingType,
     };
-    showDetail = false;
+    showDetailStore.set(false);
   }
 
   function handleTrainingRowClick(e: MouseEvent | TouchEvent) {
     const target = e.target as HTMLElement;
-    if (target.closest('button, input')) return;
-    const now = Date.now();
-    if (now - lastTrainingTap < 300) {
-      lastTrainingTap = 0;
-      toggleCheck('training');
-      return;
-    }
-    lastTrainingTap = now;
-    setTimeout(() => {
-      if (lastTrainingTap && Date.now() - lastTrainingTap >= 300) {
-        showDetail = !showDetail;
-        lastTrainingTap = 0;
-      }
-    }, 320);
+    if (target.closest('button, input, .check-circle')) return;
+    showDetailStore.update(v => !v);
   }
 
   $: currentTrainingType = rotationTypes[rotationIdx] ?? entry?.training_type ?? '—';
@@ -180,14 +169,15 @@
         <button class="karussell-btn" onclick={prevTraining}>◄</button>
         <button class="karussell-btn" onclick={nextTraining}>►</button>
       </div>
+      <button class="detail-btn" onclick={(e) => { e.stopPropagation(); showDetailStore.update(v => !v); }}>📋</button>
     </div>
 
-    {#if showDetail}
+    {#if $showDetailStore}
       <TrainingDetail
         training_type={currentTrainingType}
         date={currentDate}
-        on:complete={onTrainingComplete}
-        on:close={() => (showDetail = false)}
+        oncomplete={onTrainingComplete}
+        onclose={() => showDetailStore.set(false)}
       />
     {/if}
 
@@ -278,6 +268,22 @@
 
   .karussell-btn:active {
     background: #444;
+  }
+
+  .detail-btn {
+    background: none;
+    border: 1px solid var(--card-border, #3a3a3a);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    color: #999;
+    transition: all 0.15s;
+  }
+
+  .detail-btn:active {
+    transform: scale(0.95);
+    background: #333;
   }
 
   .metric-row-custom {

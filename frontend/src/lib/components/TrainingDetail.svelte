@@ -1,26 +1,22 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import { api } from '$lib/api';
   import type { Exercise, TrainingCompleteRequest } from '$lib/types';
 
   export let training_type: string;
   export let date: string;
+  export let oncomplete: (data: { date: string; training_type: string }) => void = () => {};
+  export let onclose: () => void = () => {};
 
-  const dispatch = createEventDispatcher();
-
-  let expanded = false;
   let exercises: Exercise[] = [];
-  let loading = false;
+  let loading = true;
   let currentIndex = 0;
   let error = '';
 
   // Per-exercise set data: { reps, weight_kg, rir, set_type }
   let setsByExercise: Record<string, { reps?: number | null; weight_kg?: number | null; rir?: number | null; set_type?: string }[]> = {};
 
-  $: open = expanded;
-  $: if (open && training_type) {
-    loadExercises();
-  }
+  // Auto-load on mount
+  $: if (training_type) loadExercises();
 
   async function loadExercises() {
     loading = true;
@@ -85,20 +81,12 @@
     try {
       const res = await api.completeTraining({ date, training_type, sets });
       if (res) {
-        dispatch('complete', { date, training_type });
-        expanded = false;
+        oncomplete({ date, training_type });
       } else {
         error = 'Training konnte nicht gespeichert werden.';
       }
     } catch (e) {
       error = 'Fehler beim Speichern.';
-    }
-  }
-
-  function toggle() {
-    expanded = !expanded;
-    if (!expanded) {
-      dispatch('close');
     }
   }
 
@@ -109,85 +97,83 @@
   }
 </script>
 
-{#if open}
-  <div class="training-detail slide-down">
-    <div class="detail-header">
-      <span class="detail-title">{training_type}</span>
-      <button class="close-btn" onclick={toggle} aria-label="Schliessen">✕</button>
+<div class="training-detail slide-down">
+  <div class="detail-header">
+    <span class="detail-title">{training_type}</span>
+    <button class="close-btn" onclick={onclose} aria-label="Schliessen">✕</button>
+  </div>
+
+  {#if loading}
+    <div class="loading muted text-sm">Lädt Übungen…</div>
+  {:else if exercises.length === 0}
+    <div class="empty muted text-sm">Keine Übungen für {training_type}.</div>
+  {:else}
+    {@const ex = exercises[currentIndex]}
+    {@const sets = setsByExercise[ex.exercise_name] ?? []}
+
+    <div class="karussell">
+      <button class="karussell-btn" onclick={prev} aria-label="Vorherige Übung">◄</button>
+      <span class="counter">{currentIndex + 1} / {exercises.length}</span>
+      <button class="karussell-btn" onclick={next} aria-label="Nächste Übung">►</button>
     </div>
 
-    {#if loading}
-      <div class="loading muted text-sm">Lädt Übungen…</div>
-    {:else if exercises.length === 0}
-      <div class="empty muted text-sm">Keine Übungen für {training_type}.</div>
-    {:else}
-      {@const ex = exercises[currentIndex]}
-      {@const sets = setsByExercise[ex.exercise_name] ?? []}
-
-      <div class="karussell">
-        <button class="karussell-btn" onclick={prev} aria-label="Vorherige Übung">◄</button>
-        <span class="counter">{currentIndex + 1} / {exercises.length}</span>
-        <button class="karussell-btn" onclick={next} aria-label="Nächste Übung">►</button>
+    <div class="exercise-card">
+      <div class="exercise-name">{ex.exercise_name}</div>
+      <div class="target-row muted text-sm">
+        <span>Sätze: <strong>{ex.target_sets}</strong></span>
+        <span>Reps: <strong>{formatReps(ex)}</strong></span>
+        <span>Gewicht: <strong>{ex.target_weight_kg != null ? ex.target_weight_kg + ' kg' : '—'}</strong></span>
+        <span>RIR: <strong>{ex.target_rir ?? '—'}</strong></span>
       </div>
 
-      <div class="exercise-card">
-        <div class="exercise-name">{ex.exercise_name}</div>
-        <div class="target-row muted text-sm">
-          <span>Sätze: <strong>{ex.target_sets}</strong></span>
-          <span>Reps: <strong>{formatReps(ex)}</strong></span>
-          <span>Gewicht: <strong>{ex.target_weight_kg != null ? ex.target_weight_kg + ' kg' : '—'}</strong></span>
-          <span>RIR: <strong>{ex.target_rir ?? '—'}</strong></span>
-        </div>
-
-        <div class="sets-header text-xs muted">
-          <span>Set</span>
-          <span>Reps</span>
-          <span>kg</span>
-          <span>RIR</span>
-        </div>
-
-        {#each sets as set, idx (idx)}
-          <div class="set-row">
-            <span class="set-number text-sm muted">{idx + 1}{set.set_type === 'top' ? '*' : ''}</span>
-            <input
-              class="set-input"
-              type="number"
-              inputmode="decimal"
-              placeholder="Reps"
-              value={set.reps ?? ''}
-              oninput={(e) => updateSet(ex.exercise_name, idx, 'reps', parseFloat((e.target as HTMLInputElement).value) || null)}
-            />
-            <input
-              class="set-input"
-              type="number"
-              inputmode="decimal"
-              placeholder="kg"
-              value={set.weight_kg ?? ''}
-              oninput={(e) => updateSet(ex.exercise_name, idx, 'weight_kg', parseFloat((e.target as HTMLInputElement).value) || null)}
-            />
-            <input
-              class="set-input"
-              type="number"
-              inputmode="decimal"
-              placeholder="RIR"
-              value={set.rir ?? ''}
-              oninput={(e) => updateSet(ex.exercise_name, idx, 'rir', parseFloat((e.target as HTMLInputElement).value) || null)}
-            />
-          </div>
-        {/each}
-        {#if ex.is_topset}
-          <div class="topset-hint text-xs muted">* Top-Set: letzter Satz mit maximalem Gewicht</div>
-        {/if}
+      <div class="sets-header text-xs muted">
+        <span>Set</span>
+        <span>Reps</span>
+        <span>kg</span>
+        <span>RIR</span>
       </div>
 
-      {#if error}
-        <div class="error text-sm">{error}</div>
+      {#each sets as set, idx (idx)}
+        <div class="set-row">
+          <span class="set-number text-sm muted">{idx + 1}{set.set_type === 'top' ? '*' : ''}</span>
+          <input
+            class="set-input"
+            type="number"
+            inputmode="decimal"
+            placeholder="Reps"
+            value={set.reps ?? ''}
+            oninput={(e) => updateSet(ex.exercise_name, idx, 'reps', parseFloat((e.target as HTMLInputElement).value) || null)}
+          />
+          <input
+            class="set-input"
+            type="number"
+            inputmode="decimal"
+            placeholder="kg"
+            value={set.weight_kg ?? ''}
+            oninput={(e) => updateSet(ex.exercise_name, idx, 'weight_kg', parseFloat((e.target as HTMLInputElement).value) || null)}
+          />
+          <input
+            class="set-input"
+            type="number"
+            inputmode="decimal"
+            placeholder="RIR"
+            value={set.rir ?? ''}
+            oninput={(e) => updateSet(ex.exercise_name, idx, 'rir', parseFloat((e.target as HTMLInputElement).value) || null)}
+          />
+        </div>
+      {/each}
+      {#if ex.is_topset}
+        <div class="topset-hint text-xs muted">* Top-Set: letzter Satz mit maximalem Gewicht</div>
       {/if}
+    </div>
 
-      <button class="complete-btn" onclick={completeTraining}>Training abschliessen</button>
+    {#if error}
+      <div class="error text-sm">{error}</div>
     {/if}
-  </div>
-{/if}
+
+    <button class="complete-btn" onclick={completeTraining}>Training abschliessen</button>
+  {/if}
+</div>
 
 <style>
   .training-detail {
