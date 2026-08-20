@@ -12,7 +12,7 @@
   export let dayData: DayData;
   export let currentDate: string;
   const dispatch = createEventDispatcher();
-  const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abend' };
+  const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abendessen' };
 
   let entry: DayEntry = dayData.dayEntry ?? { date: currentDate };
   let meals: Meal[] = dayData.meals ?? [];
@@ -62,7 +62,7 @@
     items.push({ id: 'metric-creatine', type: 'metric', icon: 'creatine', title: 'Kreatin', done: entry.creatine_done ?? false, sortKey: '00-03', metricField: 'creatine_done', metricValue: entry.creatine_done ? 'Eingenommen' : 'Ausstehend', metricCheckable: true, metricDoneField: 'creatine_done', metricEditable: false });
     items.push({ id: 'metric-belly', type: 'metric', icon: 'belly', title: 'Bauchumfang', done: false, sortKey: '00-04', metricField: 'belly_cm', metricValue: entry.belly_cm ?? null, metricUnit: 'cm', metricEditable: true });
     const sortedMeals = [...mealList].sort((a, b) => (a.meal_slot ?? 99) - (b.meal_slot ?? 99));
-    for (const m of sortedMeals) { items.push({ id: `meal-${m.id ?? m.meal_slot}`, type: 'meal', icon: 'meal', title: m.name || SLOT_NAMES[m.meal_slot] || 'Mahlzeit', done: m.is_done ?? false, sortKey: `01-${String(m.meal_slot).padStart(2,'0')}`, kcal: Number(m.kcal) || null, protein: Number(m.protein_g) || null, mealTime: m.default_time ? m.default_time.slice(0, 5) : null }); }
+    for (const m of sortedMeals) { const slotLabel = SLOT_NAMES[m.meal_slot] || `Slot ${m.meal_slot}`; const dishName = m.name || '— nichts gewählt —'; items.push({ id: `meal-${m.id ?? m.meal_slot}`, type: 'meal', icon: 'meal', title: `${slotLabel}: ${dishName}`, done: m.is_done ?? false, sortKey: `01-${String(m.meal_slot).padStart(2,'0')}`, kcal: Number(m.kcal) || null, protein: Number(m.protein_g) || null, mealTime: m.default_time ? m.default_time.slice(0, 5) : null }); }
     const trainingType = suggestion?.training_type ?? entry.training_type ?? 'Training';
     items.push({ id: 'training', type: 'training', icon: 'training', title: trainingType, done: entry.training_done ?? false, sortKey: '02-00' });
     const cardioMin = entry.cardio_minutes ?? suggestion?.cardio_minutes ?? 0;
@@ -77,19 +77,29 @@
   let actionSheetItem: UnifiedItem | null = null;
   let editingTodo: Todo | null = null;
   let editTitle = ''; let editCategory = ''; let editPriority = 2; let editDueDate = ''; let editDueTime = '';
+  // Meal edit modal (long-press on meal)
+  let mealEditItem: UnifiedItem | null = null;
+  let editDishes: any[] = [];
+  let editDishesLoading = false;
+  let editPhotoInput: HTMLInputElement;
+  let editPhotoLoading = false;
 
   function handleTouchStart(item: UnifiedItem, e: TouchEvent) {
     longPressTriggered = false;
-    if (item.type !== 'todo') return;
+    if (item.type !== 'todo' && item.type !== 'meal') return;
     longPressTimer = setTimeout(() => {
       longPressTriggered = true;
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-      actionSheetItem = item;
+      if (item.type === 'meal') {
+        openMealEdit(item);
+      } else {
+        actionSheetItem = item;
+      }
     }, 500);
   }
   function handleTouchEnd() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } }
   function handleTouchMove() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } }
-  function handleContextMenu(item: UnifiedItem, e: MouseEvent) { if (item.type !== 'todo') return; e.preventDefault(); actionSheetItem = item; }
+  function handleContextMenu(item: UnifiedItem, e: MouseEvent) { if (item.type !== 'todo' && item.type !== 'meal') return; e.preventDefault(); if (item.type === 'meal') { openMealEdit(item); } else { actionSheetItem = item; } }
 
   function startEdit() {
     if (!actionSheetItem?.todoData) return;
@@ -156,6 +166,67 @@
     choosingSlot = false;
   }
   function cancelConfirm() { confirmData = null; choosingSlot = false; }
+
+  // --- Meal edit modal (long-press on meal) ---
+  async function openMealEdit(item: UnifiedItem) {
+    const mealId = String(item.id).replace('meal-', '');
+    const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id);
+    if (!meal) return;
+    mealEditItem = item;
+    editDishesLoading = true;
+    try { editDishes = await api.getDishes(meal.meal_slot); } catch { editDishes = []; }
+    editDishesLoading = false;
+  }
+  function closeMealEdit() { mealEditItem = null; }
+
+  function getMealSlotFromItem(item: UnifiedItem): number {
+    const id = String(item.id).replace('meal-', '');
+    const m = meals.find((x) => String(x.id) === id || `meal-${x.meal_slot}` === item.id);
+    return m?.meal_slot ?? 0;
+  }
+
+  async function selectEditDish(dish: any) {
+    if (!mealEditItem || !dish.id) return;
+    const item = mealEditItem;
+    const mealId = String(item.id).replace('meal-', '');
+    const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id);
+    if (!meal?.id) return;
+    try {
+      await api.updateMeal(meal.id, { name: dish.name, kcal: Number(dish.kcal) || 0, protein_g: Number(dish.protein_g) || 0, carbs_g: Number(dish.carbs_g) || 0, fat_g: Number(dish.fat_g) || 0 });
+      meals = meals.map((m) => m.id === meal.id ? { ...m, name: dish.name, kcal: String(dish.kcal), protein_g: String(dish.protein_g), carbs_g: String(dish.carbs_g), fat_g: String(dish.fat_g) } : m);
+      dispatch('mealtoggle', { id: meal.id, is_done: meal.is_done });
+      try { await api.incrementDishUsage(dish.id); } catch {}
+    } catch {}
+    mealEditItem = null;
+  }
+
+  function triggerEditPhoto() { editPhotoInput?.click(); }
+
+  async function onEditPhotoSelected(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file || !mealEditItem) return;
+    const item = mealEditItem;
+    const mealId = String(item.id).replace('meal-', '');
+    const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id);
+    if (!meal?.id) return;
+    editPhotoLoading = true;
+    try {
+      const result = await api.analyzePhoto(file, meal.id) as any;
+      if (result?.analysis?.total) {
+        const total = result.analysis.total;
+        const firstName = result.analysis.items?.[0]?.name ?? 'Erkanntes Gericht';
+        await api.updateMeal(meal.id, { name: firstName, kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0 });
+        meals = meals.map((m) => m.id === meal.id ? { ...m, name: firstName, kcal: String(total.kcal), protein_g: String(total.protein_g), carbs_g: String(total.carbs_g), fat_g: String(total.fat_g) } : m);
+        dispatch('mealtoggle', { id: meal.id, is_done: meal.is_done });
+        if (result.dish_match?.matched && result.dish_match.dish) {
+          try { await api.incrementDishUsage(result.dish_match.dish.id); } catch {}
+        } else {
+          try { await api.createDish({ slot: meal.meal_slot, name: firstName, kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0, source: 'photo' }); } catch {}
+        }
+      }
+    } catch {} finally { editPhotoLoading = false; input.value = ''; mealEditItem = null; }
+  }
 
   $: weightItem = unifiedItems.find((i) => i.id === 'metric-weight');
   $: biometricItems = unifiedItems.filter((i) => i.biometric && i.id !== 'metric-weight');
@@ -561,6 +632,45 @@
   </div>
 {/if}
 
+<input bind:this={editPhotoInput} type="file" accept="image/*" capture="environment" style="display:none" onchange={onEditPhotoSelected} />
+
+{#if mealEditItem}
+  <div class="modal-overlay" onclick={closeMealEdit}>
+    <div class="modal-card" onclick={(e) => e.stopPropagation()}>
+      <div class="modal-title">{SLOT_NAMES[getMealSlotFromItem(mealEditItem)] || `Slot ${getMealSlotFromItem(mealEditItem)}`} bearbeiten</div>
+      <div class="modal-section-label">Presets</div>
+      {#if editDishesLoading}
+        <div class="modal-loading">Lade Presets…</div>
+      {:else if editDishes.length === 0}
+        <div class="modal-empty">Keine Presets vorhanden</div>
+      {:else}
+        <div class="dish-list">
+          {#each editDishes as dish (dish.id)}
+            <button class="dish-btn" class:default={dish.is_default} onclick={() => selectEditDish(dish)}>
+              <div class="dish-info">
+                <span class="dish-name">{dish.name}</span>
+                {#if dish.is_default}<span class="dish-badge">Standard</span>{/if}
+                {#if (dish.usage_count ?? 0) > 0}<span class="dish-uses">{dish.usage_count}×</span>{/if}
+              </div>
+              <div class="dish-macros">
+                <span>{Math.round(Number(dish.kcal) || 0)} kcal</span>
+                <span>{Math.round(Number(dish.protein_g) || 0)}g P</span>
+              </div>
+            </button>
+          {/each}
+        </div>
+      {/if}
+      <div class="modal-actions">
+        <button class="modal-primary cam-action" onclick={triggerEditPhoto} disabled={editPhotoLoading}>
+          {#if editPhotoLoading}<Icon name="refresh" size={18} />{:else}<Icon name="camera" size={18} />{/if}
+          <span>{editPhotoLoading ? 'Analysiere…' : 'Foto analysieren'}</span>
+        </button>
+        <button class="modal-secondary" onclick={closeMealEdit}>Abbrechen</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   .macros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
   .macro { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -695,4 +805,18 @@
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+  /* Meal edit modal — additional classes (modal-overlay/card/title/actions/primary/secondary already defined above) */
+  .modal-section-label { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .modal-loading, .modal-empty { text-align: center; padding: 20px; color: var(--text-faint); font-size: 14px; }
+  .cam-action { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .dish-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .dish-btn { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-radius: 10px; background: var(--card-2); border: 1px solid var(--border); color: var(--text); cursor: pointer; transition: border-color 0.15s, background 0.15s; text-align: left; }
+  .dish-btn:active { background: #2a2b2e; }
+  .dish-btn.default { border-color: var(--green); }
+  .dish-info { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+  .dish-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dish-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: var(--green); color: #000; font-weight: 600; flex-shrink: 0; }
+  .dish-uses { font-size: 11px; color: var(--text-faint); flex-shrink: 0; }
+  .dish-macros { display: flex; gap: 8px; font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
 </style>
