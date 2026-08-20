@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import uuid
 from datetime import date as date_type, datetime
+
+from app.tz import BERLIN_TZ
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -82,8 +84,13 @@ async def mark_todo_done(todo_id: uuid.UUID, user: str = Depends(get_current_use
         todo = result.scalars().first()
         if todo is None:
             raise HTTPException(status_code=404, detail="Todo not found")
-        todo.status = "done"
-        todo.completed_at = datetime.utcnow()
+        # Toggle: if done -> open, if open -> done
+        if todo.status == "done":
+            todo.status = "open"
+            todo.completed_at = None
+        else:
+            todo.status = "done"
+            todo.completed_at = datetime.now(BERLIN_TZ)
         await session.commit()
         await session.refresh(todo)
         return _to_response(todo)

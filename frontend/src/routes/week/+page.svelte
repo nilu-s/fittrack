@@ -4,6 +4,7 @@
   import { currentDate } from '$lib/stores';
   import Sparkline from '$lib/components/Sparkline.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
+  import Icon from '$lib/components/Icon.svelte';
   import type { WeekStats } from '$lib/types';
 
   let weekStats: WeekStats | null = null;
@@ -11,194 +12,55 @@
   let kcalData: number[] = [];
   let stepsData: number[] = [];
 
-  function goBack() {
-    if (typeof window !== 'undefined') {
-      window.history.back();
-    }
-  }
+  function goBack() { if (typeof window !== 'undefined') window.history.back(); }
 
   onMount(async () => {
     try {
       weekStats = await api.getStatsWeek($currentDate);
-
-      // Fetch trend data for sparklines (7 days)
-      const [wt, kt, st] = await Promise.all([
-        api.getStatsTrend('weight', 7),
-        api.getStatsTrend('kcal', 7),
-        api.getStatsTrend('steps', 7),
-      ]);
+      const [wt, kt, st] = await Promise.all([api.getStatsTrend('weight', 7), api.getStatsTrend('kcal', 7), api.getStatsTrend('steps', 7)]);
       weightData = (wt?.points ?? []).map((p) => p.value ?? 0).filter((v) => v !== null && v > 0);
       kcalData = (kt?.points ?? []).map((p) => p.value ?? 0).filter((v) => v !== null && v > 0);
       stepsData = (st?.points ?? []).map((p) => p.value ?? 0).filter((v) => v !== null && v > 0);
-    } catch {
-      // graceful
-    }
+    } catch {}
   });
 </script>
 
-<svelte:head>
-  <title>FitTrack - Woche</title>
-</svelte:head>
+<svelte:head><title>FitTrack - Woche</title></svelte:head>
 
-<div class="week-page">
-  <div class="week-header">
-    <button class="back-btn" onclick={goBack}>‹ Zurück</button>
-    <h1>Wochenübersicht</h1>
-  </div>
-
+<div class="page">
+  <div class="hdr"><button class="back" onclick={goBack} aria-label="Zurück"><Icon name="chevron-left" size={20} /></button><h1>Wochenübersicht</h1></div>
   {#if weekStats}
-    <!-- Weight trend -->
-    <section class="section-card">
-      <div class="section-header">
-        <span>⚖️ Gewicht</span>
-        <span class="text-sm muted">{weekStats.avg_weight ? Number(weekStats.avg_weight).toFixed(1) : '—'} kg Ø</span>
-      </div>
-      <div class="card-body">
-        <div class="chart-area">
-          {#if weightData.length > 0}
-            <Sparkline data={weightData} color="#3b82f6" height={80} width={300} fill={true} />
-          {:else}
-            <div class="muted text-sm" style="padding:1rem;text-align:center">Keine Daten</div>
-          {/if}
-        </div>
-      </div>
-    </section>
-
-    <!-- Kcal average -->
-    <section class="section-card">
-      <div class="section-header">
-        <span>🔥 Kalorien</span>
-        <span class="text-sm muted">{weekStats.avg_kcal ? Math.round(Number(weekStats.avg_kcal)) : '—'} kcal Ø</span>
-      </div>
-      <div class="card-body">
-        <div class="chart-area">
-          {#if kcalData.length > 0}
-            <Sparkline data={kcalData} color="#f59e0b" height={80} width={300} fill={true} />
-          {:else}
-            <div class="muted text-sm" style="padding:1rem;text-align:center">Keine Daten</div>
-          {/if}
-        </div>
-      </div>
-    </section>
-
-    <!-- Steps average -->
-    <section class="section-card">
-      <div class="section-header">
-        <span>👣 Schritte</span>
-        <span class="text-sm muted">{weekStats.avg_steps ? Math.round(Number(weekStats.avg_steps)) : '—'} Ø</span>
-      </div>
-      <div class="card-body">
-        <div class="chart-area">
-          {#if stepsData.length > 0}
-            <Sparkline data={stepsData} color="#22c55e" height={80} width={300} fill={true} />
-          {:else}
-            <div class="muted text-sm" style="padding:1rem;text-align:center">Keine Daten</div>
-          {/if}
-        </div>
-      </div>
-    </section>
-
-    <!-- Training & Todo completion -->
-    <section class="section-card">
-      <div class="section-header">📊 Abschluss</div>
-      <div class="card-body">
-        <div class="stat-row">
-          <span class="stat-label">Trainingstage</span>
-          <span class="stat-value">{weekStats.training_days}/7</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">To-Dos erledigt</span>
-          <span class="stat-value">{weekStats.todo_done}/{weekStats.todo_total}</span>
-        </div>
-        {#if weekStats.todo_completion}
-          <div style="margin-top:0.5rem">
-            <ProgressBar
-              current={Math.round(Number(weekStats.todo_completion))}
-              target={100}
-              label="Erledigungsrate"
-              color="#22c55e"
-            />
-          </div>
-        {/if}
-      </div>
-    </section>
+    <section class="section-card"><div class="section-header"><span>Gewicht</span><span class="avg">{weekStats.avg_weight ? Number(weekStats.avg_weight).toFixed(1) : '—'} kg Ø</span></div><div class="body"><div class="chart">{#if weightData.length > 0}<Sparkline data={weightData} color="var(--blue)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
+    <section class="section-card"><div class="section-header"><span>Kalorien</span><span class="avg">{weekStats.avg_kcal ? Math.round(Number(weekStats.avg_kcal)) : '—'} kcal Ø</span></div><div class="body"><div class="chart">{#if kcalData.length > 0}<Sparkline data={kcalData} color="var(--amber)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
+    <section class="section-card"><div class="section-header"><span>Schritte</span><span class="avg">{weekStats.avg_steps ? Math.round(Number(weekStats.avg_steps)) : '—'} Ø</span></div><div class="body"><div class="chart">{#if stepsData.length > 0}<Sparkline data={stepsData} color="var(--green)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
+    <section class="section-card"><div class="section-header">Abschluss</div><div class="body">
+      <div class="stat-r"><span class="stat-l">Trainingstage</span><span class="stat-v">{weekStats.training_days}<span class="stat-m">/7</span></span></div>
+      <div class="stat-r"><span class="stat-l">To-Dos erledigt</span><span class="stat-v">{weekStats.todo_done}<span class="stat-m">/{weekStats.todo_total}</span></span></div>
+      {#if weekStats.todo_completion}<div class="comp"><ProgressBar current={Math.round(Number(weekStats.todo_completion))} target={100} label="Erledigungsrate" color="var(--green)" /></div>{/if}
+    </div></section>
   {:else}
-    <div class="loading">
-      <span>lade Daten…</span>
-    </div>
+    <div class="loading"><div class="spinner"></div></div>
   {/if}
 </div>
 
 <style>
-  .week-page {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .week-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0;
-  }
-
-  .back-btn {
-    padding: 4px 12px;
-    border-radius: 8px;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    color: var(--text-primary);
-    cursor: pointer;
-    font-size: 0.8125rem;
-  }
-
-  h1 {
-    font-size: 1.1rem;
-    font-weight: 600;
-  }
-
-  .card-body {
-    padding: 0.75rem;
-  }
-
-  .chart-area {
-    width: 100%;
-    overflow: hidden;
-  }
-
-  .chart-area :global(.sparkline) {
-    width: 100%;
-    height: auto;
-  }
-
-  .stat-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.375rem 0;
-    border-bottom: 1px solid #333;
-  }
-
-  .stat-row:last-child {
-    border-bottom: none;
-  }
-
-  .stat-label {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-  }
-
-  .stat-value {
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
-  .loading {
-    display: flex;
-    justify-content: center;
-    padding: 3rem;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-  }
+  .page { display: flex; flex-direction: column; gap: 10px; }
+  .hdr { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+  .back { width: 34px; height: 34px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .back:active { background: var(--card-2); }
+  h1 { font-size: 18px; font-weight: 600; }
+  .body { padding: 14px; }
+  .avg { font-size: 14px; font-weight: 600; color: var(--text); }
+  .chart { width: 100%; overflow: hidden; display: flex; justify-content: center; }
+  .chart :global(svg) { width: 100%; height: auto; }
+  .no-data { padding: 20px; text-align: center; color: var(--text-faint); font-size: 14px; }
+  .stat-r { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .stat-r:last-of-type { border-bottom: none; }
+  .stat-l { font-size: 14px; color: var(--text-dim); }
+  .stat-v { font-size: 15px; font-weight: 600; }
+  .stat-m { font-size: 12px; color: var(--text-faint); font-weight: 400; }
+  .comp { margin-top: 12px; }
+  .loading { display: flex; justify-content: center; padding: 40px; }
+  .spinner { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid var(--card-2); border-top-color: var(--text-dim); animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>

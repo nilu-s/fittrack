@@ -6,37 +6,27 @@
   let loading = true;
 
   onMount(async () => {
-    // Race checkAuth against a 3s timeout — if it hangs, show login anyway
     const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
     await Promise.race([checkAuth(), timeout]);
-
-    if ($isAuthenticated) {
-      goto('/');
-      return;
-    }
+    if ($isAuthenticated) { goto('/'); return; }
     loading = false;
   });
 
-  function handleGoogleLogin() {
-    googleLogin();
-  }
+  function handleGoogleLogin() { googleLogin(); }
 </script>
 
-<svelte:head>
-  <title>FitTrack - Anmelden</title>
-</svelte:head>
+<svelte:head><title>FitTrack - Anmelden</title></svelte:head>
 
-<div class="login-page">
+<div class="login">
   <div class="login-card">
-    <div class="logo">💪 FitTrack</div>
+    <div class="logo">FitTrack</div>
     <h1>Willkommen</h1>
-    <p class="subtitle">Melde dich mit deinem Google-Konto an</p>
-
+    <p class="sub">Melde dich mit deinem Google-Konto an.</p>
     {#if loading}
-      <div class="loading-dot"></div>
+      <div class="spinner"></div>
     {:else}
-      <button class="google-btn" onclick={handleGoogleLogin}>
-        <svg class="google-icon" viewBox="0 0 24 24" width="20" height="20">
+      <button class="g-btn" onclick={handleGoogleLogin}>
+        <svg width="20" height="20" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -49,85 +39,13 @@
 </div>
 
 <style>
-  .login-page {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    min-height: 100dvh;
-    padding: 1rem;
-  }
-
-  .login-card {
-    width: 100%;
-    max-width: 340px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .logo {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-  }
-
-  h1 {
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin: 0;
-  }
-
-  .subtitle {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    margin: 0 0 1.5rem;
-    text-align: center;
-  }
-
-  .google-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.6rem;
-    width: 100%;
-    padding: 12px 16px;
-    border-radius: 10px;
-    background: #ffffff;
-    color: #1a1a1a;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    border: none;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .google-btn:hover {
-    background: #f5f5f5;
-  }
-
-  .google-btn:active {
-    transform: scale(0.98);
-  }
-
-  .google-icon {
-    flex-shrink: 0;
-  }
-
-  .loading-dot {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 3px solid #333;
-    border-top-color: var(--accent-done, #4ade80);
-    animation: spin 0.8s linear infinite;
-    margin-top: 1rem;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
+  .login { display: flex; align-items: center; justify-content: center; min-height: 100vh; min-height: 100dvh; padding: 20px; }
+  .login-card { width: 100%; max-width: 340px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .logo { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; color: var(--text); margin-bottom: 20px; }
+  h1 { font-size: 18px; font-weight: 600; }
+  .sub { font-size: 14px; color: var(--text-dim); margin: 0 0 24px; text-align: center; }
+  .g-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 12px 16px; border-radius: 10px; background: #fff; color: #1a1a1a; font-size: 15px; font-weight: 600; border: none; cursor: pointer; transition: opacity 0.15s; }
+  .g-btn:active { opacity: 0.9; }
+  .spinner { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid var(--card-2); border-top-color: var(--text-dim); animation: spin 0.8s linear infinite; margin-top: 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>

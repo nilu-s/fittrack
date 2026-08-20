@@ -5,6 +5,8 @@ from datetime import date as date_type
 from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 
+from app.tz import BERLIN_TZ
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -25,10 +27,15 @@ MILLIS_PER_DAY = 24 * 60 * 60 * 1000
 
 
 def _day_bounds(day: date_type) -> tuple[datetime, datetime]:
-    """Return UTC midnight start/end for the requested date."""
-    start = datetime.combine(day, time.min, tzinfo=timezone.utc)
-    end = datetime.combine(day + timedelta(days=1), time.min, tzinfo=timezone.utc)
-    return start, end
+    """Return UTC start/end for the requested date in local timezone (Europe/Berlin).
+
+    Google Fit stores data with UTC timestamps, but the user's day runs in CEST.
+    Without this conversion, UTC midnight cuts off 2 hours of the local day.
+    """
+    tz = BERLIN_TZ
+    start_local = datetime.combine(day, time.min, tzinfo=tz)
+    end_local = datetime.combine(day + timedelta(days=1), time.min, tzinfo=tz)
+    return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
 
 
 def _aggregate_request_body(data_type_name: str, start_time_millis: int, end_time_millis: int) -> dict:

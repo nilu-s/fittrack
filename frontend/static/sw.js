@@ -1,7 +1,7 @@
 /* FitTrack Service Worker */
-const CACHE_NAME = 'fittrack-v1';
-const STATIC_CACHE = 'fittrack-static-v1';
-const API_CACHE = 'fittrack-api-v1';
+const CACHE_NAME = 'fittrack-v2';
+const STATIC_CACHE = 'fittrack-static-v2';
+const API_CACHE = 'fittrack-api-v2';
 
 const STATIC_ASSETS = [
   '/',
@@ -66,7 +66,41 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache-first
+  // Navigation requests (HTML): network-first to always get latest
+  if (request.mode === 'navigate' || (request.headers.get('accept')?.includes('text/html'))) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok && request.method === 'GET') {
+            const clone = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone)).catch(() => {});
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(request).then((cached) => cached || caches.match('/offline.html').then((r) => r || new Response('Offline', { status: 503 })));
+        })
+    );
+    return;
+  }
+
+  // JS/CSS assets: network-first (hash in URL means new deploys = new URLs)
+  if (url.pathname.startsWith('/_app/')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok && request.method === 'GET') {
+            const clone = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone)).catch(() => {});
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || new Response('', { status: 503 })))
+    );
+    return;
+  }
+
+  // Other static assets: cache-first
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
@@ -79,10 +113,6 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // Offline fallback
-          if (request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/offline.html').then((r) => r || new Response('Offline', { status: 503 }));
-          }
           return new Response('', { status: 503 });
         });
     })

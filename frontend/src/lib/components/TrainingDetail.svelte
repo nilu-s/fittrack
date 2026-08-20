@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import { api } from '$lib/api';
   import type { Exercise, TrainingCompleteRequest } from '$lib/types';
 
@@ -11,330 +12,78 @@
   let loading = true;
   let currentIndex = 0;
   let error = '';
-
-  // Per-exercise set data: { reps, weight_kg, rir, set_type }
   let setsByExercise: Record<string, { reps?: number | null; weight_kg?: number | null; rir?: number | null; set_type?: string }[]> = {};
 
-  // Auto-load on mount
   $: if (training_type) loadExercises();
-
-  async function loadExercises() {
-    loading = true;
-    error = '';
-    try {
-      const res = await api.getExercises(training_type);
-      exercises = (res ?? []).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-      initSets();
-    } catch (e) {
-      error = 'Übungen konnten nicht geladen werden.';
-    } finally {
-      loading = false;
-    }
-  }
-
-  function initSets() {
-    setsByExercise = {};
-    for (const ex of exercises) {
-      const match = String(ex.target_sets ?? '1').match(/(\d+)/);
-      const count = match ? parseInt(match[1], 10) : 1;
-      setsByExercise[ex.exercise_name] = Array.from({ length: count }, (_, i) => ({
-        reps: ex.target_reps_low ?? null,
-        weight_kg: ex.target_weight_kg ?? null,
-        rir: ex.target_rir ?? null,
-        set_type: ex.is_topset && i === count - 1 ? 'top' : 'work',
-      }));
-    }
-    currentIndex = 0;
-  }
-
-  function prev() {
-    currentIndex = (currentIndex - 1 + exercises.length) % exercises.length;
-  }
-
-  function next() {
-    currentIndex = (currentIndex + 1) % exercises.length;
-  }
-
-  function updateSet(exerciseName: string, idx: number, field: 'reps' | 'weight_kg' | 'rir', value: number | null) {
-    if (!setsByExercise[exerciseName]) return;
-    setsByExercise[exerciseName][idx] = { ...setsByExercise[exerciseName][idx], [field]: value };
-    setsByExercise = { ...setsByExercise };
-  }
-
-  async function completeTraining() {
-    error = '';
-    const sets: TrainingCompleteRequest['sets'] = [];
-    for (const ex of exercises) {
-      const exerciseSets = setsByExercise[ex.exercise_name] ?? [];
-      exerciseSets.forEach((set, i) => {
-        sets.push({
-          exercise_name: ex.exercise_name,
-          set_number: i + 1,
-          set_type: set.set_type || 'work',
-          reps: set.reps ?? null,
-          weight_kg: set.weight_kg ?? null,
-          rir: set.rir ?? null,
-        });
-      });
-    }
-
-    try {
-      const res = await api.completeTraining({ date, training_type, sets });
-      if (res) {
-        oncomplete({ date, training_type });
-      } else {
-        error = 'Training konnte nicht gespeichert werden.';
-      }
-    } catch (e) {
-      error = 'Fehler beim Speichern.';
-    }
-  }
-
-  function formatReps(ex: Exercise): string {
-    if (ex.target_reps_low == null && ex.target_reps_high == null) return '—';
-    if (ex.target_reps_high == null) return String(ex.target_reps_low);
-    return `${ex.target_reps_low ?? ''}–${ex.target_reps_high}`;
-  }
+  async function loadExercises() { loading = true; error = ''; try { const res = await api.getExercises(training_type); exercises = (res ?? []).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)); initSets(); } catch (e) { error = 'Übungen konnten nicht geladen werden.'; } finally { loading = false; } }
+  function initSets() { setsByExercise = {}; for (const ex of exercises) { const match = String(ex.target_sets ?? '1').match(/(\d+)/); const count = match ? parseInt(match[1], 10) : 1; setsByExercise[ex.exercise_name] = Array.from({ length: count }, (_, i) => ({ reps: ex.target_reps_low ?? null, weight_kg: ex.target_weight_kg ?? null, rir: ex.target_rir ?? null, set_type: ex.is_topset && i === count - 1 ? 'top' : 'work' })); } currentIndex = 0; }
+  function prev() { currentIndex = (currentIndex - 1 + exercises.length) % exercises.length; }
+  function next() { currentIndex = (currentIndex + 1) % exercises.length; }
+  function updateSet(exerciseName: string, idx: number, field: 'reps' | 'weight_kg' | 'rir', value: number | null) { if (!setsByExercise[exerciseName]) return; setsByExercise[exerciseName][idx] = { ...setsByExercise[exerciseName][idx], [field]: value }; setsByExercise = { ...setsByExercise }; }
+  async function completeTraining() { error = ''; const sets: TrainingCompleteRequest['sets'] = []; for (const ex of exercises) { const exerciseSets = setsByExercise[ex.exercise_name] ?? []; exerciseSets.forEach((set, i) => { sets.push({ exercise_name: ex.exercise_name, set_number: i + 1, set_type: set.set_type || 'work', reps: set.reps ?? null, weight_kg: set.weight_kg ?? null, rir: set.rir ?? null }); }); } try { const res = await api.completeTraining({ date, training_type, sets }); if (res) oncomplete({ date, training_type }); else error = 'Training konnte nicht gespeichert werden.'; } catch (e) { error = 'Fehler beim Speichern.'; } }
+  function formatReps(ex: Exercise): string { if (ex.target_reps_low == null && ex.target_reps_high == null) return '—'; if (ex.target_reps_high == null) return String(ex.target_reps_low); return `${ex.target_reps_low ?? ''}–${ex.target_reps_high}`; }
 </script>
 
-<div class="training-detail slide-down">
-  <div class="detail-header">
-    <span class="detail-title">{training_type}</span>
-    <button class="close-btn" onclick={onclose} aria-label="Schliessen">✕</button>
-  </div>
-
-  {#if loading}
-    <div class="loading muted text-sm">Lädt Übungen…</div>
-  {:else if exercises.length === 0}
-    <div class="empty muted text-sm">Keine Übungen für {training_type}.</div>
+<div class="td slide-down">
+  <div class="td-hdr"><span class="td-title">{training_type}</span><button class="td-close" onclick={onclose} aria-label="Schliessen"><Icon name="x" size={16} /></button></div>
+  {#if loading}<div class="td-loading"><div class="spinner"></div><span>Lädt…</span></div>
+  {:else if exercises.length === 0}<div class="td-empty">Keine Übungen für {training_type}.</div>
   {:else}
     {@const ex = exercises[currentIndex]}
     {@const sets = setsByExercise[ex.exercise_name] ?? []}
-
-    <div class="karussell">
-      <button class="karussell-btn" onclick={prev} aria-label="Vorherige Übung">◄</button>
-      <span class="counter">{currentIndex + 1} / {exercises.length}</span>
-      <button class="karussell-btn" onclick={next} aria-label="Nächste Übung">►</button>
+    <div class="carousel">
+      <button class="car-btn" onclick={prev} aria-label="Zurück"><Icon name="chevron-left" size={16} /></button>
+      <div class="car-mid"><span class="car-count">{currentIndex + 1} / {exercises.length}</span><div class="car-dots">{#each exercises as _, i}<span class="dot" class:active={i === currentIndex}></span>{/each}</div></div>
+      <button class="car-btn" onclick={next} aria-label="Weiter"><Icon name="chevron-right" size={16} /></button>
     </div>
-
-    <div class="exercise-card">
-      <div class="exercise-name">{ex.exercise_name}</div>
-      <div class="target-row muted text-sm">
-        <span>Sätze: <strong>{ex.target_sets}</strong></span>
-        <span>Reps: <strong>{formatReps(ex)}</strong></span>
-        <span>Gewicht: <strong>{ex.target_weight_kg != null ? ex.target_weight_kg + ' kg' : '—'}</strong></span>
-        <span>RIR: <strong>{ex.target_rir ?? '—'}</strong></span>
+    <div class="ex-card">
+      <div class="ex-name">{ex.exercise_name}</div>
+      <div class="ex-targets">
+        <div class="tchip"><span class="tchip-l">Sätze</span><span class="tchip-v">{ex.target_sets}</span></div>
+        <div class="tchip"><span class="tchip-l">Reps</span><span class="tchip-v">{formatReps(ex)}</span></div>
+        <div class="tchip"><span class="tchip-l">kg</span><span class="tchip-v">{ex.target_weight_kg != null ? ex.target_weight_kg : '—'}</span></div>
+        <div class="tchip"><span class="tchip-l">RIR</span><span class="tchip-v">{ex.target_rir ?? '—'}</span></div>
       </div>
-
-      <div class="sets-header text-xs muted">
-        <span>Set</span>
-        <span>Reps</span>
-        <span>kg</span>
-        <span>RIR</span>
-      </div>
-
-      {#each sets as set, idx (idx)}
-        <div class="set-row">
-          <span class="set-number text-sm muted">{idx + 1}{set.set_type === 'top' ? '*' : ''}</span>
-          <input
-            class="set-input"
-            type="number"
-            inputmode="decimal"
-            placeholder="Reps"
-            value={set.reps ?? ''}
-            oninput={(e) => updateSet(ex.exercise_name, idx, 'reps', parseFloat((e.target as HTMLInputElement).value) || null)}
-          />
-          <input
-            class="set-input"
-            type="number"
-            inputmode="decimal"
-            placeholder="kg"
-            value={set.weight_kg ?? ''}
-            oninput={(e) => updateSet(ex.exercise_name, idx, 'weight_kg', parseFloat((e.target as HTMLInputElement).value) || null)}
-          />
-          <input
-            class="set-input"
-            type="number"
-            inputmode="decimal"
-            placeholder="RIR"
-            value={set.rir ?? ''}
-            oninput={(e) => updateSet(ex.exercise_name, idx, 'rir', parseFloat((e.target as HTMLInputElement).value) || null)}
-          />
-        </div>
-      {/each}
-      {#if ex.is_topset}
-        <div class="topset-hint text-xs muted">* Top-Set: letzter Satz mit maximalem Gewicht</div>
-      {/if}
+      <div class="set-hdr"><span>Set</span><span>Reps</span><span>kg</span><span>RIR</span></div>
+      {#each sets as set, idx (idx)}<div class="set-row"><span class="set-n">{idx + 1}{set.set_type === 'top' ? '★' : ''}</span><input type="number" placeholder="—" value={set.reps ?? ''} oninput={(e) => updateSet(ex.exercise_name, idx, 'reps', parseFloat((e.target as HTMLInputElement).value) || null)} /><input type="number" placeholder="—" value={set.weight_kg ?? ''} oninput={(e) => updateSet(ex.exercise_name, idx, 'weight_kg', parseFloat((e.target as HTMLInputElement).value) || null)} /><input type="number" placeholder="—" value={set.rir ?? ''} oninput={(e) => updateSet(ex.exercise_name, idx, 'rir', parseFloat((e.target as HTMLInputElement).value) || null)} /></div>{/each}
+      {#if ex.is_topset}<div class="top-hint">★ Top-Set</div>{/if}
     </div>
-
-    {#if error}
-      <div class="error text-sm">{error}</div>
-    {/if}
-
-    <button class="complete-btn" onclick={completeTraining}>Training abschliessen</button>
+    {#if error}<div class="td-error">{error}</div>{/if}
+    <button class="td-complete" onclick={completeTraining}><Icon name="check" size={16} /> Training abschliessen</button>
   {/if}
 </div>
 
 <style>
-  .training-detail {
-    background: #1f1f1f;
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-md);
-    margin: 0.5rem 0;
-    padding: 0.75rem;
-  }
-
-  .detail-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.75rem;
-  }
-
-  .detail-title {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .close-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    background: #333;
-    border: 1px solid var(--card-border);
-    color: var(--text-primary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.875rem;
-  }
-
-  .close-btn:active {
-    background: #444;
-  }
-
-  .loading,
-  .empty {
-    padding: 1rem 0;
-    text-align: center;
-  }
-
-  .karussell {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.75rem;
-  }
-
-  .karussell-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    background: #333;
-    border: 1px solid var(--card-border);
-    color: var(--text-primary);
-    cursor: pointer;
-    font-size: 0.875rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .karussell-btn:active {
-    background: #444;
-  }
-
-  .counter {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-  }
-
-  .exercise-card {
-    background: #161616;
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-sm);
-    padding: 0.625rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .exercise-name {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: var(--text-primary);
-  }
-
-  .target-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .target-row span {
-    background: #252525;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-  }
-
-  .sets-header,
-  .set-row {
-    display: grid;
-    grid-template-columns: 30px 1fr 1fr 1fr;
-    gap: 0.375rem;
-    align-items: center;
-  }
-
-  .sets-header {
-    margin-bottom: 0.25rem;
-    padding-bottom: 0.25rem;
-    border-bottom: 1px solid #333;
-  }
-
-  .set-row {
-    margin-bottom: 0.375rem;
-  }
-
-  .set-number {
-    text-align: center;
-  }
-
-  .set-input {
-    width: 100%;
-    padding: 0.375rem 0.25rem;
-    border-radius: 4px;
-    background: #1a1a1a;
-    border: 1px solid var(--card-border);
-    color: var(--text-primary);
-    font-size: 0.8125rem;
-    text-align: center;
-  }
-
-  .topset-hint {
-    margin-top: 0.25rem;
-  }
-
-  .error {
-    color: #ef4444;
-    text-align: center;
-    margin-bottom: 0.5rem;
-  }
-
-  .complete-btn {
-    width: 100%;
-    padding: 0.625rem;
-    border-radius: var(--radius-sm);
-    background: var(--accent-done);
-    color: #0f0f0f;
-    border: none;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .complete-btn:active {
-    filter: brightness(1.1);
-  }
+  .td { background: var(--card-2); border: 1px solid var(--border-2); border-radius: var(--radius); margin: 6px 0; padding: 14px; }
+  .td-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .td-title { font-size: 15px; font-weight: 600; }
+  .td-close { width: 28px; height: 28px; border-radius: 6px; background: var(--card); border: 1px solid var(--border-2); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .td-close:active { background: #26272a; }
+  .td-loading, .td-empty { padding: 20px 0; text-align: center; color: var(--text-faint); font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid var(--card); border-top-color: var(--text-dim); animation: spin 0.8s linear infinite; }
+  .carousel { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .car-btn { width: 32px; height: 32px; border-radius: 6px; background: var(--card); border: 1px solid var(--border-2); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .car-btn:active { background: #26272a; }
+  .car-mid { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .car-count { font-size: 13px; color: var(--text-dim); }
+  .car-dots { display: flex; gap: 4px; }
+  .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--border-2); }
+  .dot.active { background: var(--text); width: 14px; border-radius: 2px; }
+  .ex-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .ex-name { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .ex-targets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .tchip { display: flex; flex-direction: column; align-items: center; padding: 4px 8px; border-radius: 6px; background: var(--card-2); min-width: 48px; }
+  .tchip-l { font-size: 10px; color: var(--text-faint); text-transform: uppercase; }
+  .tchip-v { font-size: 14px; font-weight: 600; }
+  .set-hdr, .set-row { display: grid; grid-template-columns: 28px 1fr 1fr 1fr; gap: 8px; align-items: center; }
+  .set-hdr { margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--text-faint); font-weight: 600; text-transform: uppercase; }
+  .set-row { margin-bottom: 6px; }
+  .set-n { text-align: center; font-size: 13px; color: var(--text-dim); }
+  .set-row input { width: 100%; padding: 8px 4px; border-radius: 6px; background: var(--card-2); border: 1px solid var(--border-2); color: var(--text); font-size: 14px; text-align: center; font-weight: 500; }
+  .set-row input:focus { border-color: var(--blue); }
+  .top-hint { margin-top: 4px; font-size: 11px; color: var(--amber); }
+  .td-error { color: var(--red); text-align: center; margin-bottom: 8px; font-size: 14px; }
+  .td-complete { width: 100%; padding: 10px 14px; border-radius: 8px; background: var(--green); color: #000; border: none; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.15s; }
+  .td-complete:active { opacity: 0.8; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>

@@ -13,6 +13,7 @@ export interface DayEntry {
   training_type?: string | null;
   training_done?: boolean;
   rotation_slot?: number | null;
+  cardio_done?: boolean;
   creatine_done?: boolean;
   belly_cm?: number | null;
   notes?: string | null;

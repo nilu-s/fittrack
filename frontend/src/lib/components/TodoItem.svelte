@@ -1,242 +1,155 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import PillBadge from './PillBadge.svelte';
+  import Icon from './Icon.svelte';
   import type { Todo } from '$lib/types';
 
   export let todo: Todo;
-
+  export let kcal: number | null = null;
+  export let protein: number | null = null;
   const dispatch = createEventDispatcher();
-
   let expanded = false;
   let lastTap = 0;
-  let editTitle = '';
-  let editCategory = '';
-  let editPriority = 2;
-  let editDueDate = '';
-  let editDueTime = '';
+  let editTitle = ''; let editCategory = ''; let editPriority = 2; let editDueDate = ''; let editDueTime = '';
+  let showActionSheet = false;
 
-  const PRIORITY_COLORS: Record<number, string> = { 1: '#666', 2: '#f59e0b', 3: '#ef4444' };
-  $: priorityColor = PRIORITY_COLORS[todo.priority] ?? '#666';
+  const PRIORITY_COLORS: Record<number, string> = { 1: 'var(--text-faint)', 2: 'var(--amber)', 3: 'var(--red)' };
+  $: priorityColor = PRIORITY_COLORS[todo.priority] ?? 'var(--text-faint)';
+  $: isRoutine = todo.source === 'meal_routine' || todo.source === 'cardio';
+  $: canEdit = !isRoutine && todo.source !== 'training';
 
-  // Routine todos (meals, training, cardio) are toggle-only — no edit/delete
-  $: isRoutine = todo.source === 'meal_routine' || todo.source === 'training' || todo.source === 'cardio';
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  let longPressTriggered = false;
+
+  function handleTouchStart() {
+    longPressTriggered = false;
+    if (!canEdit) return;
+    longPressTimer = setTimeout(() => {
+      longPressTriggered = true;
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+      showActionSheet = true;
+    }, 500);
+  }
+
+  function handleTouchEnd() {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+  }
+
+  function handleTouchMove() {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+  }
+
+  function handleContextMenu(e: MouseEvent) {
+    if (!canEdit) return;
+    e.preventDefault();
+    showActionSheet = true;
+  }
 
   function handleTap() {
+    if (longPressTriggered) { longPressTriggered = false; return; }
     const now = Date.now();
-    if (now - lastTap < 300) {
-      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-      dispatch('done', todo.id);
-      lastTap = 0;
-    } else {
-      lastTap = now;
-      if (isRoutine) return; // routine todos don't expand
-      setTimeout(() => {
-        if (Date.now() - lastTap >= 300) {
-          expanded = !expanded;
-          if (expanded) {
-            editTitle = todo.title;
-            editCategory = todo.category ?? '';
-            editPriority = todo.priority;
-            editDueDate = todo.due_date ?? '';
-            editDueTime = todo.due_time ?? '';
-          }
-        }
-      }, 320);
-    }
+    if (now - lastTap < 300) { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); dispatch('done', todo.id); lastTap = 0; return; }
+    lastTap = now;
+    if (todo.source === 'training') { dispatch('expand', todo.id); return; }
   }
 
-  function saveEdit() {
-    dispatch('update', {
-      id: todo.id,
-      data: {
-        title: editTitle,
-        category: editCategory,
-        priority: editPriority,
-        due_date: editDueDate || null,
-        due_time: editDueTime || null,
-      },
-    });
-    expanded = false;
+  function startEdit() {
+    showActionSheet = false;
+    expanded = true;
+    editTitle = todo.title;
+    editCategory = todo.category ?? '';
+    editPriority = todo.priority;
+    editDueDate = todo.due_date ?? '';
+    editDueTime = todo.due_time ?? '';
   }
 
-  function deleteTodo() {
+  function confirmDelete() {
+    showActionSheet = false;
     dispatch('delete', todo.id);
   }
+
+  function saveEdit() { dispatch('update', { id: todo.id, data: { title: editTitle, category: editCategory, priority: editPriority, due_date: editDueDate || null, due_time: editDueTime || null } }); expanded = false; }
+  function deleteTodo() { dispatch('delete', todo.id); }
 </script>
 
-<div class="todo-item tap-area" class:done={todo.status === 'done'} class:expanded onclick={handleTap}>
-  <div class="todo-main">
-    {#if todo.status === 'done'}
-      <span class="todo-check">✓</span>
-    {:else}
-      <span class="todo-check-empty">○</span>
-    {/if}
-
-    <span class="todo-title">{todo.title}</span>
-
-    {#if todo.category}
-      <span class="badge category-badge">{todo.category}</span>
-    {/if}
-
-    {#if todo.priority === 3}
-      <span class="priority-dot" style="background:{priorityColor}"></span>
-    {/if}
-
-    {#if todo.due_time}
-      <span class="badge time-badge">⏰ {todo.due_time}</span>
-    {/if}
-
-    {#if todo.source === 'google_calendar'}
-      <span class="badge cal-badge">📅</span>
-    {/if}
-    {#if todo.source === 'meal_routine'}
-      <span class="badge cal-badge">🍽️</span>
-    {/if}
-    {#if todo.source === 'training'}
-      <span class="badge cal-badge">🏋️</span>
-    {/if}
-    {#if todo.source === 'cardio'}
-      <span class="badge cal-badge">🏃</span>
-    {/if}
+<div class="ti tap-area" class:done={todo.status === 'done'} class:expanded={expanded}
+  onclick={handleTap}
+  oncontextmenu={handleContextMenu}
+  ontouchstart={handleTouchStart}
+  ontouchend={handleTouchEnd}
+  ontouchmove={handleTouchMove}
+  ontouchcancel={handleTouchEnd}
+  role="button" tabindex="0">
+  <div class="ti-main">
+    <div class="ti-check" class:done={todo.status === 'done'}>{#if todo.status === 'done'}<Icon name="check" size={14} />{/if}</div>
+    {#if todo.priority === 3}<span class="ti-prio" style="background:{priorityColor}"></span>{/if}
+    <span class="ti-title">{todo.title}</span>
+    {#if kcal != null && kcal > 0}<PillBadge value={Math.round(kcal)} unit="kcal" color="var(--amber)" />{/if}
+    {#if protein != null && protein > 0}<PillBadge value={Math.round(protein)} unit="g P" color="var(--blue)" />{/if}
+    {#if todo.category}<span class="ti-badge">{todo.category}</span>{/if}
+    {#if todo.due_time}<span class="ti-time">{todo.due_time}</span>{/if}
+    {#if todo.source === 'google_calendar'}<Icon name="calendar" size={14} />{/if}
   </div>
-
   {#if expanded}
-    <div class="todo-edit slide-down" onclick={(e) => e.stopPropagation()}>
-      <input class="edit-input" placeholder="Titel" bind:value={editTitle} />
-      <div class="edit-row">
-        <input class="edit-input" placeholder="Kategorie" bind:value={editCategory} />
-        <select class="edit-input" bind:value={editPriority}>
-          <option value={1}>Niedrig</option>
-          <option value={2}>Mittel</option>
-          <option value={3}>Hoch</option>
-        </select>
-      </div>
-      <div class="edit-row">
-        <input class="edit-input" type="date" bind:value={editDueDate} />
-        <input class="edit-input" type="time" bind:value={editDueTime} />
-      </div>
-      <div class="edit-actions">
-        <button class="btn" onclick={saveEdit}>Speichern</button>
-        <button class="btn btn-delete" onclick={deleteTodo}>Löschen</button>
-      </div>
+    <div class="ti-edit slide-down" onclick={(e) => e.stopPropagation()}>
+      <input placeholder="Titel" bind:value={editTitle} />
+      <div class="ti-row"><input placeholder="Kategorie" bind:value={editCategory} /><select bind:value={editPriority}><option value={1}>Niedrig</option><option value={2}>Mittel</option><option value={3}>Hoch</option></select></div>
+      <div class="ti-row"><input type="date" bind:value={editDueDate} /><input type="time" bind:value={editDueTime} /></div>
+      <div class="ti-actions"><button class="btn" onclick={saveEdit}>Speichern</button><button class="btn btn-del" onclick={deleteTodo}>Löschen</button></div>
     </div>
   {/if}
 </div>
 
+{#if showActionSheet}
+  <div class="action-overlay" onclick={() => (showActionSheet = false)} ontouchstart={(e) => { e.preventDefault(); showActionSheet = false; }}>
+    <div class="action-sheet" onclick={(e) => e.stopPropagation()} ontouchstart={(e) => e.stopPropagation()}>
+      <div class="action-handle"></div>
+      <div class="action-title">{todo.title}</div>
+      <button class="action-btn" onclick={startEdit}>
+        <Icon name="edit" size={18} />
+        <span>Bearbeiten</span>
+      </button>
+      <button class="action-btn action-del" onclick={confirmDelete}>
+        <Icon name="trash" size={18} />
+        <span>Löschen</span>
+      </button>
+      <button class="action-cancel" onclick={() => (showActionSheet = false)}>Abbrechen</button>
+    </div>
+  </div>
+{/if}
+
 <style>
-  .todo-item {
-    display: flex;
-    flex-direction: column;
-    padding: 0.5rem 0.625rem;
-    border-bottom: 1px solid #333;
-    cursor: pointer;
-    transition: opacity 0.2s;
-  }
+  .ti { display: flex; flex-direction: column; padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer; transition: opacity 0.15s; -webkit-user-select: none; user-select: none; }
+  .ti:last-child { border-bottom: none; }
+  .ti.done { opacity: 0.35; }
+  .ti.done .ti-title { text-decoration: line-through; }
+  .ti:active { background: var(--card-2); }
+  .ti-main { display: flex; align-items: center; gap: 8px; min-height: 34px; }
+  .ti-check { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--border-2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: transparent; transition: all 0.2s; }
+  .ti-check.done { background: var(--green); border-color: var(--green); color: #000; }
+  .ti-prio { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .ti-title { flex: 1; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+  .ti-badge { font-size: 11px; padding: 2px 8px; border-radius: 6px; background: var(--card-2); color: var(--text-dim); white-space: nowrap; }
+  .ti-time { font-size: 11px; color: var(--text-faint); font-weight: 500; }
+  .ti-edit { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .ti-edit input, .ti-edit select { flex: 1; padding: 8px 10px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border-2); color: var(--text); font-size: 14px; }
+  .ti-edit input:focus, .ti-edit select:focus { border-color: var(--blue); }
+  .ti-row { display: flex; gap: 8px; }
+  .ti-actions { display: flex; gap: 8px; }
+  .ti-actions .btn { flex: 1; }
+  .btn-del { background: rgba(255,69,58,0.1); border-color: var(--red); color: var(--red); }
+  .btn-del:active { background: rgba(255,69,58,0.2); }
 
-  .todo-item:last-child {
-    border-bottom: none;
-  }
+  .action-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: flex-end; justify-content: center; animation: fadeIn 0.15s; }
+  .action-sheet { background: var(--card); border-radius: 16px 16px 0 0; width: 100%; max-width: 420px; padding: 8px 0 20px; box-shadow: 0 -4px 24px rgba(0,0,0,0.4); animation: slideUp 0.2s; }
+  .action-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border-2); margin: 8px auto 12px; }
+  .action-title { text-align: center; font-size: 14px; font-weight: 600; color: var(--text-dim); padding: 0 16px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .action-btn { display: flex; align-items: center; gap: 12px; width: calc(100% - 16px); margin: 0 8px; padding: 14px 16px; border: none; border-radius: 10px; background: var(--card-2); color: var(--text); font-size: 15px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+  .action-btn:active { background: var(--bg); }
+  .action-del { color: var(--red); }
+  .action-cancel { display: block; width: calc(100% - 16px); margin: 12px 8px 0; padding: 14px 16px; border: none; border-radius: 10px; background: var(--card-2); color: var(--text-dim); font-size: 15px; font-weight: 500; cursor: pointer; }
+  .action-cancel:active { background: var(--bg); }
 
-  .todo-item.done {
-    opacity: 0.5;
-  }
-
-  .todo-item.done .todo-title {
-    text-decoration: line-through;
-  }
-
-  .todo-main {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 32px;
-  }
-
-  .todo-check {
-    color: var(--accent-done);
-    font-size: 0.875rem;
-    flex-shrink: 0;
-  }
-
-  .todo-check-empty {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    flex-shrink: 0;
-  }
-
-  .todo-title {
-    flex: 1;
-    font-size: 0.8125rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .badge {
-    font-size: 0.625rem;
-    padding: 1px 6px;
-    border-radius: 8px;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .category-badge {
-    background: #333;
-    color: var(--text-secondary);
-  }
-
-  .time-badge {
-    background: #2a2a2a;
-    color: var(--text-secondary);
-  }
-
-  .cal-badge {
-    font-size: 0.75rem;
-  }
-
-  .priority-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .todo-edit {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-top: 0.5rem;
-  }
-
-  .edit-input {
-    flex: 1;
-    padding: 5px 8px;
-    border-radius: 6px;
-    background: #1a1a1a;
-    border: 1px solid var(--card-border);
-    color: var(--text-primary);
-    font-size: 0.75rem;
-  }
-
-  .edit-row {
-    display: flex;
-    gap: 6px;
-  }
-
-  .edit-actions {
-    display: flex;
-    gap: 6px;
-  }
-
-  .edit-actions .btn {
-    flex: 1;
-  }
-
-  .btn-delete {
-    background: #5a2222;
-    border-color: #7a3333;
-  }
-
-  .btn-delete:active {
-    background: #6a2222;
-  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 </style>

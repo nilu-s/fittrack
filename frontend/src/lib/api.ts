@@ -398,6 +398,16 @@ class ApiClient {
     return this.request<any>(`/auth/google/status`);
   }
 
+  // Google Fit sync — fetches steps + sleep from Google Fit, updates DayEntry in DB
+  async syncGoogleFit(date: string): Promise<{ date: string; steps: number; sleep_hours: number; steps_done: boolean; sleep_done: boolean } | null> {
+    try {
+      return await this.request<any>(`/google-fit/sync?date=${date}`, { method: 'POST' });
+    } catch (err) {
+      if (isNetworkError(err)) return null;
+      return null;
+    }
+  }
+
   // Sync
   async syncChanges(payload: SyncPayload): Promise<SyncResponse | null> {
     return this.request<SyncResponse>(`/sync`, {

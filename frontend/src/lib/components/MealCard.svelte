@@ -1,81 +1,26 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import PillBadge from './PillBadge.svelte';
+  import Icon from './Icon.svelte';
   import { api } from '$lib/api';
   import type { Meal } from '$lib/types';
 
   export let meal: Meal;
-
   const dispatch = createEventDispatcher();
-
   let expanded = false;
-  let editName = '';
-  let editKcal = '';
-  let editProtein = '';
-  let editCarbs = '';
-  let editFat = '';
+  let editName = ''; let editKcal = ''; let editProtein = ''; let editCarbs = ''; let editFat = '';
   let lastTap = 0;
   let photoInput: HTMLInputElement;
   let photoLoading = false;
 
   function handleTap() {
     const now = Date.now();
-    if (now - lastTap < 300) {
-      // Doppel-tap = mark done
-      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-      dispatch('done', meal.id);
-      lastTap = 0;
-    } else {
-      lastTap = now;
-      // Single-tap after delay = expand
-      setTimeout(() => {
-        if (Date.now() - lastTap >= 300) {
-          expanded = !expanded;
-          if (expanded) {
-            editName = meal.name ?? '';
-            editKcal = String(meal.kcal ?? '');
-            editProtein = String(meal.protein_g ?? '');
-            editCarbs = String(meal.carbs_g ?? '');
-            editFat = String(meal.fat_g ?? '');
-          }
-        }
-      }, 320);
-    }
+    if (now - lastTap < 300) { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); dispatch('done', meal.id); lastTap = 0; }
+    else { lastTap = now; setTimeout(() => { if (Date.now() - lastTap >= 300) { expanded = !expanded; if (expanded) { editName = meal.name ?? ''; editKcal = String(meal.kcal ?? ''); editProtein = String(meal.protein_g ?? ''); editCarbs = String(meal.carbs_g ?? ''); editFat = String(meal.fat_g ?? ''); } } }, 320); }
   }
-
-  function saveEdit() {
-    dispatch('update', {
-      id: meal.id,
-      data: {
-        name: editName,
-        kcal: parseFloat(editKcal) || 0,
-        protein_g: parseFloat(editProtein) || 0,
-        carbs_g: parseFloat(editCarbs) || 0,
-        fat_g: parseFloat(editFat) || 0,
-      },
-    });
-    expanded = false;
-  }
-
-  function triggerPhoto() {
-    photoInput?.click();
-  }
-
-  async function onPhotoSelected(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    photoLoading = true;
-    try {
-      const result = await api.analyzePhoto(file, meal.id);
-      dispatch('photo', { id: meal.id, file, result });
-    } catch {
-      // graceful
-    } finally {
-      photoLoading = false;
-      input.value = '';
-    }
-  }
+  function saveEdit() { dispatch('update', { id: meal.id, data: { name: editName, kcal: parseFloat(editKcal) || 0, protein_g: parseFloat(editProtein) || 0, carbs_g: parseFloat(editCarbs) || 0, fat_g: parseFloat(editFat) || 0 } }); expanded = false; }
+  function triggerPhoto() { photoInput?.click(); }
+  async function onPhotoSelected(e: Event) { const input = e.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return; photoLoading = true; try { const result = await api.analyzePhoto(file, meal.id); dispatch('photo', { id: meal.id, file, result }); } catch {} finally { photoLoading = false; input.value = ''; } }
 
   const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abend' };
   $: slotName = SLOT_NAMES[meal.meal_slot] ?? String(meal.meal_slot);
@@ -86,170 +31,46 @@
   $: fatNum = Number(meal.fat_g) || 0;
 </script>
 
-<div class="meal-card tap-area" class:done={meal.is_done} class:expanded={expanded} onclick={handleTap}>
-  <div class="meal-header">
-    {#if meal.is_done}
-      <span class="done-check">✓</span>
-    {/if}
-    <span class="meal-name">{meal.name || slotName}</span>
-    {#if displayTime}
-      <span class="meal-time">{displayTime}</span>
-    {/if}
+<div class="mc tap-area" class:done={meal.is_done} class:expanded onclick={handleTap} role="button" tabindex="0">
+  <div class="mc-hdr">
+    <div class="mc-check" class:done={meal.is_done}>{#if meal.is_done}<Icon name="check" size={14} />{/if}</div>
+    <span class="mc-name">{meal.name || slotName}</span>
+    {#if displayTime}<span class="mc-time">{displayTime}</span>{/if}
   </div>
-
-  {#if meal.photo_url}
-    <div class="meal-photo">
-      <img src={meal.photo_url} alt={meal.name ?? ''} />
-    </div>
-  {/if}
-
-  <div class="meal-pills">
-    {#if kcalNum > 0}
-      <PillBadge value={kcalNum} unit="kcal" color="#f59e0b" />
-    {/if}
-    {#if proteinNum > 0}
-      <PillBadge value={proteinNum} unit="g" color="#3b82f6" />
-    {/if}
-    {#if carbsNum > 0}
-      <PillBadge value={carbsNum} unit="g" color="#8b5cf6" />
-    {/if}
-    {#if fatNum > 0}
-      <PillBadge value={fatNum} unit="g" color="#ec4899" />
-    {/if}
+  {#if meal.photo_url}<div class="mc-photo"><img src={meal.photo_url} alt={meal.name ?? ''} /></div>{/if}
+  <div class="mc-pills">
+    {#if kcalNum > 0}<PillBadge value={kcalNum} unit="kcal" color="var(--amber)" />{/if}
+    {#if proteinNum > 0}<PillBadge value={proteinNum} unit="g" color="var(--blue)" />{/if}
+    {#if carbsNum > 0}<PillBadge value={carbsNum} unit="g" color="var(--purple)" />{/if}
+    {#if fatNum > 0}<PillBadge value={fatNum} unit="g" color="var(--pink)" />{/if}
   </div>
-
   {#if expanded}
-    <div class="meal-edit slide-down" onclick={(e) => e.stopPropagation()}>
-      <input class="edit-input" placeholder="Name" bind:value={editName} />
-      <div class="edit-grid">
-        <input class="edit-input" type="number" placeholder="kcal" bind:value={editKcal} />
-        <input class="edit-input" type="number" placeholder="P" bind:value={editProtein} />
-        <input class="edit-input" type="number" placeholder="KH" bind:value={editCarbs} />
-        <input class="edit-input" type="number" placeholder="F" bind:value={editFat} />
-      </div>
-      <div class="edit-actions">
-        <button class="btn" onclick={saveEdit}>Speichern</button>
-        <button class="btn btn-photo" onclick={triggerPhoto} disabled={photoLoading}>
-          {photoLoading ? '⏳ …' : '📷 Foto'}
-        </button>
-      </div>
+    <div class="mc-edit slide-down" onclick={(e) => e.stopPropagation()}>
+      <input placeholder="Name" bind:value={editName} />
+      <div class="mc-grid"><input type="number" placeholder="kcal" bind:value={editKcal} /><input type="number" placeholder="P" bind:value={editProtein} /><input type="number" placeholder="KH" bind:value={editCarbs} /><input type="number" placeholder="F" bind:value={editFat} /></div>
+      <div class="mc-actions"><button class="btn" onclick={saveEdit}>Speichern</button><button class="btn" onclick={triggerPhoto} disabled={photoLoading}>{#if photoLoading}<Icon name="refresh" size={16} />{:else}<Icon name="camera" size={16} />{/if}</button></div>
     </div>
   {/if}
-
-  <input
-    bind:this={photoInput}
-    type="file"
-    accept="image/*"
-    capture="environment"
-    class="hidden-input"
-    onchange={onPhotoSelected}
-  />
+  <input bind:this={photoInput} type="file" accept="image/*" capture="environment" style="display:none" onchange={onPhotoSelected} />
 </div>
 
 <style>
-  .meal-card {
-    background: #1f1f1f;
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-md);
-    padding: 0.625rem;
-    transition: opacity 0.2s, border-color 0.2s;
-    cursor: pointer;
-    overflow: hidden;
-  }
-
-  .meal-card.done {
-    opacity: 0.5;
-    border-color: var(--accent-done);
-  }
-
-  .meal-card.expanded {
-    border-color: #555;
-  }
-
-  .meal-header {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-bottom: 4px;
-  }
-
-  .done-check {
-    color: var(--accent-done);
-    font-weight: 700;
-    font-size: 0.875rem;
-  }
-
-  .meal-name {
-    flex: 1;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .meal-time {
-    font-size: 0.6875rem;
-    color: var(--text-secondary);
-    flex-shrink: 0;
-  }
-
-  .meal-photo {
-    margin: 4px 0;
-    border-radius: 6px;
-    overflow: hidden;
-  }
-
-  .meal-photo img {
-    width: 100%;
-    display: block;
-    border-radius: 6px;
-  }
-
-  .meal-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 4px;
-  }
-
-  .meal-edit {
-    margin-top: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .edit-input {
-    width: 100%;
-    padding: 6px 8px;
-    border-radius: 6px;
-    background: #1a1a1a;
-    border: 1px solid var(--card-border);
-    color: var(--text-primary);
-    font-size: 0.75rem;
-  }
-
-  .edit-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-  }
-
-  .edit-actions {
-    display: flex;
-    gap: 6px;
-  }
-
-  .edit-actions .btn {
-    flex: 1;
-  }
-
-  .btn-photo {
-    background: #333;
-  }
-
-  .hidden-input {
-    display: none;
-  }
+  .mc { background: var(--card-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; transition: opacity 0.15s; cursor: pointer; overflow: hidden; }
+  .mc.done { opacity: 0.4; border-color: var(--green); }
+  .mc.expanded { border-color: var(--border-2); }
+  .mc:active { opacity: 0.8; }
+  .mc-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .mc-check { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border-2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: transparent; transition: all 0.2s; }
+  .mc-check.done { background: var(--green); border-color: var(--green); color: #000; }
+  .mc-name { flex: 1; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mc-time { font-size: 11px; color: var(--text-faint); flex-shrink: 0; }
+  .mc-photo { margin: 6px 0; border-radius: 6px; overflow: hidden; }
+  .mc-photo img { width: 100%; display: block; border-radius: 6px; }
+  .mc-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .mc-edit { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .mc-edit input { width: 100%; padding: 8px 10px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border-2); color: var(--text); font-size: 14px; }
+  .mc-edit input:focus { border-color: var(--blue); }
+  .mc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mc-actions { display: flex; gap: 8px; }
+  .mc-actions .btn { flex: 1; }
 </style>

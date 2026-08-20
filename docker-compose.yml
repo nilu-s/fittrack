@@ -5,6 +5,8 @@ services:
       POSTGRES_DB: fittrack
       POSTGRES_USER: fittrack
       POSTGRES_PASSWORD: ${FITTRACK_DB_PASSWORD}
+      TZ: Europe/Berlin
+      PGTZ: Europe/Berlin
     volumes:
       - fittrack_pgdata:/var/lib/postgresql/data
     networks:
@@ -14,6 +16,7 @@ services:
   fittrack-api:
     build: ./backend
     environment:
+      TZ: Europe/Berlin
       DATABASE_URL: postgresql+asyncpg://fittrack:${FITTRACK_DB_PASSWORD}@fittrack-db:5432/fittrack
       OLLAMA_URL: http://host.docker.internal:11434
       OLLAMA_VISION_MODEL: kimi-k3:cloud

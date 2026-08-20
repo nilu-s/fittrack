@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from datetime import date as date_type
 from datetime import datetime, time, timedelta, timezone
+
+from app.tz import BERLIN_TZ
 from typing import Optional
 
 import httpx
@@ -21,10 +23,10 @@ GOOGLE_CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/p
 
 
 def _day_bounds(day: date_type) -> tuple[datetime, datetime]:
-    """Return UTC midnight start/end for the requested date."""
-    start = datetime.combine(day, time.min, tzinfo=timezone.utc)
-    end = datetime.combine(day + timedelta(days=1), time.min, tzinfo=timezone.utc)
-    return start, end
+    """Return UTC start/end for the requested date in local timezone (Europe/Berlin)."""
+    start_local = datetime.combine(day, time.min, tzinfo=BERLIN_TZ)
+    end_local = datetime.combine(day + timedelta(days=1), time.min, tzinfo=BERLIN_TZ)
+    return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
 
 
 def _rfc3339_utc(dt: datetime) -> str:
@@ -32,9 +34,9 @@ def _rfc3339_utc(dt: datetime) -> str:
 
 
 def _naive_time(dt: datetime) -> time:
-    """Convert a timezone-aware datetime to a naive time for SQLAlchemy Time column."""
+    """Convert a timezone-aware datetime to a naive Berlin local time for SQLAlchemy Time column."""
     if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+        dt = dt.astimezone(BERLIN_TZ)
     return dt.time()
 
 

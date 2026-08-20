@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+
+from app.tz import BERLIN_TZ
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -105,7 +107,7 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                             "payload": {c.name: getattr(obj, c.name) for c in obj.__table__.columns},
                         })
 
-        sync_token = datetime.utcnow()
+        sync_token = datetime.now(BERLIN_TZ)
         return SyncResponse(
             server_changes=server_changes,
             conflicts=conflicts,
