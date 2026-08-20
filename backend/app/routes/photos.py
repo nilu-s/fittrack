@@ -79,10 +79,10 @@ async def analyze_photo(
     try:
         b64_image = base64.b64encode(contents).decode("utf-8")
         prompt = (
-            "Du bist ein Ernährungs-Experte. Analysiere dieses Food-Foto. "
-            "Erkenne die Speisen und schätze die Nährwerte (kcal, Protein g, Kohlenhydrate g, Fett g). "
-            "Antworte NUR mit gültigem JSON im folgenden Format:\n"
-            '{"items": [{"name": "...", "kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}], '
+            "You are a nutrition expert. Analyze this food photo. "
+            "Identify the dish and estimate nutritional values. "
+            "Respond ONLY with valid JSON in this exact format, no other text:\n"
+            '{"items": [{"name": "dish name", "kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}], '
             '"total": {"kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}}'
         )
 
@@ -118,6 +118,20 @@ async def analyze_photo(
                     lines = lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
                     content = "\n".join(lines)
                 analysis = json.loads(content)
+                assert analysis is not None and isinstance(analysis, dict), f"Invalid JSON: {type(analysis)}"
+                # Normalize: ensure items[] and total{} exist
+                if "items" not in analysis and "name" in analysis:
+                    # Model returned flat format → wrap it
+                    item = {k: analysis[k] for k in ("name", "kcal", "protein_g", "carbs_g", "fat_g") if k in analysis}
+                    analysis = {"items": [item], "total": {k: analysis.get(k, 0) for k in ("kcal", "protein_g", "carbs_g", "fat_g")}}
+                if "items" in analysis and "total" not in analysis:
+                    items = analysis["items"]
+                    analysis["total"] = {
+                        "kcal": sum(float(i.get("kcal", 0)) for i in items),
+                        "protein_g": sum(float(i.get("protein_g", 0)) for i in items),
+                        "carbs_g": sum(float(i.get("carbs_g", 0)) for i in items),
+                        "fat_g": sum(float(i.get("fat_g", 0)) for i in items),
+                    }
             except (json.JSONDecodeError, IndexError):
                 error = f"Could not parse vision response: {content[:200]}"
                 logger.warning(error)

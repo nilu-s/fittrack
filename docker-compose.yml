@@ -18,8 +18,8 @@ services:
     environment:
       TZ: Europe/Berlin
       DATABASE_URL: postgresql+asyncpg://fittrack:${FITTRACK_DB_PASSWORD}@fittrack-db:5432/fittrack
-      OLLAMA_URL: http://host.docker.internal:11434
-      OLLAMA_VISION_MODEL: kimi-k3:cloud
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_VISION_MODEL: moondream:1.8b
       PHOTO_DIR: /app/photos
       JWT_SECRET: ${FITTRACK_JWT_SECRET}
       FITTRACK_JWT_SECRET: ${FITTRACK_JWT_SECRET}
@@ -31,11 +31,14 @@ services:
       - ./photos:/app/photos
     ports:
       - "127.0.0.1:8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - fittrack-db
     networks:
       - fittrack-net
       - worldweave_default
+      - agent_net
     restart: unless-stopped
 
   fittrack-web:
@@ -54,4 +57,6 @@ networks:
   fittrack-net:
     driver: bridge
   worldweave_default:
+    external: true
+  agent_net:
     external: true

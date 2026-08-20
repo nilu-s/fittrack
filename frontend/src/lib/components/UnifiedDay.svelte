@@ -42,6 +42,7 @@
   let quickAdd = '';
   let photoInput: HTMLInputElement;
   let photoLoading = false;
+  let photoStatus = '';  // '', 'upload', 'analyze', 'match', 'done'
   let confirmData: { slot: number; name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null = null;
   let choosingSlot = false;
 
@@ -83,6 +84,7 @@
   let editDishesLoading = false;
   let editPhotoInput: HTMLInputElement;
   let editPhotoLoading = false;
+  let editPhotoStatus = '';
 
   function handleTouchStart(item: UnifiedItem, e: TouchEvent) {
     longPressTriggered = false;
@@ -150,7 +152,27 @@
   function getCurrentSlot(): number { const now = new Date(); const t = now.getHours() * 60 + now.getMinutes(); if (t >= 240 && t < 630) return 1; if (t >= 630 && t < 840) return 2; if (t >= 840 && t < 1050) return 3; if (t >= 1050 && t < 1320) return 4; return 1; }
   function parseVisionResult(result: any) { if (!result?.analysis?.total) return null; const total = result.analysis.total; const firstItem = result.analysis.items?.[0]; return { name: firstItem?.name ?? 'Erkanntes Gericht', kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0 }; }
   function triggerPhoto() { photoInput?.click(); }
-  async function onPhotoSelected(e: Event) { const input = e.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return; photoLoading = true; try { const result = await api.analyzePhoto(file); const parsed = parseVisionResult(result); if (parsed) { confirmData = { slot: getCurrentSlot(), ...parsed }; choosingSlot = false; } } catch {} finally { photoLoading = false; input.value = ''; } }
+  async function onPhotoSelected(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    photoLoading = true;
+    photoStatus = 'upload';
+    try {
+      photoStatus = 'analyze';
+      const result = await api.analyzePhoto(file) as any;
+      photoStatus = 'match';
+      const parsed = parseVisionResult(result);
+      if (parsed) {
+        confirmData = { slot: getCurrentSlot(), ...parsed };
+        choosingSlot = false;
+        photoStatus = 'done';
+      }
+    } catch {} finally {
+      setTimeout(() => { photoLoading = false; photoStatus = ''; }, 300);
+      input.value = '';
+    }
+  }
   async function assignToSlot(slot: number) {
     const data = confirmData;
     if (!data) return;
@@ -211,21 +233,24 @@
     const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id);
     if (!meal?.id) return;
     editPhotoLoading = true;
+    editPhotoStatus = 'analyze';
     try {
       const result = await api.analyzePhoto(file, meal.id) as any;
+      editPhotoStatus = 'match';
       if (result?.analysis?.total) {
         const total = result.analysis.total;
         const firstName = result.analysis.items?.[0]?.name ?? 'Erkanntes Gericht';
         await api.updateMeal(meal.id, { name: firstName, kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0 });
         meals = meals.map((m) => m.id === meal.id ? { ...m, name: firstName, kcal: String(total.kcal), protein_g: String(total.protein_g), carbs_g: String(total.carbs_g), fat_g: String(total.fat_g) } : m);
         dispatch('mealtoggle', { id: meal.id, is_done: meal.is_done });
+        editPhotoStatus = 'done';
         if (result.dish_match?.matched && result.dish_match.dish) {
           try { await api.incrementDishUsage(result.dish_match.dish.id); } catch {}
         } else {
           try { await api.createDish({ slot: meal.meal_slot, name: firstName, kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0, source: 'photo' }); } catch {}
         }
       }
-    } catch {} finally { editPhotoLoading = false; input.value = ''; mealEditItem = null; }
+    } catch {} finally { setTimeout(() => { editPhotoLoading = false; editPhotoStatus = ''; }, 500); input.value = ''; mealEditItem = null; }
   }
 
   $: weightItem = unifiedItems.find((i) => i.id === 'metric-weight');
@@ -516,6 +541,20 @@
     </button>
   </div>
 
+  {#if photoLoading}
+    <div class="photo-progress">
+      <div class="photo-progress-bar">
+        <div class="photo-progress-fill" class:animate-match={photoStatus === 'match'} class:animate-done={photoStatus === 'done'}></div>
+      </div>
+      <span class="photo-progress-label">
+        {photoStatus === 'upload' ? 'Foto wird hochgeladen…' :
+         photoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' :
+         photoStatus === 'match' ? 'Gericht wird zugeordnet…' :
+         photoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}
+      </span>
+    </div>
+  {/if}
+
   {#each manualItems as item (item.id)}
     <div class="item tap-area" class:done={item.done}
       onclick={(e) => handleTap(item, e)}
@@ -661,6 +700,18 @@
         </div>
       {/if}
       <div class="modal-actions">
+        {#if editPhotoLoading}
+          <div class="photo-progress modal-progress">
+            <div class="photo-progress-bar">
+              <div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div>
+            </div>
+            <span class="photo-progress-label">
+              {editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' :
+               editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' :
+               editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}
+            </span>
+          </div>
+        {/if}
         <button class="modal-primary cam-action" onclick={triggerEditPhoto} disabled={editPhotoLoading}>
           {#if editPhotoLoading}<Icon name="refresh" size={18} />{:else}<Icon name="camera" size={18} />{/if}
           <span>{editPhotoLoading ? 'Analysiere…' : 'Foto analysieren'}</span>
@@ -819,4 +870,15 @@
   .dish-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: var(--green); color: #000; font-weight: 600; flex-shrink: 0; }
   .dish-uses { font-size: 11px; color: var(--text-faint); flex-shrink: 0; }
   .dish-macros { display: flex; gap: 8px; font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+
+  /* Photo progress bar */
+  .photo-progress { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .modal-progress { padding: 0 0 8px; border: none; }
+  .photo-progress-bar { height: 4px; border-radius: 2px; background: var(--card-2); overflow: hidden; margin-bottom: 6px; }
+  .photo-progress-fill { height: 100%; border-radius: 2px; background: var(--blue); width: 0; animation: photoLoad 2s ease-in-out infinite; }
+  .photo-progress-fill.animate-match { background: var(--amber); animation: photoLoad 1.5s ease-in-out infinite; }
+  .photo-progress-fill.animate-done { background: var(--green); animation: photoDone 0.4s ease-out forwards; }
+  .photo-progress-label { font-size: 12px; color: var(--text-dim); display: block; text-align: center; }
+  @keyframes photoLoad { 0% { width: 0; } 50% { width: 65%; } 100% { width: 90%; } }
+  @keyframes photoDone { from { width: 90%; } to { width: 100%; } }
 </style>
