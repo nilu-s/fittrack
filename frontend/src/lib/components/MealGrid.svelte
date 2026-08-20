@@ -15,7 +15,7 @@
   $: totalKH = (meals ?? []).reduce((s, m) => s + (Number(m.carbs_g) || 0), 0);
   $: totalF = (meals ?? []).reduce((s, m) => s + (Number(m.fat_g) || 0), 0);
   $: goals = $dailyGoals;
-  const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abend' };
+  const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abendessen' };
   let photoInput: HTMLInputElement;
   let photoLoading = false;
   let confirmData: { slot: number; name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; matched?: boolean } | null = null;

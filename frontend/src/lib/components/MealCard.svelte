@@ -21,7 +21,7 @@
   let dishes: Dish[] = [];
   let loadingDishes = false;
 
-  const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abend' };
+  const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abendessen' };
   $: slotName = SLOT_NAMES[meal.meal_slot] ?? String(meal.meal_slot);
   $: displayTime = meal.default_time ? meal.default_time.slice(0, 5) : '';
   $: kcalNum = Number(meal.kcal) || 0;

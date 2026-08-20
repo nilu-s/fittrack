@@ -32,13 +32,13 @@
   let editDishData: any[] = [];
   let editPhotoInput: HTMLInputElement;
   let editPhotoLoading = false;
-  const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abend' };
+  const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abendessen' };
   $: sortedMeals = [...(meals ?? [])].sort((a, b) => (a.meal_slot ?? 99) - (b.meal_slot ?? 99));
   $: virtualTodos = buildRoutineTodos(dayEntry, meals, trainingSuggestion);
 
   function buildRoutineTodos(entry: DayEntry | null, mealList: Meal[], suggestion: TrainingSuggestion | null): Todo[] {
     const items: Todo[] = [];
-    for (const m of mealList ?? []) { items.push({ id: `routine-meal-${m.id ?? m.meal_slot}`, title: m.name || SLOT_NAMES[m.meal_slot] || 'Mahlzeit', status: m.is_done ? 'done' : 'open', due_time: m.default_time ? m.default_time.slice(0, 5) : null, due_date: currentDate, priority: 2, source: 'meal_routine', sort_order: m.meal_slot }); }
+    for (const m of mealList ?? []) { const slotLabel = SLOT_NAMES[m.meal_slot] || `Slot ${m.meal_slot}`; const dishName = m.name || '— nichts gewählt —'; items.push({ id: `routine-meal-${m.id ?? m.meal_slot}`, title: `${slotLabel}: ${dishName}`, status: m.is_done ? 'done' : 'open', due_time: m.default_time ? m.default_time.slice(0, 5) : null, due_date: currentDate, priority: 2, source: 'meal_routine', sort_order: m.meal_slot }); }
     if (entry || suggestion) { const trainingType = suggestion?.training_type ?? entry?.training_type ?? 'Training'; items.push({ id: 'routine-training', title: trainingType, status: entry?.training_done ? 'done' : 'open', due_time: null, due_date: currentDate, priority: 2, source: 'training', sort_order: 99 }); }
     const cardioMinutes = entry?.cardio_minutes ?? suggestion?.cardio_minutes ?? 0;
     if (entry || suggestion) { items.push({ id: 'routine-cardio', title: cardioMinutes > 0 ? `Cardio ${cardioMinutes}min` : 'Cardio', status: entry?.cardio_done ? 'done' : 'open', due_time: null, due_date: currentDate, priority: 2, source: 'cardio', sort_order: 100 }); }
