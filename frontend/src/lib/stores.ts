@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { syncStatus } from './sync';
+import { syncStatus, lastSync } from './sync';
 import type { DayData } from './types';
 
 function todayStr(): string {
@@ -11,7 +11,7 @@ function todayStr(): string {
 }
 
 export const currentDate = writable<string>(todayStr());
-export { syncStatus };
+export { syncStatus, lastSync };
 export const dayData = writable<DayData | null>(null);
 
 export const onlineStatus = writable<boolean>(

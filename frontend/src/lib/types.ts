@@ -1,22 +1,21 @@
-// FitTrack TypeScript Types
+// FitTrack TypeScript Types — aligned with backend schemas (snake_case)
 
 export interface DayEntry {
-  id?: number;
+  id?: string;
+  user_id?: string;
   date: string; // YYYY-MM-DD
-  weight?: number | null;
-  weight_done?: boolean;
+  weight_kg?: number | null;
   steps?: number | null;
   steps_done?: boolean;
   sleep_hours?: number | null;
   sleep_done?: boolean;
   cardio_minutes?: number | null;
-  cardio_done?: boolean;
   training_type?: string | null;
   training_done?: boolean;
-  creatine?: boolean;
-  belly_circumference?: number | null;
-  rotation_slot?: number;
-  notes?: string;
+  rotation_slot?: number | null;
+  creatine_done?: boolean;
+  belly_cm?: number | null;
+  notes?: string | null;
   updated_at?: string;
 }
 
@@ -24,74 +23,127 @@ export interface Meal {
   id?: string;
   user_id?: string;
   date: string; // YYYY-MM-DD
-  meal_slot: number; // 1=breakfast, 2=lunch, 3=dinner, 4=snack
+  meal_slot: number;
   name?: string;
   default_time?: string; // HH:MM:SS
-  kcal?: string | number;
-  protein_g?: string | number;
-  carbs_g?: string | number;
-  fat_g?: string | number;
+  kcal?: number | string | null;
+  protein_g?: number | string | null;
+  carbs_g?: number | string | null;
+  fat_g?: number | string | null;
   is_standard?: boolean;
   is_done?: boolean;
+  replaced_by?: string | null;
   photo_url?: string | null;
+  photo_analysis?: any;
+  assigned_via_photo?: boolean;
   updated_at?: string;
 }
 
 export interface Todo {
-  id?: number;
-  date: string; // YYYY-MM-DD
+  id?: string;
+  user_id?: string;
   title: string;
-  description?: string;
-  status: 'open' | 'done';
+  category?: string | null;
   priority: number; // 1=low, 2=medium, 3=high
-  category?: string;
+  status: 'open' | 'done';
   due_date?: string | null;
   due_time?: string | null;
-  source?: string; // manual, google_calendar
+  start_time?: string | null;
+  end_time?: string | null;
+  is_all_day?: boolean;
+  source?: string;
   external_id?: string | null;
   sort_order?: number;
-  created_at?: string;
+  completed_at?: string | null;
   updated_at?: string;
 }
 
 export interface Exercise {
-  id?: number;
+  id?: string;
+  user_id?: string;
   training_type: string;
   exercise_name: string;
-  description?: string;
-  default_sets?: number;
-  default_reps?: number;
-  default_weight?: number;
+  target_sets: string;
+  target_reps_low?: number | null;
+  target_reps_high?: number | null;
+  target_weight_kg?: number | null;
+  progression_strategy?: string;
+  progression_increment_weight?: number;
+  is_topset?: boolean;
+  target_rir?: number | null;
+  sort_order?: number;
 }
 
 export interface TrainingSet {
-  id?: number;
+  id?: string;
+  user_id?: string;
   date: string;
   training_type: string;
   exercise_name: string;
   set_number: number;
-  reps?: number;
-  weight?: number;
-  completed: boolean;
+  set_type?: string;
+  reps?: number | null;
+  weight_kg?: number | null;
+  rir?: number | null;
+  completed?: boolean;
   updated_at?: string;
 }
 
 export interface TrainingRotation {
-  id?: number;
+  id?: string;
+  user_id?: string;
   slot: number;
   training_type: string;
-  description?: string;
+  cardio_minutes?: number | null;
+}
+
+export interface TrainingSuggestion {
+  date: string;
+  training_type: string;
+  rotation_slot?: number | null;
+  cardio_minutes?: number | null;
+  exercises: TrainingSuggestionExercise[];
+}
+
+export interface TrainingSuggestionExercise {
+  exercise_name: string;
+  target_sets: string;
+  target_reps_low?: number | null;
+  target_reps_high?: number | null;
+  target_weight_kg?: number | null;
+  is_topset?: boolean;
+  target_rir?: number | null;
+  sort_order?: number;
+}
+
+export interface TrainingCompleteRequest {
+  date: string;
+  training_type: string;
+  sets: {
+    exercise_name: string;
+    set_number: number;
+    set_type?: string;
+    reps?: number | null;
+    weight_kg?: number | null;
+    rir?: number | null;
+  }[];
+}
+
+export interface TrainingCompleteResponse {
+  saved: number;
+  progressed_exercises: Exercise[];
+  next_training: TrainingSuggestion | null;
 }
 
 export interface MealTemplate {
-  id?: number;
-  slot: string;
+  id?: string;
+  user_id?: string;
+  slot: number;
   name: string;
-  default_kcal?: number;
-  default_protein?: number;
-  default_carbs?: number;
-  default_fat?: number;
-  default_time?: string;
+  kcal?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
 }
 
 export interface SyncQueueEntry {
@@ -104,44 +156,52 @@ export interface SyncQueueEntry {
 }
 
 export interface WeekStats {
+  week_start: string;
+  week_end: string;
+  avg_weight?: number | null;
+  avg_kcal?: number | null;
+  avg_steps?: number | null;
+  training_days: number;
+  training_completion: number;
+  todo_total: number;
+  todo_done: number;
+  todo_completion: number;
+}
+
+export interface TrendPoint {
   date: string;
-  weight_avg?: number;
-  weight_trend?: number[];
-  kcal_avg?: number;
-  kcal_trend?: number[];
-  steps_avg?: number;
-  steps_trend?: number[];
-  sleep_avg?: number;
-  training_completed?: number;
-  training_total?: number;
-  todo_open?: number;
-  todo_done?: number;
-  todo_completion_rate?: number;
+  value: number | null;
 }
 
 export interface TrendData {
   metric: string;
-  days: number;
-  values: { date: string; value: number | null }[];
+  points: TrendPoint[];
+}
+
+export interface SyncChangeItem {
+  entity_type: string;
+  entity_id: string;
+  action: string;
+  payload: Record<string, any>;
+  client_timestamp: number;
 }
 
 export interface SyncPayload {
-  changes: SyncQueueEntry[];
+  changes: SyncChangeItem[];
   lastSync: number;
 }
 
 export interface SyncResponse {
-  success: boolean;
-  conflicts?: any[];
-  merged?: any;
-  serverTime?: number;
+  server_changes: any[];
+  conflicts: any[];
+  sync_token: string;
 }
 
 export interface DayData {
   dayEntry: DayEntry | null;
   meals: Meal[];
   todos: Todo[];
-  training: TrainingSet[];
+  trainingSuggestion: TrainingSuggestion | null;
   nextTraining: TrainingRotation | null;
   weekStats?: WeekStats | null;
 }

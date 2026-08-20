@@ -2,6 +2,7 @@
   import MetricRow from './MetricRow.svelte';
   import Sparkline from './Sparkline.svelte';
   import ProgressBar from './ProgressBar.svelte';
+  import TrainingDetail from './TrainingDetail.svelte';
   import { api } from '$lib/api';
   import { dailyGoals } from '$lib/stores';
   import type { DayData } from '$lib/types';
@@ -14,7 +15,7 @@
   let kcalTrend: number[] = [];
 
   $: entry = dayData.dayEntry ?? { date: currentDate };
-  $: totalKcal = (dayData.meals ?? []).reduce((s, m) => s + (m.kcal ?? 0), 0);
+  $: totalKcal = (dayData.meals ?? []).reduce((s, m) => s + (Number(m.kcal) ?? 0), 0);
 
   // Fetch sparkline data
   $: if (currentDate) {
@@ -27,8 +28,8 @@
         api.getStatsTrend('weight', 7),
         api.getStatsTrend('kcal', 7),
       ]);
-      weightTrend = (wt?.values ?? []).map((v) => v.value ?? 0).filter((v) => v > 0);
-      kcalTrend = (kt?.values ?? []).map((v) => v.value ?? 0).filter((v) => v > 0);
+      weightTrend = (wt?.points ?? []).map((v) => v.value ?? 0).filter((v) => v !== null && v > 0);
+      kcalTrend = (kt?.points ?? []).map((v) => v.value ?? 0).filter((v) => v !== null && v > 0);
     } catch {
       // graceful
     }
@@ -57,7 +58,11 @@
 
   // Training karussell
   let rotationIdx = 0;
-  $: rotationTypes = dayData.nextTraining ? [dayData.nextTraining.training_type] : ['A', 'B', 'C', 'D'];
+  let showDetail = false;
+  let lastTrainingTap = 0;
+  $: rotationTypes = dayData.nextTraining
+    ? [dayData.nextTraining.training_type]
+    : ['Oberkörper A', 'Oberkörper B', 'Unterkörper A', 'Unterkörper B'];
 
   function prevTraining() {
     rotationIdx = (rotationIdx - 1 + rotationTypes.length) % rotationTypes.length;
@@ -65,6 +70,33 @@
 
   function nextTraining() {
     rotationIdx = (rotationIdx + 1) % rotationTypes.length;
+  }
+
+  function onTrainingComplete() {
+    entry = {
+      ...(entry || { date: currentDate }),
+      training_done: true,
+      training_type: currentTrainingType === '—' ? null : currentTrainingType,
+    };
+    showDetail = false;
+  }
+
+  function handleTrainingRowClick(e: MouseEvent | TouchEvent) {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input')) return;
+    const now = Date.now();
+    if (now - lastTrainingTap < 300) {
+      lastTrainingTap = 0;
+      toggleCheck('training');
+      return;
+    }
+    lastTrainingTap = now;
+    setTimeout(() => {
+      if (lastTrainingTap && Date.now() - lastTrainingTap >= 300) {
+        showDetail = !showDetail;
+        lastTrainingTap = 0;
+      }
+    }, 320);
   }
 
   $: currentTrainingType = rotationTypes[rotationIdx] ?? entry?.training_type ?? '—';
@@ -83,13 +115,10 @@
       <MetricRow
         icon="⚖️"
         label="Gewicht"
-        value={entry?.weight ?? null}
+        value={entry?.weight_kg ?? null}
         unit="kg"
         editable
-        checkable
-        checked={entry?.weight_done ?? false}
-        onchange={(e) => updateField('weight', e.detail)}
-        oncheck={() => toggleCheck('weight')}
+        onchange={(e) => updateField('weight_kg', e.detail)}
       />
       <div class="spark-wrap">
         <Sparkline data={weightTrend} color="#3b82f6" height={24} width={70} fill={true} />
@@ -120,8 +149,7 @@
         checkable
         checked={entry?.sleep_done ?? false}
         onchange={(e) => updateField('sleep_hours', e.detail)}
-        oncheck={() => toggleCheck('sleep')
-        }
+        oncheck={() => toggleCheck('sleep')}
       />
       <ProgressBar current={entry?.sleep_hours ?? 0} target={goals.sleepHours} color="#666" />
     </div>
@@ -133,13 +161,13 @@
       value={entry?.cardio_minutes ?? null}
       unit="min"
       checkable
-      checked={entry?.cardio_done ?? false}
+      checked={entry?.cardio_minutes ? (entry as any).cardio_done : false}
       onchange={(e) => updateField('cardio_minutes', e.detail)}
       oncheck={() => toggleCheck('cardio')}
     />
 
     <!-- Training with karussell -->
-    <div class="training-row">
+    <div class="training-row tap-area" onclick={handleTrainingRowClick}>
       <MetricRow
         icon="🏋️"
         label="Training"
@@ -148,18 +176,27 @@
         checked={entry?.training_done ?? false}
         oncheck={() => toggleCheck('training')}
       />
-      <div class="karussell">
+      <div class="karussell" onclick={(e) => e.stopPropagation()}>
         <button class="karussell-btn" onclick={prevTraining}>◄</button>
         <button class="karussell-btn" onclick={nextTraining}>►</button>
       </div>
     </div>
 
+    {#if showDetail}
+      <TrainingDetail
+        training_type={currentTrainingType}
+        date={currentDate}
+        on:complete={onTrainingComplete}
+        on:close={() => (showDetail = false)}
+      />
+    {/if}
+
     <!-- Creatine -->
     <div class="metric-row-custom">
       <span class="metric-icon">💊</span>
       <span class="metric-label">Kreatin</span>
-      <button class="toggle-btn" class:active={entry?.creatine ?? false} onclick={() => updateField('creatine', !entry?.creatine)}>
-        {entry?.creatine ? '✓ Eingenommen' : '○ Ausstehend'}
+      <button class="toggle-btn" class:active={entry?.creatine_done ?? false} onclick={() => updateField('creatine_done', !entry?.creatine_done)}>
+        {entry?.creatine_done ? '✓ Eingenommen' : '○ Ausstehend'}
       </button>
     </div>
 
@@ -167,10 +204,10 @@
     <MetricRow
       icon="📏"
       label="Bauchumfang"
-      value={entry?.belly_circumference ?? null}
+      value={entry?.belly_cm ?? null}
       unit="cm"
       editable
-      onchange={(e) => updateField('belly_circumference', e.detail)}
+      onchange={(e) => updateField('belly_cm', e.detail)}
     />
 
     <!-- Kcal sparkline -->

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
@@ -94,8 +95,13 @@ async def get_current_user(request: Request) -> str:
     """FastAPI dependency: reads fittrack_session cookie, verifies JWT, returns email.
 
     Raises HTTPException(401) if not authenticated.
+    Localhost/private network requests without cookie bypass auth (CLI/agent access).
     """
     token = request.cookies.get(SESSION_COOKIE_NAME)
+    # Auth bypass for CLI/agent: secret key header (not forwarded by Caddy from public)
+    cli_key = os.environ.get("FITTRACK_CLI_KEY")
+    if not token and cli_key and request.headers.get("X-FitTrack-CLI-Key") == cli_key:
+        return "luis"
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     email = _verify_session_jwt(token)

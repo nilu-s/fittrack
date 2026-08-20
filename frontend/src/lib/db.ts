@@ -1,14 +1,14 @@
 import Dexie, { type Table } from 'dexie';
 import type { DayEntry, Meal, Todo, Exercise, TrainingSet, TrainingRotation, MealTemplate, SyncQueueEntry } from './types';
 
-export interface DayEntryRecord extends DayEntry { localId?: number; serverId?: number; }
-export interface MealRecord extends Meal { localId?: number; serverId?: number; }
-export interface TodoRecord extends Todo { localId?: number; serverId?: number; }
-export interface ExerciseRecord extends Exercise { localId?: number; serverId?: number; }
-export interface TrainingSetRecord extends TrainingSet { localId?: number; serverId?: number; }
-export interface TrainingRotationRecord extends TrainingRotation { localId?: number; serverId?: number; }
-export interface MealTemplateRecord extends MealTemplate { localId?: number; serverId?: number; }
-export interface PhotoRecord { localId?: number; serverId?: number; mealLocalId?: number; blob?: Blob; }
+export interface DayEntryRecord extends DayEntry { localId?: number; serverId?: string; }
+export interface MealRecord extends Meal { localId?: number; serverId?: string; }
+export interface TodoRecord extends Todo { localId?: number; serverId?: string; }
+export interface ExerciseRecord extends Exercise { localId?: number; serverId?: string; }
+export interface TrainingSetRecord extends TrainingSet { localId?: number; serverId?: string; }
+export interface TrainingRotationRecord extends TrainingRotation { localId?: number; serverId?: string; }
+export interface MealTemplateRecord extends MealTemplate { localId?: number; serverId?: string; }
+export interface PhotoRecord { localId?: number; serverId?: string; mealLocalId?: number; blob?: Blob; }
 
 export class FitTrackDB extends Dexie {
   dayEntries!: Table<DayEntryRecord, number>;
@@ -23,13 +23,13 @@ export class FitTrackDB extends Dexie {
 
   constructor() {
     super('fittrack');
-    this.version(1).stores({
-      dayEntries: '++localId, serverId, date, rotationSlot, updatedAt',
+    this.version(2).stores({
+      dayEntries: '++localId, serverId, date, rotation_slot, updated_at',
       trainingRotation: '++localId, serverId, slot',
-      trainingSets: '++localId, serverId, date, trainingType, exerciseName, setNumber, completed, updatedAt',
-      exercises: '++localId, serverId, trainingType, exerciseName',
-      meals: '++localId, serverId, date, mealSlot, isDone, defaultTime, updatedAt',
-      todos: '++localId, serverId, status, priority, category, dueDate, dueTime, source, externalId, sortOrder, updatedAt',
+      trainingSets: '++localId, serverId, date, training_type, exercise_name, set_number, completed, updated_at',
+      exercises: '++localId, serverId, training_type, exercise_name',
+      meals: '++localId, serverId, date, meal_slot, is_done, default_time, updated_at',
+      todos: '++localId, serverId, status, priority, category, due_date, due_time, source, external_id, sort_order, updated_at',
       mealTemplates: '++localId, serverId, slot',
       syncQueue: '++id, entityType, entityLocalId, action, clientTimestamp, synced',
       photos: '++localId, serverId, mealLocalId, blob',

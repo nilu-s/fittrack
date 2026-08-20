@@ -1,10 +1,15 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte';
   import TodoItem from './TodoItem.svelte';
   import { api } from '$lib/api';
-  import type { Todo } from '$lib/types';
+  import type { Todo, DayEntry, Meal } from '$lib/types';
 
   export let todos: Todo[];
   export let currentDate: string;
+  export let dayEntry: DayEntry | null = null;
+  export let meals: Meal[] = [];
+
+  const dispatch = createEventDispatcher();
 
   type FilterMode = 'all' | 'open' | 'done' | 'today';
   type SortMode = 'time' | 'priority' | 'due';
@@ -15,10 +20,51 @@
   let quickAdd = '';
   let showFilters = false;
 
-  $: categories = [...new Set((todos ?? []).map((t) => t.category).filter(Boolean))] as string[];
-  $: openCount = (todos ?? []).filter((t) => t.status === 'open').length;
+  // --- Virtual todos from meals + training (daily routine) ---
+  const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Abend', 4: 'Snack' };
 
-  $: filteredTodos = getFilteredSorted(todos ?? [], filter, sort, categoryFilter, currentDate);
+  $: virtualTodos = buildRoutineTodos(dayEntry, meals);
+
+  function buildRoutineTodos(entry: DayEntry | null, mealList: Meal[]): Todo[] {
+    const items: Todo[] = [];
+
+    // Meals as routine todos
+    for (const m of mealList ?? []) {
+      items.push({
+        id: `routine-meal-${m.id ?? m.meal_slot}`,
+        title: m.name || SLOT_NAMES[m.meal_slot] || 'Mahlzeit',
+        status: m.is_done ? 'done' : 'open',
+        due_time: m.default_time ? m.default_time.slice(0, 5) : null,
+        due_date: currentDate,
+        priority: 2,
+        source: 'meal_routine',
+        sort_order: m.meal_slot,
+      });
+    }
+
+    // Training as routine todo
+    if (entry) {
+      const trainingType = entry.training_type ?? 'Training';
+      items.push({
+        id: 'routine-training',
+        title: trainingType,
+        status: entry.training_done ? 'done' : 'open',
+        due_time: null,
+        due_date: currentDate,
+        priority: 2,
+        source: 'training',
+        sort_order: 99,
+      });
+    }
+
+    return items;
+  }
+
+  $: categories = [...new Set((todos ?? []).map((t) => t.category).filter(Boolean))] as string[];
+  $: allTodos = [...virtualTodos, ...(todos ?? [])];
+  $: openCount = allTodos.filter((t) => t.status === 'open').length;
+
+  $: filteredTodos = getFilteredSorted(allTodos, filter, sort, categoryFilter, currentDate);
 
   function getFilteredSorted(todos: Todo[], filter: FilterMode, sort: SortMode, catFilter: string, date: string): Todo[] {
     let result = [...todos];
@@ -26,11 +72,11 @@
     // Filter
     if (filter === 'open') result = result.filter((t) => t.status === 'open');
     else if (filter === 'done') result = result.filter((t) => t.status === 'done');
-    else if (filter === 'today') result = result.filter((t) => t.due_date === date || t.date === date);
+    else if (filter === 'today') result = result.filter((t) => t.due_date === date);
 
     if (catFilter) result = result.filter((t) => t.category === catFilter);
 
-    // Sort
+    // Sort: routine items first (by sort_order), then by selected sort mode
     if (sort === 'priority') {
       result.sort((a, b) => (b.priority ?? 2) - (a.priority ?? 2));
     } else if (sort === 'due') {
@@ -40,8 +86,15 @@
         return ad.localeCompare(bd);
       });
     } else {
-      // time sort - by due_time then sort_order
+      // time sort — routine items by sort_order first, then manual by time
       result.sort((a, b) => {
+        const aRoutine = a.source === 'meal_routine' || a.source === 'training';
+        const bRoutine = b.source === 'meal_routine' || b.source === 'training';
+        if (aRoutine && bRoutine) {
+          return (a.sort_order ?? 99) - (b.sort_order ?? 99);
+        }
+        if (aRoutine) return -1;
+        if (bRoutine) return 1;
         const at = a.due_time ?? '99:99';
         const bt = b.due_time ?? '99:99';
         return at.localeCompare(bt);
@@ -51,8 +104,21 @@
     return result;
   }
 
-  async function markDone(id: number) {
+  function isRoutineTodo(id?: string): boolean {
+    return id?.startsWith('routine-') ?? false;
+  }
+
+  async function markDone(id: string | number) {
     if (!id) return;
+    const idStr = String(id);
+
+    // Handle routine todos
+    if (isRoutineTodo(idStr)) {
+      await toggleRoutineTodo(idStr);
+      return;
+    }
+
+    // Regular todo
     try {
       await api.markTodoDone(id);
       todos = todos.map((t) => (t.id === id ? { ...t, status: t.status === 'open' ? 'done' : 'open' } : t));
@@ -61,9 +127,37 @@
     }
   }
 
+  async function toggleRoutineTodo(id: string) {
+    // Training
+    if (id === 'routine-training' && dayEntry) {
+      const newVal = !dayEntry.training_done;
+      try {
+        await api.upsertDayEntry({ ...dayEntry, training_done: newVal, date: currentDate });
+        dispatch('trainingtoggle', newVal);
+      } catch {
+        // graceful
+      }
+      return;
+    }
+
+    // Meal
+    if (id.startsWith('routine-meal-')) {
+      const mealId = id.replace('routine-meal-', '');
+      const meal = meals.find((m) => String(m.id) === mealId);
+      if (!meal) return;
+      try {
+        await api.markMealDone(mealId);
+        dispatch('mealtoggle', { id: mealId, is_done: !meal.is_done });
+      } catch {
+        // graceful
+      }
+      return;
+    }
+  }
+
   async function updateTodo(event: CustomEvent) {
     const { id, data } = event.detail;
-    if (!id) return;
+    if (!id || isRoutineTodo(String(id))) return; // routine todos aren't editable here
     try {
       await api.updateTodo(id, data);
       todos = todos.map((t) => (t.id === id ? { ...t, ...data } : t));
@@ -72,8 +166,8 @@
     }
   }
 
-  async function deleteTodo(id: number) {
-    if (!id) return;
+  async function deleteTodo(id: string | number) {
+    if (!id || isRoutineTodo(String(id))) return; // routine todos can't be deleted
     try {
       await api.deleteTodo(id);
       todos = todos.filter((t) => t.id !== id);
@@ -92,7 +186,7 @@
         status: 'open',
         priority: 2,
         source: 'manual',
-      });
+      } as any);
       if (newTodo) {
         todos = [...todos, newTodo];
       }
@@ -143,11 +237,17 @@
   {/if}
 
   <div class="todo-list">
-    {#each filteredTodos as todo (todo.id)}
-      <TodoItem {todo} ondon={(e) => markDone(e.detail)} onupdate={updateTodo} ondelete={(e) => deleteTodo(e.detail)} />
+    {#if filteredTodos.length > 0}
+      <!-- Routine section label (only if there are routine items in the filtered list) -->
+      {#if filteredTodos.some((t) => t.source === 'meal_routine' || t.source === 'training')}
+        <div class="routine-label">📋 Tagesroutine</div>
+      {/if}
+      {#each filteredTodos as todo (todo.id)}
+        <TodoItem {todo} ondon={(e) => markDone(e.detail)} onupdate={updateTodo} ondelete={(e) => deleteTodo(e.detail)} />
+      {/each}
     {:else}
       <div class="no-todos muted text-sm">Keine To-Dos</div>
-    {/each}
+    {/if}
   </div>
 
   <div class="quick-add">
@@ -170,6 +270,15 @@
   .no-todos {
     text-align: center;
     padding: 1.25rem;
+  }
+
+  .routine-label {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    padding: 0.5rem 0.625rem 0.25rem;
+    font-weight: 600;
   }
 
   .filters {

@@ -8,12 +8,20 @@
   import { api } from '$lib/api';
   import { db } from '$lib/db';
   import { isAuthenticated, authEmail, checkAuth, logout } from '$lib/auth';
-  import type { DayData, DayEntry, Meal, Todo, TrainingSet, TrainingRotation } from '$lib/types';
+  import type { DayData, DayEntry, Meal, Todo, TrainingSuggestion, TrainingRotation } from '$lib/types';
 
   let syncIcon = '✓';
   let syncClass = 'synced';
   let dateDisplay = '';
   let authChecked = false;
+
+  // Pull-to-refresh state
+  let pullDistance = 0;
+  let isPulling = false;
+  let pullThreshold = 70;
+  let isRefreshing = false;
+  let touchStartY = 0;
+  let mainEl: HTMLElement;
 
   // Format date for header
   $: dateDisplay = formatDate($currentDate);
@@ -28,7 +36,7 @@
   // Load day data
   async function loadDayData(date: string) {
     try {
-      const [dayEntry, meals, todos, training] = await Promise.all([
+      const [dayEntry, meals, todos, trainingSuggestion] = await Promise.all([
         api.getDayEntry(date),
         api.getMeals(date),
         api.getTodos(date),
@@ -45,7 +53,7 @@
         dayEntry: dayEntry ?? { date },
         meals: meals ?? [],
         todos: todos ?? [],
-        training: training ?? [],
+        trainingSuggestion: trainingSuggestion as TrainingSuggestion | null,
         nextTraining,
         weekStats: null,
       };
@@ -54,7 +62,7 @@
 
       // Also cache in IndexedDB
       if (dayEntry) {
-        await db.dayEntries.put({ ...dayEntry, date, updatedAt: dayEntry.updated_at });
+        await db.dayEntries.put({ ...dayEntry, date, updated_at: dayEntry.updated_at } as any);
       }
     } catch (e) {
       console.warn('Failed to load day data:', e);
@@ -67,7 +75,7 @@
         dayEntry: cachedEntry ?? { date },
         meals: cachedMeals ?? [],
         todos: cachedTodos ?? [],
-        training: [],
+        trainingSuggestion: null,
         nextTraining: null,
         weekStats: null,
       });
@@ -140,6 +148,39 @@
     await logout();
     goto('/login');
   }
+
+  // Pull-to-refresh handlers
+  function onTouchStart(e: TouchEvent) {
+    if (isRefreshing) return;
+    if (window.scrollY <= 0) {
+      touchStartY = e.touches[0].clientY;
+      isPulling = true;
+    } else {
+      isPulling = false;
+    }
+  }
+
+  function onTouchMove(e: TouchEvent) {
+    if (!isPulling || isRefreshing) return;
+    const delta = e.touches[0].clientY - touchStartY;
+    if (delta > 0 && window.scrollY <= 0) {
+      pullDistance = Math.min(delta * 0.5, pullThreshold * 1.5);
+      if (pullDistance > 5) e.preventDefault();
+    }
+  }
+
+  async function onTouchEnd() {
+    if (!isPulling || isRefreshing) return;
+    isPulling = false;
+    if (pullDistance >= pullThreshold) {
+      isRefreshing = true;
+      pullDistance = pullThreshold;
+      await loadDayData($currentDate);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
+      isRefreshing = false;
+    }
+    pullDistance = 0;
+  }
 </script>
 
 <div class="app-shell">
@@ -159,7 +200,16 @@
     </div>
   </header>
 
-  <main class="app-main">
+  <main class="app-main" bind:this={mainEl}
+    ontouchstart={onTouchStart}
+    ontouchmove={onTouchMove}
+    ontouchend={onTouchEnd}
+  >
+    {#if pullDistance > 0 || isRefreshing}
+      <div class="ptr-indicator" style="transform: translateY({Math.min(pullDistance, pullThreshold)}px); opacity:{Math.min(pullDistance / pullThreshold, 1)}">
+        <span class="ptr-spinner {isRefreshing ? 'spinning' : ''}">{isRefreshing ? '⟳' : pullDistance >= pullThreshold ? '↓' : '↕'}</span>
+      </div>
+    {/if}
     <slot />
   </main>
 </div>
@@ -225,10 +275,41 @@
 
   .app-main {
     flex: 1;
-    padding: 0 0.75rem 2rem;
+    padding: 0 0.75rem calc(2rem + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    overscroll-behavior-y: contain;
+    position: relative;
+  }
+
+  .ptr-indicator {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+
+  .ptr-spinner {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+  }
+
+  .ptr-spinner.spinning {
+    animation: ptr-spin 0.8s linear infinite;
+  }
+
+  @keyframes ptr-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 
   @media (min-width: 501px) {

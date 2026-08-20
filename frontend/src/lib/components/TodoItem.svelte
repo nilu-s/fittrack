@@ -10,21 +10,25 @@
   let lastTap = 0;
   let editTitle = '';
   let editCategory = '';
-  let editPriority = 'medium';
+  let editPriority = 2;
   let editDueDate = '';
   let editDueTime = '';
 
-  $: priorityColor = { low: '#666', medium: '#f59e0b', high: '#ef4444' }[todo.priority] ?? '#666';
+  const PRIORITY_COLORS: Record<number, string> = { 1: '#666', 2: '#f59e0b', 3: '#ef4444' };
+  $: priorityColor = PRIORITY_COLORS[todo.priority] ?? '#666';
+
+  // Routine todos (meals, training, cardio) are toggle-only — no edit/delete
+  $: isRoutine = todo.source === 'meal_routine' || todo.source === 'training' || todo.source === 'cardio';
 
   function handleTap() {
     const now = Date.now();
     if (now - lastTap < 300) {
-      // Doppel-tap = mark done
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
       dispatch('done', todo.id);
       lastTap = 0;
     } else {
       lastTap = now;
+      if (isRoutine) return; // routine todos don't expand
       setTimeout(() => {
         if (Date.now() - lastTap >= 300) {
           expanded = !expanded;
@@ -73,7 +77,7 @@
       <span class="badge category-badge">{todo.category}</span>
     {/if}
 
-    {#if todo.priority === 'high'}
+    {#if todo.priority === 3}
       <span class="priority-dot" style="background:{priorityColor}"></span>
     {/if}
 
@@ -84,6 +88,15 @@
     {#if todo.source === 'google_calendar'}
       <span class="badge cal-badge">📅</span>
     {/if}
+    {#if todo.source === 'meal_routine'}
+      <span class="badge cal-badge">🍽️</span>
+    {/if}
+    {#if todo.source === 'training'}
+      <span class="badge cal-badge">🏋️</span>
+    {/if}
+    {#if todo.source === 'cardio'}
+      <span class="badge cal-badge">🏃</span>
+    {/if}
   </div>
 
   {#if expanded}
@@ -92,9 +105,9 @@
       <div class="edit-row">
         <input class="edit-input" placeholder="Kategorie" bind:value={editCategory} />
         <select class="edit-input" bind:value={editPriority}>
-          <option value="low">Niedrig</option>
-          <option value="medium">Mittel</option>
-          <option value="high">Hoch</option>
+          <option value={1}>Niedrig</option>
+          <option value={2}>Mittel</option>
+          <option value={3}>Hoch</option>
         </select>
       </div>
       <div class="edit-row">

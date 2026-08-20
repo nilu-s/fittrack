@@ -129,9 +129,9 @@
       {#if templates.length > 0}
         {#each templates as t}
           <div class="template-row">
-            <span class="template-slot">{t.slot}</span>
+            <span class="template-slot">Slot {t.slot}</span>
             <span class="template-name">{t.name}</span>
-            <span class="template-kcal muted">{t.default_kcal ?? 0} kcal</span>
+            <span class="template-kcal muted">{t.kcal ?? 0} kcal</span>
           </div>
         {/each}
       {:else}

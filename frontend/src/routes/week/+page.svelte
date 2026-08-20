@@ -20,9 +20,16 @@
   onMount(async () => {
     try {
       weekStats = await api.getStatsWeek($currentDate);
-      if (weekStats?.weight_trend) weightData = weekStats.weight_trend;
-      if (weekStats?.kcal_trend) kcalData = weekStats.kcal_trend;
-      if (weekStats?.steps_trend) stepsData = weekStats.steps_trend;
+
+      // Fetch trend data for sparklines (7 days)
+      const [wt, kt, st] = await Promise.all([
+        api.getStatsTrend('weight', 7),
+        api.getStatsTrend('kcal', 7),
+        api.getStatsTrend('steps', 7),
+      ]);
+      weightData = (wt?.points ?? []).map((p) => p.value ?? 0).filter((v) => v !== null && v > 0);
+      kcalData = (kt?.points ?? []).map((p) => p.value ?? 0).filter((v) => v !== null && v > 0);
+      stepsData = (st?.points ?? []).map((p) => p.value ?? 0).filter((v) => v !== null && v > 0);
     } catch {
       // graceful
     }
@@ -44,7 +51,7 @@
     <section class="section-card">
       <div class="section-header">
         <span>⚖️ Gewicht</span>
-        <span class="text-sm muted">{weekStats.weight_avg?.toFixed(1) ?? '—'} kg Ø</span>
+        <span class="text-sm muted">{weekStats.avg_weight ? Number(weekStats.avg_weight).toFixed(1) : '—'} kg Ø</span>
       </div>
       <div class="card-body">
         <div class="chart-area">
@@ -61,7 +68,7 @@
     <section class="section-card">
       <div class="section-header">
         <span>🔥 Kalorien</span>
-        <span class="text-sm muted">{weekStats.kcal_avg?.toFixed(0) ?? '—'} kcal Ø</span>
+        <span class="text-sm muted">{weekStats.avg_kcal ? Math.round(Number(weekStats.avg_kcal)) : '—'} kcal Ø</span>
       </div>
       <div class="card-body">
         <div class="chart-area">
@@ -78,7 +85,7 @@
     <section class="section-card">
       <div class="section-header">
         <span>👣 Schritte</span>
-        <span class="text-sm muted">{weekStats.steps_avg?.toFixed(0) ?? '—'} Ø</span>
+        <span class="text-sm muted">{weekStats.avg_steps ? Math.round(Number(weekStats.avg_steps)) : '—'} Ø</span>
       </div>
       <div class="card-body">
         <div class="chart-area">
@@ -96,17 +103,17 @@
       <div class="section-header">📊 Abschluss</div>
       <div class="card-body">
         <div class="stat-row">
-          <span class="stat-label">Training</span>
-          <span class="stat-value">{weekStats.training_completed ?? 0}/{weekStats.training_total ?? 0}</span>
+          <span class="stat-label">Trainingstage</span>
+          <span class="stat-value">{weekStats.training_days}/7</span>
         </div>
         <div class="stat-row">
           <span class="stat-label">To-Dos erledigt</span>
-          <span class="stat-value">{weekStats.todo_done ?? 0}/{(weekStats.todo_done ?? 0) + (weekStats.todo_open ?? 0)}</span>
+          <span class="stat-value">{weekStats.todo_done}/{weekStats.todo_total}</span>
         </div>
-        {#if weekStats.todo_completion_rate != null}
+        {#if weekStats.todo_completion}
           <div style="margin-top:0.5rem">
             <ProgressBar
-              current={Math.round((weekStats.todo_completion_rate ?? 0) * 100)}
+              current={Math.round(Number(weekStats.todo_completion))}
               target={100}
               label="Erledigungsrate"
               color="#22c55e"

@@ -40,64 +40,119 @@ from rich.json import JSON
 
 console = Console()
 
-# API base URL: localhost for CLI (no auth needed)
+# API base URL
 API_BASE = os.environ.get("FITTRACK_API_URL", "http://localhost:8000/api")
+
+# Cookie file for CLI auth
+COOKIE_FILE = os.path.expanduser("~/.fittrack_cookies")
+
+def _get_client() -> httpx.Client:
+    """Get an httpx client with persisted cookies and CLI auth key."""
+    client = httpx.Client(base_url=API_BASE.rstrip("/api"), timeout=30)
+    # CLI auth key header (bypasses cookie auth for local access)
+    cli_key = os.environ.get("FITTRACK_CLI_KEY", "fittrack_cli_local_2026")
+    client.headers["X-FitTrack-CLI-Key"] = cli_key
+    # Load persisted cookies
+    if os.path.exists(COOKIE_FILE):
+        try:
+            with open(COOKIE_FILE, "r") as f:
+                cookies = json.load(f)
+            for name, value in cookies.items():
+                client.cookies.set(name, value)
+        except Exception:
+            pass
+    return client
+
+def _save_cookies(client: httpx.Client) -> None:
+    """Persist cookies from client to file."""
+    try:
+        cookies = dict(client.cookies)
+        if cookies:
+            with open(COOKIE_FILE, "w") as f:
+                json.dump(cookies, f)
+            os.chmod(COOKIE_FILE, 0o600)
+    except Exception:
+        pass
 
 
 def api_get(path: str, **params) -> Any:
     """Make a GET request to the API."""
     try:
-        resp = httpx.get(f"{API_BASE}{path}", params=params, timeout=30)
+        client = _get_client()
+        resp = client.get(f"/api{path}", params=params)
         resp.raise_for_status()
+        _save_cookies(client)
+        client.close()
         return resp.json()
     except httpx.ConnectError:
         console.print(f"[red]Error: Cannot connect to {API_BASE}[/red]")
         console.print("[yellow]Is the FitTrack API running? Try: docker compose up -d fittrack-api[/yellow]")
         sys.exit(1)
     except httpx.HTTPStatusError as e:
-        console.print(f"[red]API error {e.response.status_code}: {e.response.text}[/red]")
+        if e.response.status_code == 401:
+            console.print("[red]Error: Not authenticated. Run 'fittrack login' first.[/red]")
+        else:
+            console.print(f"[red]API error {e.response.status_code}: {e.response.text}[/red]")
         sys.exit(1)
 
 
 def api_post(path: str, **data) -> Any:
     """Make a POST request to the API."""
     try:
-        resp = httpx.post(f"{API_BASE}{path}", json=data, timeout=30)
+        client = _get_client()
+        resp = client.post(f"/api{path}", json=data)
         resp.raise_for_status()
+        _save_cookies(client)
+        client.close()
         return resp.json()
     except httpx.ConnectError:
         console.print(f"[red]Error: Cannot connect to {API_BASE}[/red]")
         sys.exit(1)
     except httpx.HTTPStatusError as e:
-        console.print(f"[red]API error {e.response.status_code}: {e.response.text}[/red]")
+        if e.response.status_code == 401:
+            console.print("[red]Error: Not authenticated. Run 'fittrack login' first.[/red]")
+        else:
+            console.print(f"[red]API error {e.response.status_code}: {e.response.text}[/red]")
         sys.exit(1)
 
 
 def api_put(path: str, **data) -> Any:
     """Make a PUT request to the API."""
     try:
-        resp = httpx.put(f"{API_BASE}{path}", json=data, timeout=30)
+        client = _get_client()
+        resp = client.put(f"/api{path}", json=data)
         resp.raise_for_status()
+        _save_cookies(client)
+        client.close()
         return resp.json()
     except httpx.ConnectError:
         console.print(f"[red]Error: Cannot connect to {API_BASE}[/red]")
         sys.exit(1)
     except httpx.HTTPStatusError as e:
-        console.print(f"[red]API error {e.response.status_code}: {e.response.text}[/red]")
+        if e.response.status_code == 401:
+            console.print("[red]Error: Not authenticated. Run 'fittrack login' first.[/red]")
+        else:
+            console.print(f"[red]API error {e.response.status_code}: {e.response.text}[/red]")
         sys.exit(1)
 
 
 def api_delete(path: str) -> Any:
     """Make a DELETE request to the API."""
     try:
-        resp = httpx.delete(f"{API_BASE}{path}", timeout=30)
+        client = _get_client()
+        resp = client.delete(f"/api{path}")
         resp.raise_for_status()
+        _save_cookies(client)
+        client.close()
         return resp.json()
     except httpx.ConnectError:
         console.print(f"[red]Error: Cannot connect to {API_BASE}[/red]")
         sys.exit(1)
     except httpx.HTTPStatusError as e:
-        console.print(f"[red]API error {e.response.status_code}: {e.response.text}[/red]")
+        if e.response.status_code == 401:
+            console.print("[red]Error: Not authenticated. Run 'fittrack login' first.[/red]")
+        else:
+            console.print(f"[red]API error {e.response.status_code}: {e.response.text}[/red]")
         sys.exit(1)
 
 
@@ -294,6 +349,52 @@ def cli(ctx, output_json):
     """FitTrack CLI — Fitness & Todo tracking from terminal."""
     ctx.ensure_object(dict)
     ctx.obj['json'] = output_json
+
+
+@cli.command()
+@click.pass_context
+def login(ctx):
+    """Open browser for Google OAuth login."""
+    login_url = f"{API_BASE}/auth/google/login"
+    console.print(f"[cyan]Opening browser for login…[/cyan]")
+    console.print(f"[dim]If browser doesn't open, visit: {login_url}[/dim]")
+    import webbrowser
+    webbrowser.open(login_url)
+    console.print("[green]After login, run 'fittrack auth-status' to verify.[/green]")
+
+
+@cli.command(name='auth-status')
+@click.pass_context
+def auth_status(ctx):
+    """Check authentication status."""
+    try:
+        client = _get_client()
+        resp = client.get('/api/auth/me')
+        _save_cookies(client)
+        client.close()
+        data = resp.json()
+        if data.get('authenticated'):
+            console.print(f"[green]✅ Authenticated as {data.get('email')}[/green]")
+        else:
+            console.print("[yellow]❌ Not authenticated. Run 'fittrack login'.[/yellow]")
+    except Exception as e:
+        console.print(f"[red]Error checking auth: {e}[/red]")
+
+
+@cli.command()
+@click.pass_context
+def logout(ctx):
+    """Logout — clear session."""
+    try:
+        client = _get_client()
+        client.post('/api/auth/logout')
+        client.close()
+    except Exception:
+        pass
+    # Clear cookie file
+    if os.path.exists(COOKIE_FILE):
+        os.remove(COOKIE_FILE)
+    console.print("[green]✅ Logged out[/green]")
 
 
 @cli.command()

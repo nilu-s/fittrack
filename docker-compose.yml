@@ -23,8 +23,11 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       ALLOWED_EMAIL: ${ALLOWED_EMAIL}
+      FITTRACK_CLI_KEY: ${FITTRACK_CLI_KEY}
     volumes:
       - ./photos:/app/photos
+    ports:
+      - "127.0.0.1:8000:8000"
     depends_on:
       - fittrack-db
     networks:
