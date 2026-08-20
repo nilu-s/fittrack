@@ -63,7 +63,7 @@
 
 <style>
   .page { display: flex; flex-direction: column; gap: 10px; }
-  .day-slide { animation: slideIn 0.22s ease-out; }
+  .day-slide { animation: slideIn 0.32s cubic-bezier(0.22, 1, 0.36, 1); will-change: transform, opacity; }
   .day-slide[data-dir="1"] { animation-name: slideInLeft; }
   .day-slide[data-dir="-1"] { animation-name: slideInRight; }
   .loading { display: flex; justify-content: center; align-items: center; padding: 40px 16px; }
@@ -73,7 +73,7 @@
   .sync.syncing { color: var(--amber); }
   .sync.err { color: var(--red); }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes slideIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes slideInLeft { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
-  @keyframes slideInRight { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(0) scale(0.98); } to { opacity: 1; transform: translateX(0) scale(1); } }
+  @keyframes slideInLeft { from { opacity: 0; transform: translateX(48px) scale(0.98); } to { opacity: 1; transform: translateX(0) scale(1); } }
+  @keyframes slideInRight { from { opacity: 0; transform: translateX(-48px) scale(0.98); } to { opacity: 1; transform: translateX(0) scale(1); } }
 </style>
