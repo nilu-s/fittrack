@@ -95,12 +95,32 @@ async def sync_google_calendar(
 
         created_count = 0
         updated_count = 0
+        cancelled_count = 0
+
+        # Collect all external IDs from this sync to detect cancelled events
+        synced_external_ids: set[str] = set()
 
         for event in events:
             external_id = event.get("id")
             if not external_id:
                 continue
 
+            # Handle cancelled events — soft-delete corresponding todo
+            if event.get("status") == "cancelled":
+                result = await session.execute(
+                    select(Todo).where(
+                        Todo.user_id == "luis",
+                        Todo.external_id == external_id,
+                        Todo.source == "google_calendar",
+                    )
+                )
+                cancelled_todo = result.scalars().first()
+                if cancelled_todo is not None and not cancelled_todo.deleted:
+                    cancelled_todo.deleted = True
+                    cancelled_count += 1
+                continue
+
+            synced_external_ids.add(external_id)
             title = event.get("summary") or "Untitled"
             event_date, start_time, end_time, is_all_day = _parse_event_times(event)
 
@@ -119,6 +139,9 @@ async def sync_google_calendar(
                 todo.start_time = start_time
                 todo.end_time = end_time
                 todo.is_all_day = is_all_day
+                # Restore if previously soft-deleted
+                if todo.deleted:
+                    todo.deleted = False
                 updated_count += 1
             else:
                 todo = Todo(
@@ -141,5 +164,6 @@ async def sync_google_calendar(
             "date": str(date),
             "created": created_count,
             "updated": updated_count,
+            "cancelled": cancelled_count,
             "total_events": len(events),
         }

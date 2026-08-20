@@ -25,13 +25,16 @@ DATA_TYPE_STEPS = "com.google.step_count.delta"
 DATA_TYPE_SLEEP = "com.google.sleep.segment"
 MILLIS_PER_DAY = 24 * 60 * 60 * 1000
 
+# Google Fit sleep segment types
+# https://developers.google.com/fit/scos/read-data/rest/reference/rest/v1/users/me/dataset:aggregate
+SLEEP_AWAKE = 1      # Awake (in bed)
+SLEEP_LIGHT = 2      # Sleep, light
+SLEEP_DEEP = 3       # Sleep, deep
+SLEEP_REM = 4        # Sleep, REM
+
 
 def _day_bounds(day: date_type) -> tuple[datetime, datetime]:
-    """Return UTC start/end for the requested date in local timezone (Europe/Berlin).
-
-    Google Fit stores data with UTC timestamps, but the user's day runs in CEST.
-    Without this conversion, UTC midnight cuts off 2 hours of the local day.
-    """
+    """Return UTC start/end for the requested date in local timezone (Europe/Berlin)."""
     tz = BERLIN_TZ
     start_local = datetime.combine(day, time.min, tzinfo=tz)
     end_local = datetime.combine(day + timedelta(days=1), time.min, tzinfo=tz)
@@ -80,17 +83,90 @@ def _sum_steps(data: dict) -> int:
     return total
 
 
-def _sum_sleep_hours(data: dict) -> Decimal:
-    total_nanos = 0
+def _parse_sleep_segments(data: dict) -> dict:
+    """Parse Google Fit sleep segments into detailed metrics.
+
+    Returns dict with:
+        total_hours, deep_hours, rem_hours, light_hours, awake_hours,
+        efficiency (0-100), quality (1-5)
+    """
+    stage_nanos: dict[int, int] = {SLEEP_AWAKE: 0, SLEEP_LIGHT: 0, SLEEP_DEEP: 0, SLEEP_REM: 0}
+
     for bucket in data.get("bucket", []):
         for dataset in bucket.get("dataset", []):
             for point in dataset.get("point", []):
+                # Google Fit sleep segment value: valValInt = sleep stage type
+                stage = None
+                for val in point.get("value", []):
+                    if "intVal" in val:
+                        stage = val["intVal"]
+                    elif "mapVal" in val:
+                        for mv in val["mapVal"]:
+                            if mv.get("key") == "sleepStageType":
+                                stage = mv.get("value", {}).get("intVal")
+                if stage is None:
+                    continue
+
                 start_nanos = int(point.get("startTimeNanos", 0))
                 end_nanos = int(point.get("endTimeNanos", 0))
                 duration = max(0, end_nanos - start_nanos)
-                total_nanos += duration
-    hours = total_nanos / (1_000_000_000 * 3600)
-    return Decimal(str(round(hours, 2)))
+
+                if stage in stage_nanos:
+                    stage_nanos[stage] += duration
+
+    ns_per_hour = 1_000_000_000 * 3600
+    deep_h = Decimal(str(round(stage_nanos[SLEEP_DEEP] / ns_per_hour, 2)))
+    rem_h = Decimal(str(round(stage_nanos[SLEEP_REM] / ns_per_hour, 2)))
+    light_h = Decimal(str(round(stage_nanos[SLEEP_LIGHT] / ns_per_hour, 2)))
+    awake_h = Decimal(str(round(stage_nanos[SLEEP_AWAKE] / ns_per_hour, 2)))
+    total_h = deep_h + rem_h + light_h  # actual sleep (excluding awake)
+    in_bed_h = total_h + awake_h  # total time in bed
+
+    # Efficiency: actual sleep / time in bed * 100
+    if in_bed_h > 0:
+        efficiency = Decimal(str(round(float(total_h / in_bed_h * 100), 1)))
+    else:
+        efficiency = Decimal("0")
+
+    # Quality score 1-5 based on efficiency and deep+REM ratio
+    # Weighted: 60% efficiency, 40% deep+REM percentage of total sleep
+    quality = _calc_sleep_quality(float(efficiency), float(total_h), float(deep_h + rem_h))
+
+    return {
+        "total_hours": total_h,
+        "deep_hours": deep_h,
+        "rem_hours": rem_h,
+        "light_hours": light_h,
+        "awake_hours": awake_h,
+        "efficiency": efficiency,
+        "quality": quality,
+    }
+
+
+def _calc_sleep_quality(efficiency: float, total_sleep_h: float, deep_rem_h: float) -> int:
+    """Calculate sleep quality score 1-5.
+
+    60% weight on sleep efficiency, 40% on deep+REM ratio.
+    """
+    if total_sleep_h < 0.1:
+        return 0  # no data
+
+    eff_score = min(100, max(0, efficiency))
+    deep_rem_ratio = (deep_rem_h / total_sleep_h * 100) if total_sleep_h > 0 else 0
+    deep_rem_score = min(100, deep_rem_ratio * 2.5)  # 40% deep+REM → 100
+
+    combined = eff_score * 0.6 + deep_rem_score * 0.4
+
+    if combined >= 85:
+        return 5  # excellent
+    elif combined >= 70:
+        return 4  # good
+    elif combined >= 55:
+        return 3  # fair
+    elif combined >= 40:
+        return 2  # poor
+    else:
+        return 1  # very poor
 
 
 @router.post("/sync")
@@ -111,7 +187,7 @@ async def sync_google_fit(
         sleep_data = await _aggregate_fit_data(access_token, DATA_TYPE_SLEEP, start_ms, end_ms)
 
         steps = _sum_steps(steps_data)
-        sleep_hours = _sum_sleep_hours(sleep_data)
+        sleep = _parse_sleep_segments(sleep_data)
 
         result = await session.execute(
             select(DayEntry).where(DayEntry.user_id == "luis", DayEntry.date == date)
@@ -122,16 +198,31 @@ async def sync_google_fit(
                 user_id="luis",
                 date=date,
                 steps=steps,
-                sleep_hours=sleep_hours,
+                sleep_hours=sleep["total_hours"],
+                sleep_deep_hours=sleep["deep_hours"],
+                sleep_rem_hours=sleep["rem_hours"],
+                sleep_light_hours=sleep["light_hours"],
+                sleep_awake_hours=sleep["awake_hours"],
+                sleep_efficiency=sleep["efficiency"],
+                sleep_quality=sleep["quality"],
                 steps_done=True,
-                sleep_done=True,
+                steps_confirmed=True,
+                steps_source="google_fit",
             )
             session.add(entry)
         else:
             entry.steps = steps
-            entry.sleep_hours = sleep_hours
+            if sleep["total_hours"] > 0:
+                entry.sleep_hours = sleep["total_hours"]
+                entry.sleep_deep_hours = sleep["deep_hours"]
+                entry.sleep_rem_hours = sleep["rem_hours"]
+                entry.sleep_light_hours = sleep["light_hours"]
+                entry.sleep_awake_hours = sleep["awake_hours"]
+                entry.sleep_efficiency = sleep["efficiency"]
+                entry.sleep_quality = sleep["quality"]
             entry.steps_done = True
-            entry.sleep_done = True
+            entry.steps_confirmed = True
+            entry.steps_source = "google_fit"
 
         await session.commit()
         await session.refresh(entry)
@@ -139,7 +230,13 @@ async def sync_google_fit(
         return {
             "date": str(date),
             "steps": steps,
-            "sleep_hours": float(sleep_hours),
-            "steps_done": True,
-            "sleep_done": True,
+            "steps_confirmed": True,
+            "steps_source": "google_fit",
+            "sleep_hours": float(sleep["total_hours"]),
+            "sleep_deep_hours": float(sleep["deep_hours"]),
+            "sleep_rem_hours": float(sleep["rem_hours"]),
+            "sleep_light_hours": float(sleep["light_hours"]),
+            "sleep_awake_hours": float(sleep["awake_hours"]),
+            "sleep_efficiency": float(sleep["efficiency"]),
+            "sleep_quality": sleep["quality"],
         }

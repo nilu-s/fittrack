@@ -16,7 +16,7 @@
 
   $: if (training_type) loadExercises();
   async function loadExercises() { loading = true; error = ''; try { const res = await api.getExercises(training_type); exercises = (res ?? []).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)); initSets(); } catch (e) { error = 'Übungen konnten nicht geladen werden.'; } finally { loading = false; } }
-  function initSets() { setsByExercise = {}; for (const ex of exercises) { const match = String(ex.target_sets ?? '1').match(/(\d+)/); const count = match ? parseInt(match[1], 10) : 1; setsByExercise[ex.exercise_name] = Array.from({ length: count }, (_, i) => ({ reps: ex.target_reps_low ?? null, weight_kg: ex.target_weight_kg ?? null, rir: ex.target_rir ?? null, set_type: ex.is_topset && i === count - 1 ? 'top' : 'work' })); } currentIndex = 0; }
+  function initSets() { setsByExercise = {}; for (const ex of exercises) { const match = String(ex.target_sets ?? '1').match(/(\d+)/); const count = match ? parseInt(match[1], 10) : 1; setsByExercise[ex.exercise_name] = Array.from({ length: count }, (_, i) => ({ reps: ex.target_reps_low ?? ex.base_reps_low ?? null, weight_kg: ex.target_weight_kg ?? null, rir: ex.target_rir ?? null, set_type: ex.is_topset && i === count - 1 ? 'top' : 'work' })); } currentIndex = 0; }
   function prev() { currentIndex = (currentIndex - 1 + exercises.length) % exercises.length; }
   function next() { currentIndex = (currentIndex + 1) % exercises.length; }
   function updateSet(exerciseName: string, idx: number, field: 'reps' | 'weight_kg' | 'rir', value: number | null) { if (!setsByExercise[exerciseName]) return; setsByExercise[exerciseName][idx] = { ...setsByExercise[exerciseName][idx], [field]: value }; setsByExercise = { ...setsByExercise }; }

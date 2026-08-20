@@ -6,6 +6,7 @@
   import { isAuthenticated, authEmail, logout, disconnectGoogle } from '$lib/auth';
   import { goto } from '$app/navigation';
   import Icon from '$lib/components/Icon.svelte';
+  import type { Goals } from '$lib/types';
 
   let goals = { kcal: 2480, protein: 194, carbs: 258, fat: 78, steps: 10000, sleepHours: 8 };
   let templates: any[] = [];
@@ -14,12 +15,44 @@
   function goBack() { if (typeof window !== 'undefined') window.history.back(); }
   async function handleDisconnectGoogle() { await disconnectGoogle(); window.location.reload(); }
   async function handleLogout() { await logout(); goto('/login'); }
-  async function saveGoals() { dailyGoals.set(goals); if (typeof localStorage !== 'undefined') localStorage.setItem('fittrack-goals', JSON.stringify(goals)); }
+  async function saveGoals() {
+    dailyGoals.set(goals);
+    if (typeof localStorage !== 'undefined') localStorage.setItem('fittrack-goals', JSON.stringify(goals));
+    try {
+      const payload: Partial<Goals> = {
+        kcal: goals.kcal,
+        protein: goals.protein,
+        carbs: goals.carbs,
+        fat: goals.fat,
+        steps: goals.steps,
+        sleep_hours: goals.sleepHours,
+      };
+      await api.updateGoals(payload);
+    } catch {
+      // offline / silent fail — store already updated locally
+    }
+  }
   function exportData(format: 'csv' | 'json') { const data = { goals, templates, exportedAt: new Date().toISOString() }; const content = format === 'json' ? JSON.stringify(data, null, 2) : toCSV(data); const blob = new Blob([content], { type: format === 'json' ? 'application/json' : 'text/csv' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `fittrack-export.${format}`; a.click(); URL.revokeObjectURL(url); }
   function toCSV(data: any): string { const rows = ['key,value']; for (const [k, v] of Object.entries(data.goals)) rows.push(`${k},${v}`); return rows.join('\n'); }
 
   onMount(async () => {
     if (typeof localStorage !== 'undefined') { const saved = localStorage.getItem('fittrack-goals'); if (saved) { try { const parsed = JSON.parse(saved); goals = { ...goals, ...parsed }; dailyGoals.set(goals); } catch {} } }
+    try {
+      const serverGoals = await api.getGoals();
+      if (serverGoals) {
+        goals = {
+          ...goals,
+          kcal: serverGoals.kcal ?? goals.kcal,
+          protein: serverGoals.protein ?? goals.protein,
+          carbs: serverGoals.carbs ?? goals.carbs,
+          fat: serverGoals.fat ?? goals.fat,
+          steps: serverGoals.steps ?? goals.steps,
+          sleepHours: serverGoals.sleep_hours ?? goals.sleepHours,
+        };
+        dailyGoals.set(goals);
+        if (typeof localStorage !== 'undefined') localStorage.setItem('fittrack-goals', JSON.stringify(goals));
+      }
+    } catch {}
     try { templates = await api.getMealTemplates(); } catch {}
   });
 </script>

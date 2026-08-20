@@ -6,7 +6,6 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import async_session
 from app.models import DayEntry
@@ -38,11 +37,16 @@ async def _get_or_create(session, user_id: str, day: date_type) -> DayEntry:
     return entry
 
 
-@router.get("", response_model=DayEntryResponse)
-async def get_or_create_day_entry(date: date_type = Query(...), user: str = Depends(get_current_user)):
+@router.get("", response_model=Optional[DayEntryResponse])
+async def get_day_entry(date: date_type = Query(...), user: str = Depends(get_current_user)):
+    """Get a day entry by date — does NOT create one if missing (no side-effect on GET)."""
     async with async_session() as session:
-        entry = await _get_or_create(session, "luis", date)
-        await session.commit()
+        result = await session.execute(
+            select(DayEntry).where(DayEntry.user_id == "luis", DayEntry.date == date)
+        )
+        entry = result.scalars().first()
+        if entry is None:
+            return None
         return _to_response(entry)
 
 

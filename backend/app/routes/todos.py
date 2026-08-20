@@ -29,7 +29,7 @@ async def list_todos(
     user: str = Depends(get_current_user),
 ):
     async with async_session() as session:
-        stmt = select(Todo).where(Todo.user_id == "luis")
+        stmt = select(Todo).where(Todo.user_id == "luis", Todo.deleted == False)
         if date is not None:
             stmt = stmt.where(Todo.due_date == date)
         if status is not None:
@@ -69,11 +69,11 @@ async def update_todo(todo_id: uuid.UUID, body: TodoUpdate, user: str = Depends(
 @router.delete("/{todo_id}", status_code=204)
 async def delete_todo(todo_id: uuid.UUID, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        result = await session.execute(select(Todo).where(Todo.id == todo_id))
+        result = await session.execute(select(Todo).where(Todo.id == todo_id, Todo.deleted == False))
         todo = result.scalars().first()
         if todo is None:
             raise HTTPException(status_code=404, detail="Todo not found")
-        await session.delete(todo)
+        todo.deleted = True
         await session.commit()
 
 

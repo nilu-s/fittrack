@@ -171,7 +171,7 @@ async def google_login(request: Request):
         raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID not configured")
 
     # The redirect URI must match what's in Google Cloud Console
-    redirect_uri = f"https://fittrack.49.12.225.84.sslip.io/api/google/callback"
+    redirect_uri = settings.GOOGLE_REDIRECT_URI
 
     state = _create_state()
 
@@ -215,7 +215,7 @@ async def google_callback(request: Request):
             content={"detail": "Invalid state parameter"},
         )
 
-    redirect_uri = f"https://fittrack.49.12.225.84.sslip.io/api/google/callback"
+    redirect_uri = settings.GOOGLE_REDIRECT_URI
 
     # Exchange authorization code for tokens
     async with httpx.AsyncClient() as client:

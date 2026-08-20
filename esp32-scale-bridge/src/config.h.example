@@ -1,0 +1,37 @@
+// FitTrack Scale Bridge — Configuration
+// Copy this file to config.h and fill in your values.
+// NEVER commit config.h with real credentials.
+
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// --- WiFi ---
+#define WIFI_SSID       "YOUR_HOME_WIFI"
+#define WIFI_PASSWORD   "YOUR_WIFI_PASSWORD"
+
+// --- FitTrack API ---
+// Use the public URL since networks are separate
+#define API_HOST        "fittrack.49.12.225.84.sslip.io"
+#define API_PORT        443
+#define API_PATH        "/api/scale-sync"
+#define API_KEY         "YOUR_FITTRACK_CLI_KEY"  // must match FITTRACK_CLI_KEY env var on server
+// ESP32 sends this as X-FitTrack-CLI-Key header (same auth as CLI)
+
+// --- User profile (for server-side body composition calculation) ---
+#define USER_HEIGHT_CM  180   // your height in cm
+#define USER_AGE        30    // your age
+#define USER_GENDER     "male"  // "male" or "female"
+
+// --- BLE Scale ---
+// Renpho scales typically advertise with service UUID 0xFFE1
+// The scale name usually starts with "QNB-Scale" or "RENPHO"
+#define SCALE_NAME_PREFIX  "QN-Scale"  // common Renpho BLE name prefix
+#define SCALE_SERVICE_UUID "0000ffe1-0000-1000-8000-00805f9b34fb"
+#define SCALE_CHAR_UUID    "0000ffe1-0000-1000-8000-00805f9b34fb"
+
+// --- Timing ---
+#define BLE_SCAN_DURATION  30    // seconds to scan for scale
+#define HTTP_TIMEOUT       10000 // ms
+#define RECONNECT_DELAY    5000  // ms between reconnect attempts
+
+#endif // CONFIG_H

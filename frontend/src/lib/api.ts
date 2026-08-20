@@ -1,14 +1,15 @@
 import type {
   DayEntry, Meal, Todo, Exercise, TrainingSet, TrainingRotation,
   TrainingSuggestion, TrainingCompleteRequest,
-  MealTemplate, WeekStats, TrendData, SyncPayload, SyncResponse,
+  MealTemplate, WeekStats, TrendData, SyncPayload, SyncResponse, Goals,
+  Dish, DishMatchResult, PhotoAnalysisResponse,
 } from './types';
 import { db, queueSync, type DayEntryRecord, type MealRecord, type TodoRecord } from './db';
 
 function getBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const host = window.location?.hostname ?? '';
-    if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.')) {
+    if (host === 'localhost' || host === '127.0.0.1') {
       return 'http://localhost:8000/api';
     }
   }
@@ -367,7 +368,7 @@ class ApiClient {
   }
 
   // Photos
-  async analyzePhoto(file: File, mealId?: string): Promise<any | null> {
+  async analyzePhoto(file: File, mealId?: string): Promise<PhotoAnalysisResponse | null> {
     const formData = new FormData();
     formData.append('file', file);
     if (mealId) {
@@ -398,8 +399,8 @@ class ApiClient {
     return this.request<any>(`/auth/google/status`);
   }
 
-  // Google Fit sync — fetches steps + sleep from Google Fit, updates DayEntry in DB
-  async syncGoogleFit(date: string): Promise<{ date: string; steps: number; sleep_hours: number; steps_done: boolean; sleep_done: boolean } | null> {
+  // Google Fit sync — fetches steps + sleep details from Google Fit, updates DayEntry in DB
+  async syncGoogleFit(date: string): Promise<any> {
     try {
       return await this.request<any>(`/google-fit/sync?date=${date}`, { method: 'POST' });
     } catch (err) {
@@ -408,12 +409,73 @@ class ApiClient {
     }
   }
 
+  // Scale sync (ESP32 posts to /api/scale-sync directly; this is for manual trigger/testing)
+  async scaleSync(data: { weight_kg: number; date?: string; impedance?: number; height_cm?: number; age?: number; gender?: string }): Promise<DayEntry | null> {
+    try {
+      return await this.request<DayEntry>(`/scale-sync`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    } catch (err) {
+      if (isNetworkError(err)) return null;
+      return null;
+    }
+  }
+
+  // Goals
+  async getGoals(): Promise<Goals | null> {
+    return this.request<Goals>(`/goals`);
+  }
+
+  async updateGoals(goals: Partial<Goals>): Promise<Goals | null> {
+    return this.request<Goals>(`/goals`, {
+      method: 'PUT',
+      body: JSON.stringify({ goals }),
+    });
+  }
+
   // Sync
   async syncChanges(payload: SyncPayload): Promise<SyncResponse | null> {
     return this.request<SyncResponse>(`/sync`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  }
+
+  // Dishes
+  async getDishes(slot?: number): Promise<Dish[]> {
+    const query = slot !== undefined ? `?slot=${slot}` : '';
+    return (await this.request<Dish[]>(`/dishes${query}`)) ?? [];
+  }
+
+  async createDish(data: Partial<Dish> & { slot: number; name: string }): Promise<Dish | null> {
+    return this.request<Dish>(`/dishes`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateDish(id: string, data: Partial<Dish>): Promise<Dish | null> {
+    return this.request<Dish>(`/dishes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteDish(id: string): Promise<boolean> {
+    try {
+      await this.request(`/dishes/${id}`, { method: 'DELETE' });
+      return true;
+    } catch { return false; }
+  }
+
+  async matchDish(name: string, slot?: number): Promise<DishMatchResult | null> {
+    const params = `?name=${encodeURIComponent(name)}${slot !== undefined ? `&slot=${slot}` : ''}`;
+    return this.request<DishMatchResult>(`/dishes/match${params}`);
+  }
+
+  async incrementDishUsage(id: string): Promise<Dish | null> {
+    return this.request<Dish>(`/dishes/${id}/use`, { method: 'POST' });
   }
 }
 

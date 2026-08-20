@@ -41,7 +41,7 @@
       dayData.set(data);
       if (dayEntry) await db.dayEntries.put({ ...dayEntry, date, updated_at: dayEntry.updated_at } as any);
       const fitResult = await fitSyncPromise;
-      if (fitResult) { dayData.update((d) => { if (!d) return d; const ue = { ...d.dayEntry, steps: fitResult.steps, sleep_hours: fitResult.sleep_hours, steps_done: fitResult.steps_done, sleep_done: fitResult.sleep_done }; return { ...d, dayEntry: ue as DayEntry }; }); }
+      if (fitResult) { dayData.update((d) => { if (!d || !d.dayEntry) return d; const cur = d.dayEntry; const ue = { ...cur, steps: fitResult.steps ?? cur.steps, steps_confirmed: fitResult.steps_confirmed ?? true, steps_source: fitResult.steps_source ?? 'google_fit' }; if (fitResult.sleep_hours != null && fitResult.sleep_hours > 0) { ue.sleep_hours = fitResult.sleep_hours; ue.sleep_deep_hours = fitResult.sleep_deep_hours; ue.sleep_rem_hours = fitResult.sleep_rem_hours; ue.sleep_light_hours = fitResult.sleep_light_hours; ue.sleep_awake_hours = fitResult.sleep_awake_hours; ue.sleep_efficiency = fitResult.sleep_efficiency; ue.sleep_quality = fitResult.sleep_quality; } return { ...d, dayEntry: ue as DayEntry }; }); }
     } catch (e) {
       console.warn('Failed to load day data:', e);
       const ce = await db.dayEntries.where('date').equals(date).first();
@@ -57,12 +57,13 @@
     import('$lib/stores').then(({ syncStatus }) => { syncStatus.subscribe((status) => { syncIcon = { synced: '✓', syncing: '⟳', offline: '📵', error: '⚠' }[status] ?? '✓'; syncClass = status; }); });
   }
 
-  onMount(async () => {
+  onMount(() => {
     const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
-    await Promise.race([checkAuth(), timeout]);
-    authChecked = true;
-    const checkAuthGate = () => { const p = $page?.url?.pathname ?? ''; if (p === '/login' || p === '/settings') return; if (!$isAuthenticated) goto('/login'); };
-    checkAuthGate();
+    Promise.race([checkAuth(), timeout]).then(() => {
+      authChecked = true;
+      const checkAuthGate = () => { const p = $page?.url?.pathname ?? ''; if (p === '/login' || p === '/settings') return; if (!$isAuthenticated) goto('/login'); };
+      checkAuthGate();
+    });
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch((e) => console.warn('SW registration failed:', e));
     initSync();
     const onOnline = () => onlineStatus.set(true);

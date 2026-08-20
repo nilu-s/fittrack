@@ -34,7 +34,7 @@
     for (const m of mealList ?? []) { items.push({ id: `routine-meal-${m.id ?? m.meal_slot}`, title: m.name || SLOT_NAMES[m.meal_slot] || 'Mahlzeit', status: m.is_done ? 'done' : 'open', due_time: m.default_time ? m.default_time.slice(0, 5) : null, due_date: currentDate, priority: 2, source: 'meal_routine', sort_order: m.meal_slot }); }
     if (entry || suggestion) { const trainingType = suggestion?.training_type ?? entry?.training_type ?? 'Training'; items.push({ id: 'routine-training', title: trainingType, status: entry?.training_done ? 'done' : 'open', due_time: null, due_date: currentDate, priority: 2, source: 'training', sort_order: 99 }); }
     const cardioMinutes = entry?.cardio_minutes ?? suggestion?.cardio_minutes ?? 0;
-    if (entry || suggestion) { items.push({ id: 'routine-cardio', title: cardioMinutes > 0 ? `Cardio ${cardioMinutes}min` : 'Cardio', status: (entry as any)?.cardio_done ? 'done' : 'open', due_time: null, due_date: currentDate, priority: 2, source: 'cardio', sort_order: 100 }); }
+    if (entry || suggestion) { items.push({ id: 'routine-cardio', title: cardioMinutes > 0 ? `Cardio ${cardioMinutes}min` : 'Cardio', status: entry?.cardio_done ? 'done' : 'open', due_time: null, due_date: currentDate, priority: 2, source: 'cardio', sort_order: 100 }); }
     return items;
   }
 
@@ -63,7 +63,7 @@
   async function markDone(id: string | number) { if (!id) return; const idStr = String(id); if (isRoutineTodo(idStr)) { await toggleRoutineTodo(idStr); return; } try { await api.markTodoDone(id); todos = todos.map((t) => (t.id === id ? { ...t, status: t.status === 'open' ? 'done' : 'open' } : t)); } catch {} }
   async function toggleRoutineTodo(id: string) {
     if (id === 'routine-training' && dayEntry) { const newVal = !dayEntry.training_done; try { await api.upsertDayEntry({ ...dayEntry, training_done: newVal, date: currentDate }); dispatch('trainingtoggle', newVal); } catch {} return; }
-    if (id === 'routine-cardio' && dayEntry) { const newVal = !(dayEntry as any).cardio_done; try { await api.upsertDayEntry({ ...dayEntry, cardio_done: newVal, date: currentDate }); dispatch('cardiotoggle', newVal); } catch {} return; }
+    if (id === 'routine-cardio' && dayEntry) { const newVal = !dayEntry.cardio_done; try { await api.upsertDayEntry({ ...dayEntry, cardio_done: newVal, date: currentDate }); dispatch('cardiotoggle', newVal); } catch {} return; }
     if (id.startsWith('routine-meal-')) { const mealId = id.replace('routine-meal-', ''); const meal = meals.find((m) => String(m.id) === mealId); if (!meal) return; try { await api.markMealDone(mealId); dispatch('mealtoggle', { id: mealId, is_done: !meal.is_done }); } catch {} return; }
   }
   function handleExpand(id: string | number) { if (String(id) === 'routine-training') expandedTraining = !expandedTraining; }

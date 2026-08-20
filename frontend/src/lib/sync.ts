@@ -40,6 +40,9 @@ const ENTITY_TYPE_MAP: Record<string, string> = {
   dayEntry: 'day_entry',
   meal: 'meal',
   todo: 'todo',
+  trainingSet: 'training_set',
+  exercise: 'exercise',
+  mealTemplate: 'meal_template',
 };
 
 async function buildSyncPayload(pending: SyncQueueEntry[]): Promise<SyncPayload> {
@@ -57,6 +60,12 @@ async function buildSyncPayload(pending: SyncQueueEntry[]): Promise<SyncPayload>
         record = (await db.meals.get(entry.entityLocalId)) as Record<string, any> | undefined;
       } else if (entry.entityType === 'todo') {
         record = (await db.todos.get(entry.entityLocalId)) as Record<string, any> | undefined;
+      } else if (entry.entityType === 'trainingSet') {
+        record = (await db.trainingSets.get(entry.entityLocalId)) as Record<string, any> | undefined;
+      } else if (entry.entityType === 'exercise') {
+        record = (await db.exercises.get(entry.entityLocalId)) as Record<string, any> | undefined;
+      } else if (entry.entityType === 'mealTemplate') {
+        record = (await db.mealTemplates.get(entry.entityLocalId)) as Record<string, any> | undefined;
       }
     } catch (e) {
       console.warn('Failed to load queued entity from IndexedDB:', e);
@@ -77,6 +86,12 @@ async function buildSyncPayload(pending: SyncQueueEntry[]): Promise<SyncPayload>
             await db.meals.update(entry.entityLocalId, { serverId });
           } else if (entry.entityType === 'todo') {
             await db.todos.update(entry.entityLocalId, { serverId });
+          } else if (entry.entityType === 'trainingSet') {
+            await db.trainingSets.update(entry.entityLocalId, { serverId });
+          } else if (entry.entityType === 'exercise') {
+            await db.exercises.update(entry.entityLocalId, { serverId });
+          } else if (entry.entityType === 'mealTemplate') {
+            await db.mealTemplates.update(entry.entityLocalId, { serverId });
           }
         } catch (e) {
           console.warn('Failed to persist generated server id:', e);

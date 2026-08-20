@@ -2,31 +2,31 @@
   import { createEventDispatcher } from 'svelte';
   import MetricRow from './MetricRow.svelte';
   import ProgressBar from './ProgressBar.svelte';
-  import Sparkline from './Sparkline.svelte';
   import PillBadge from './PillBadge.svelte';
   import TrainingDetail from './TrainingDetail.svelte';
   import Icon from './Icon.svelte';
   import { api } from '$lib/api';
   import { dailyGoals } from '$lib/stores';
-  import type { DayEntry, Meal, Todo, TrainingSuggestion, DayData } from '$lib/types';
+  import type { DayEntry, Meal, Todo, TrainingSuggestion, DayData, TrendPoint } from '$lib/types';
 
   export let dayData: DayData;
   export let currentDate: string;
   const dispatch = createEventDispatcher();
   const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abend' };
 
-  let entry: DayEntry | null = dayData.dayEntry ?? null;
+  let entry: DayEntry = dayData.dayEntry ?? { date: currentDate };
   let meals: Meal[] = dayData.meals ?? [];
   let todos: Todo[] = dayData.todos ?? [];
   let trainingSuggestion: TrainingSuggestion | null = dayData.trainingSuggestion ?? null;
-  $: entry = dayData.dayEntry ?? null;
+  $: entry = dayData.dayEntry ?? { date: currentDate };
   $: meals = dayData.meals ?? [];
   $: todos = dayData.todos ?? [];
   $: trainingSuggestion = dayData.trainingSuggestion ?? null;
 
-  let weightTrend: number[] = [];
+  let weightTrend: TrendPoint[] = [];
+  let weightRange = 7; // 7 | 30 | 365
   $: if (currentDate) loadWeightTrend();
-  async function loadWeightTrend() { try { const wt = await api.getStatsTrend('weight', 7); weightTrend = (wt?.points ?? []).map((v: any) => v.value ?? 0).filter((v: number) => v !== null && v > 0); } catch {} }
+  async function loadWeightTrend() { try { const wt = await api.getStatsTrend('weight', weightRange); weightTrend = (wt?.points ?? []).filter((p: any) => p.value != null && p.value > 0); } catch {} }
 
   $: goals = $dailyGoals;
   $: doneMeals = meals.filter((m) => m.is_done);
@@ -36,22 +36,29 @@
   $: totalF = Math.round(doneMeals.reduce((s, m) => s + (Number(m.fat_g) || 0), 0));
 
   let expandedTraining = false;
+  let expandedSleep = false;
+  let expandedWeight = false;
+  let weightEditing = false;
   let quickAdd = '';
   let photoInput: HTMLInputElement;
   let photoLoading = false;
   let confirmData: { slot: number; name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null = null;
   let choosingSlot = false;
 
-  type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; mealTime?: string | null; todoData?: Todo; };
+  type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; mealTime?: string | null; todoData?: Todo; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bodyFat: number | null; muscle: number | null; water: number | null; bone: number | null; bmi: number | null; bmr: number | null; visceralFat: number | null; metabolicAge: number | null }; };
 
   $: unifiedItems = buildUnifiedItems(entry, meals, todos, trainingSuggestion);
 
   function buildUnifiedItems(entry: DayEntry | null, mealList: Meal[], todoList: Todo[], suggestion: TrainingSuggestion | null): UnifiedItem[] {
     const items: UnifiedItem[] = [];
     if (!entry) return items;
-    items.push({ id: 'metric-weight', type: 'metric', icon: 'weight', title: 'Gewicht', done: false, sortKey: '00-00', metricField: 'weight_kg', metricValue: entry.weight_kg ?? null, metricUnit: 'kg', metricEditable: true });
-    items.push({ id: 'metric-steps', type: 'metric', icon: 'steps', title: 'Schritte', done: entry.steps_done ?? false, sortKey: '00-01', metricField: 'steps', metricValue: entry.steps ?? null, hasProgress: true, progressCurrent: entry.steps ?? 0, progressTarget: goals.steps });
-    items.push({ id: 'metric-sleep', type: 'metric', icon: 'sleep', title: 'Schlaf', done: entry.sleep_done ?? false, sortKey: '00-02', metricField: 'sleep_hours', metricValue: entry.sleep_hours ?? null, metricUnit: 'h', hasProgress: true, progressCurrent: entry.sleep_hours ?? 0, progressTarget: goals.sleepHours });
+    // Weight: biometric — automated from ESP32 scale, but manually editable too
+    const hasBodyComp = entry.body_fat_pct != null || entry.muscle_mass_kg != null || entry.bmi != null;
+    items.push({ id: 'metric-weight', type: 'metric', icon: 'weight', title: 'Gewicht', done: false, sortKey: '00-00', metricField: 'weight_kg', metricValue: entry.weight_kg ?? null, metricUnit: 'kg', metricEditable: true, biometric: true, weightSource: entry.weight_source ?? null, weightDetails: hasBodyComp ? { bodyFat: entry.body_fat_pct != null ? Number(entry.body_fat_pct) : null, muscle: entry.muscle_mass_kg != null ? Number(entry.muscle_mass_kg) : null, water: entry.water_pct != null ? Number(entry.water_pct) : null, bone: entry.bone_mass_kg != null ? Number(entry.bone_mass_kg) : null, bmi: entry.bmi != null ? Number(entry.bmi) : null, bmr: entry.basal_metabolism ?? null, visceralFat: entry.visceral_fat ?? null, metabolicAge: entry.metabolic_age ?? null } : undefined });
+    // Steps: biometric — automated from Google Fit, not manually checkable
+    items.push({ id: 'metric-steps', type: 'metric', icon: 'steps', title: 'Schritte', done: false, sortKey: '00-01', metricField: 'steps', metricValue: entry.steps ?? null, hasProgress: true, progressCurrent: entry.steps ?? 0, progressTarget: goals.steps, stepsConfirmed: entry.steps_confirmed ?? false, biometric: true });
+    // Sleep: biometric — automated from Google Fit, shows quality score and details instead
+    items.push({ id: 'metric-sleep', type: 'metric', icon: 'sleep', title: 'Schlaf', done: false, sortKey: '00-02', metricField: 'sleep_hours', metricValue: entry.sleep_hours ?? null, metricUnit: 'h', hasProgress: true, progressCurrent: entry.sleep_hours ?? 0, progressTarget: goals.sleepHours, sleepQuality: entry.sleep_quality ?? 0, sleepDetails: (entry.sleep_deep_hours != null || entry.sleep_rem_hours != null) ? { deep: Number(entry.sleep_deep_hours) || 0, rem: Number(entry.sleep_rem_hours) || 0, light: Number(entry.sleep_light_hours) || 0, awake: Number(entry.sleep_awake_hours) || 0, efficiency: Number(entry.sleep_efficiency) || 0 } : undefined, biometric: true });
     items.push({ id: 'metric-creatine', type: 'metric', icon: 'creatine', title: 'Kreatin', done: entry.creatine_done ?? false, sortKey: '00-03', metricField: 'creatine_done', metricValue: entry.creatine_done ? 'Eingenommen' : 'Ausstehend', metricCheckable: true, metricDoneField: 'creatine_done', metricEditable: false });
     items.push({ id: 'metric-belly', type: 'metric', icon: 'belly', title: 'Bauchumfang', done: false, sortKey: '00-04', metricField: 'belly_cm', metricValue: entry.belly_cm ?? null, metricUnit: 'cm', metricEditable: true });
     const sortedMeals = [...mealList].sort((a, b) => (a.meal_slot ?? 99) - (b.meal_slot ?? 99));
@@ -59,7 +66,7 @@
     const trainingType = suggestion?.training_type ?? entry.training_type ?? 'Training';
     items.push({ id: 'training', type: 'training', icon: 'training', title: trainingType, done: entry.training_done ?? false, sortKey: '02-00' });
     const cardioMin = entry.cardio_minutes ?? suggestion?.cardio_minutes ?? 0;
-    items.push({ id: 'cardio', type: 'cardio', icon: 'cardio', title: cardioMin > 0 ? `Cardio ${cardioMin}min` : 'Cardio', done: (entry as any).cardio_done ?? false, sortKey: '02-01' });
+    items.push({ id: 'cardio', type: 'cardio', icon: 'cardio', title: cardioMin > 0 ? `Cardio ${cardioMin}min` : 'Cardio', done: entry.cardio_done ?? false, sortKey: '02-01' });
     for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.due_time ?? '99:99'}`, todoData: t }); }
     return items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   }
@@ -112,17 +119,19 @@
     if (lastTap[id] && now - lastTap[id] < 300) { lastTap[id] = 0; const canToggle = (item.type === 'metric' && item.metricCheckable) || item.type === 'meal' || item.type === 'training' || item.type === 'cardio' || item.type === 'todo'; if (!canToggle) return; if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); toggleDone(item); return; }
     lastTap[id] = now;
     if (item.type === 'training') { expandedTraining = !expandedTraining; return; }
+    if (item.id === 'metric-sleep') { expandedSleep = !expandedSleep; return; }
+    if (item.id === 'metric-weight' && item.weightDetails) { expandedWeight = !expandedWeight; return; }
   }
 
   async function toggleDone(item: UnifiedItem) {
     if (item.type === 'metric' && item.metricDoneField) { const newVal = !(entry as any)[item.metricDoneField]; try { await api.upsertDayEntry({ ...entry, [item.metricDoneField]: newVal, date: currentDate }); entry = { ...entry, [item.metricDoneField]: newVal }; dispatch('update', { field: item.metricDoneField, value: newVal }); } catch {} return; }
     if (item.type === 'meal') { const mealId = item.id.replace('meal-', ''); const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id); if (!meal?.id) return; try { await api.markMealDone(meal.id); meals = meals.map((m) => m.id === meal.id ? { ...m, is_done: !m.is_done } : m); dispatch('mealtoggle', { id: meal.id, is_done: !meal.is_done }); } catch {} return; }
     if (item.type === 'training' && entry) { const newVal = !entry.training_done; try { await api.upsertDayEntry({ ...entry, training_done: newVal, date: currentDate }); entry = { ...entry, training_done: newVal }; dispatch('trainingtoggle', newVal); } catch {} return; }
-    if (item.type === 'cardio' && entry) { const newVal = !(entry as any).cardio_done; try { await api.upsertDayEntry({ ...entry, cardio_done: newVal, date: currentDate } as any); entry = { ...entry, cardio_done: newVal } as any; dispatch('cardiotoggle', newVal); } catch {} return; }
+    if (item.type === 'cardio' && entry) { const newVal = !entry.cardio_done; try { await api.upsertDayEntry({ ...entry, cardio_done: newVal, date: currentDate }); entry = { ...entry, cardio_done: newVal }; dispatch('cardiotoggle', newVal); } catch {} return; }
     if (item.type === 'todo') { const todoId = item.id.replace('todo-', ''); try { await api.markTodoDone(todoId); todos = todos.map((t) => String(t.id) === todoId ? { ...t, status: t.status === 'open' ? 'done' : 'open' } : t); dispatch('todotoggle', { id: todoId }); } catch {} return; }
   }
 
-  async function updateMetric(field: string, value: any) { if (!entry) return; entry = { ...entry, [field]: value }; try { await api.upsertDayEntry({ ...entry, date: currentDate }); dispatch('update', { field, value }); } catch {} }
+  async function updateMetric(field: string, value: any) { if (!entry) return; entry = { ...entry, [field]: value }; if (field === 'weight_kg') { entry = { ...entry, weight_source: 'manual' }; } try { await api.upsertDayEntry({ ...entry, date: currentDate }); dispatch('update', { field, value }); } catch {} }
   function handleTrainingComplete() { expandedTraining = false; if (entry) { entry = { ...entry, training_done: true }; dispatch('trainingtoggle', true); } }
 
   async function addQuick() { const title = quickAdd.trim(); if (!title) return; try { const n = await api.createTodo({ due_date: currentDate, title, status: 'open', priority: 2, source: 'manual' } as any); if (n) { todos = [...todos, n]; dispatch('todoadd', n); } quickAdd = ''; } catch {} }
@@ -132,10 +141,142 @@
   function parseVisionResult(result: any) { if (!result?.analysis?.total) return null; const total = result.analysis.total; const firstItem = result.analysis.items?.[0]; return { name: firstItem?.name ?? 'Erkanntes Gericht', kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0 }; }
   function triggerPhoto() { photoInput?.click(); }
   async function onPhotoSelected(e: Event) { const input = e.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return; photoLoading = true; try { const result = await api.analyzePhoto(file); const parsed = parseVisionResult(result); if (parsed) { confirmData = { slot: getCurrentSlot(), ...parsed }; choosingSlot = false; } } catch {} finally { photoLoading = false; input.value = ''; } }
-  async function assignToSlot(slot: number) { if (!confirmData) return; const meal = meals.find((m) => m.meal_slot === slot); if (!meal?.id) { confirmData = null; choosingSlot = false; return; } try { await api.updateMeal(meal.id, { name: confirmData.name, kcal: confirmData.kcal, protein_g: confirmData.protein_g, carbs_g: confirmData.carbs_g, fat_g: confirmData.fat_g }); await api.markMealDone(meal.id); meals = meals.map((m) => m.id === meal.id ? { ...m, name: confirmData.name, kcal: String(confirmData.kcal), protein_g: String(confirmData.protein_g), carbs_g: String(confirmData.carbs_g), fat_g: String(confirmData.fat_g), is_done: true } : m); dispatch('mealtoggle', { id: meal.id, is_done: true }); } catch {} confirmData = null; choosingSlot = false; }
+  async function assignToSlot(slot: number) {
+    const data = confirmData;
+    if (!data) return;
+    const meal = meals.find((m) => m.meal_slot === slot);
+    if (!meal?.id) { confirmData = null; choosingSlot = false; return; }
+    try {
+      await api.updateMeal(meal.id, { name: data.name, kcal: data.kcal, protein_g: data.protein_g, carbs_g: data.carbs_g, fat_g: data.fat_g });
+      await api.markMealDone(meal.id);
+      meals = meals.map((m) => m.id === meal.id ? { ...m, name: data.name, kcal: String(data.kcal), protein_g: String(data.protein_g), carbs_g: String(data.carbs_g), fat_g: String(data.fat_g), is_done: true } : m);
+      dispatch('mealtoggle', { id: meal.id, is_done: true });
+    } catch {}
+    confirmData = null;
+    choosingSlot = false;
+  }
   function cancelConfirm() { confirmData = null; choosingSlot = false; }
 
-  $: openCount = unifiedItems.filter((i) => !i.done).length;
+  $: weightItem = unifiedItems.find((i) => i.id === 'metric-weight');
+  $: biometricItems = unifiedItems.filter((i) => i.biometric && i.id !== 'metric-weight');
+  $: manualItems = unifiedItems.filter((i) => !i.biometric);
+  $: openCount = manualItems.filter((i) => !i.done).length;
+
+  // Local date string (avoids UTC offset bug)
+  function localDateStr(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  // Real today — chart always anchors here, selected day just gets highlighted
+  function localTodayStr(): string {
+    return localDateStr(new Date());
+  }
+  $: realTodayStr = localTodayStr();
+
+  // Precompute weight chart — anchors to real today, splits verified vs assumed
+  function weightChart(points: TrendPoint[], realToday: string, selectedDate: string, numDays: number) {
+    if (!points || points.length === 0) return null;
+    const valMap = new Map<string, number>();
+    for (const p of points) {
+      if (p.value != null) valMap.set(p.date, Number(p.value));
+    }
+    if (valMap.size === 0) return null;
+    // Generate all dates for the range, anchored to real today
+    const days: { date: string; val: number; hasData: boolean }[] = [];
+    const anchorDate = new Date(realToday + 'T00:00');
+    let firstKnown: number | null = null;
+    for (const p of points) {
+      if (p.value != null) { firstKnown = Number(p.value); break; }
+    }
+    let lastKnown = firstKnown ?? 0;
+    for (let i = numDays - 1; i >= 0; i--) {
+      const d = new Date(anchorDate);
+      d.setDate(d.getDate() - i);
+      const ds = localDateStr(d);
+      if (valMap.has(ds)) {
+        lastKnown = valMap.get(ds)!;
+        days.push({ date: ds, val: lastKnown, hasData: true });
+      } else {
+        days.push({ date: ds, val: lastKnown, hasData: false });
+      }
+    }
+    const vals = days.map((d) => d.val);
+    const min = Math.min(...vals) - 0.5;
+    const max = Math.max(...vals) + 0.5;
+    const range = max - min || 1;
+    const stepX = vals.length > 1 ? 190 / (vals.length - 1) : 0;
+    const coords = vals.map((v, i) => ({ x: 5 + i * stepX, y: 45 - ((v - min) / range) * 38 }));
+
+    // Build segment paths: verified (both endpoints have data) vs assumed
+    const verifiedSegs: string[] = [];
+    const assumedSegs: string[] = [];
+    for (let i = 0; i < coords.length - 1; i++) {
+      const bothVerified = days[i].hasData && days[i + 1].hasData;
+      const seg = `M${coords[i].x.toFixed(1)},${coords[i].y.toFixed(1)} L${coords[i + 1].x.toFixed(1)},${coords[i + 1].y.toFixed(1)}`;
+      if (bothVerified) verifiedSegs.push(seg);
+      else assumedSegs.push(seg);
+    }
+    const verifiedPathD = verifiedSegs.join(' ');
+    const assumedPathD = assumedSegs.join(' ');
+    // Full area for background
+    const fullPathD = coords.map((c, i) => `${i === 0 ? 'M' : 'L'}${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+    const fullAreaD = `${fullPathD} L${coords[coords.length - 1].x.toFixed(1)},50 L${coords[0].x.toFixed(1)},50 Z`;
+
+    const dots = coords.map((c, i) => ({
+      ...c,
+      isSelected: days[i].date === selectedDate,
+      hasData: days[i].hasData,
+    }));
+
+    // Labels — deduplicate month names in year view by including year
+    const labelStep = numDays <= 7 ? 1 : numDays <= 30 ? 5 : Math.floor(numDays / 12);
+    const seen = new Set<string>();
+    const labels = days.map((d, i) => {
+      if (i % labelStep !== 0 && i !== days.length - 1) return null;
+      const dt = new Date(d.date + 'T00:00');
+      let lbl: string;
+      if (numDays <= 7) {
+        lbl = dt.toLocaleDateString('de', { weekday: 'short' }).slice(0, 2);
+      } else if (numDays <= 30) {
+        lbl = dt.toLocaleDateString('de', { day: 'numeric', month: 'short' });
+      } else {
+        // Year view: month + 2-digit year to avoid duplicates
+        lbl = dt.toLocaleDateString('de', { month: 'short', year: '2-digit' });
+      }
+      // Deduplicate
+      const key = numDays <= 30 ? lbl : dt.toLocaleDateString('de', { month: 'short', year: 'numeric' });
+      if (seen.has(key)) return null;
+      seen.add(key);
+      return { date: d.date, isSelected: d.date === selectedDate, label: lbl };
+    }).filter((l) => l !== null) as { date: string; isSelected: boolean; label: string }[];
+
+    return { verifiedPathD, assumedPathD, fullPathD, fullAreaD, dots, labels };
+  }
+
+  // Precompute sleep donut segments
+  function sleepDonut(sd: { deep: number; rem: number; light: number; awake: number } | undefined) {
+    if (!sd) return [];
+    const r = 38;
+    const circ = 2 * Math.PI * r;
+    const phases = [
+      { val: sd.deep, color: '#1e40af', label: 'Tief' },
+      { val: sd.rem, color: '#7c3aed', label: 'REM' },
+      { val: sd.light, color: '#60a5fa', label: 'Leicht' },
+      { val: sd.awake, color: '#6b7280', label: 'Wach' },
+    ].filter((p) => p.val > 0);
+    const total = phases.reduce((s, p) => s + p.val, 0) || 1;
+    let offset = 0;
+    return phases.map((p) => {
+      const frac = p.val / total;
+      const dash = frac * circ;
+      const seg = { ...p, dash, offset: -offset, frac };
+      offset += dash;
+      return seg;
+    });
+  }
 </script>
 
 <!-- Macro stats -->
@@ -146,6 +287,155 @@
   <div class="macro"><span class="macro-l" style="color:var(--pink)">F</span><span class="macro-v">{totalF}/{goals.fat}g</span><ProgressBar current={totalF} target={goals.fat} color="var(--pink)" /></div>
 </div>
 
+<!-- Biometrics: Schritte + Schlaf nebeneinander -->
+{#if biometricItems.length > 0}
+  <div class="biometrics-row">
+    {#each biometricItems as item (item.id)}
+      {#if item.id === 'metric-steps'}
+        {@const reached = (item.progressCurrent ?? 0) >= (item.progressTarget ?? 1)}
+        {@const remaining = Math.max(0, (item.progressTarget ?? 1) - (item.progressCurrent ?? 0))}
+        <div class="bio-section">
+          <div class="bio-hdr">
+            <span class="bio-title"><Icon name={item.icon} size={14} /> {item.title}</span>
+            {#if reached}
+              <span class="bio-goal-reached">✓</span>
+            {/if}
+          </div>
+          <div class="bio-value-lg">
+            {(item.metricValue ?? 0).toLocaleString('de')}
+            <span class="bio-target">/ {item.progressTarget?.toLocaleString('de') ?? '—'}</span>
+          </div>
+          <ProgressBar current={item.progressCurrent ?? 0} target={item.progressTarget ?? 1} color={reached ? 'var(--green)' : 'var(--text-dim)'} />
+          {#if !reached && item.metricValue != null}
+            <div class="bio-status"><span class="bio-pending">noch {remaining.toLocaleString('de')}</span></div>
+          {/if}
+        </div>
+      {:else if item.id === 'metric-sleep'}
+        {@const sd = item.sleepDetails}
+        {@const sleepTotal = sd ? sd.deep + sd.rem + sd.light : 0}
+        {@const fmtShort = (h: number) => { const m = Math.round(h * 60); return m >= 60 ? `${Math.floor(m/60)}h${m%60 > 0 ? ` ${m%60}m` : ''}` : `${m}m`; }}
+        <div class="bio-section">
+          <div class="bio-hdr">
+            <span class="bio-title"><Icon name={item.icon} size={14} /> {item.title}</span>
+          </div>
+          <div class="sleep-donut-row">
+            <svg class="sleep-donut" viewBox="0 0 100 100">
+              {#if sd && sleepTotal > 0}
+                {#each sleepDonut(sd) as seg}
+                  <circle cx="50" cy="50" r="38" fill="none" stroke={seg.color} stroke-width="10"
+                    stroke-dasharray="{seg.dash.toFixed(2)} {(2 * Math.PI * 38 - seg.dash).toFixed(2)}"
+                    stroke-dashoffset={seg.offset.toFixed(2)} transform="rotate(-90 50 50)" />
+                {/each}
+                <text x="50" y="47" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="700">{fmtShort(sleepTotal)}</text>
+                <text x="50" y="59" text-anchor="middle" fill="var(--text-faint)" font-size="7">Schlaf</text>
+              {:else}
+                <!-- Gray empty donut -->
+                <circle cx="50" cy="50" r="38" fill="none" stroke="var(--border-2)" stroke-width="10" />
+                <text x="50" y="52" text-anchor="middle" fill="var(--text-faint)" font-size="10">—</text>
+              {/if}
+            </svg>
+            {#if sd && sleepTotal > 0}
+              <div class="sleep-legend-col">
+                {#each [{ val: sd.deep, color: '#1e40af', label: 'Tief' }, { val: sd.rem, color: '#7c3aed', label: 'REM' }, { val: sd.light, color: '#60a5fa', label: 'Leicht' }, { val: sd.awake, color: '#6b7280', label: 'Wach' }] as p}
+                  <div class="sleep-leg-row">
+                    <span class="sleep-dot" style="background:{p.color}"></span>
+                    <span class="sleep-leg-label">{p.label}</span>
+                    <span class="sleep-leg-time">{fmtShort(p.val)}</span>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
+    {/each}
+  </div>
+{/if}
+
+<!-- Weight section — direkt über der To-Do-Liste -->
+{#if weightItem}
+  <div class="weight-section">
+    <div class="bio-hdr">
+      <span class="bio-title"><Icon name={weightItem.icon} size={14} /> {weightItem.title}</span>
+      <div class="bio-hdr-right">
+        {#if weightItem.weightSource === 'scale_esp'}
+          <span class="bio-source-badge">Waage ✓</span>
+        {:else if weightItem.weightSource === 'manual'}
+          <span class="bio-source-manual">manuell</span>
+        {/if}
+        <div class="weight-range-tabs">
+          <button class:active={weightRange === 7} onclick={() => { weightRange = 7; loadWeightTrend(); }}>W</button>
+          <button class:active={weightRange === 30} onclick={() => { weightRange = 30; loadWeightTrend(); }}>M</button>
+          <button class:active={weightRange === 365} onclick={() => { weightRange = 365; loadWeightTrend(); }}>J</button>
+        </div>
+      </div>
+    </div>
+    <div class="weight-value-row">
+      {#if weightEditing}
+        <input class="weight-input" type="number" step="0.1" min="0" max="300"
+          value={weightItem.metricValue ?? ''}
+          placeholder="Gewicht eingeben"
+          onblur={(e) => { const v = parseFloat(e.currentTarget.value); updateMetric('weight_kg', isNaN(v) ? null : v); weightEditing = false; }}
+          onkeydown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } if (e.key === 'Escape') { weightEditing = false; } }}
+          onclick={(e) => e.stopPropagation()}
+        />
+        <span class="bio-unit">kg</span>
+      {:else}
+        <button class="weight-value-btn" onclick={() => { weightEditing = true; }}>
+          {weightItem.metricValue != null ? Number(weightItem.metricValue).toFixed(1) : '—'}
+          <span class="bio-unit">kg</span>
+          <span class="weight-edit-hint">✎</span>
+        </button>
+      {/if}
+    </div>
+    {#if weightItem.weightDetails && !weightEditing}
+      {@const wd = weightItem.weightDetails}
+      <div class="weight-mini-stats">
+        {#if wd.bmi != null}<span class="wms"><b>{wd.bmi}</b> BMI</span>{/if}
+        {#if wd.bodyFat != null}<span class="wms"><b>{wd.bodyFat}%</b> Fett</span>{/if}
+        {#if wd.muscle != null}<span class="wms"><b>{wd.muscle}</b> Muskel</span>{/if}
+        {#if wd.water != null}<span class="wms"><b>{wd.water}%</b> Wasser</span>{/if}
+        {#if wd.bone != null}<span class="wms"><b>{wd.bone}</b> Knochen</span>{/if}
+        {#if wd.bmr != null}<span class="wms"><b>{wd.bmr}</b> BMR</span>{/if}
+        {#if wd.visceralFat != null}<span class="wms"><b>{wd.visceralFat}</b> Visz.</span>{/if}
+        {#if wd.metabolicAge != null}<span class="wms"><b>{wd.metabolicAge}</b> Met.-Alter</span>{/if}
+      </div>
+    {/if}
+    {#if weightTrend.length > 0 && !weightEditing}
+      {@const wc = weightChart(weightTrend, realTodayStr, currentDate, weightRange)}
+      {#if wc}
+        <svg class="weight-chart-full" viewBox="0 0 200 50" preserveAspectRatio="none">
+          <!-- Background area (faint) -->
+          <path d={wc.fullAreaD} fill="var(--blue)" fill-opacity="0.05" />
+          <!-- Assumed segments (gray, dashed) -->
+          {#if wc.assumedPathD}
+            <path d={wc.assumedPathD} fill="none" stroke="var(--text-faint)" stroke-width="1.5" stroke-dasharray="3,2" stroke-linecap="round" />
+          {/if}
+          <!-- Verified segments (blue, solid) -->
+          {#if wc.verifiedPathD}
+            <path d={wc.verifiedPathD} fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          {/if}
+          <!-- Dots: verified=blue, assumed=gray hollow, selected=ring -->
+          {#each wc.dots as d}
+            <circle cx={d.x} cy={d.y}
+              r={d.isSelected ? 3.5 : d.hasData ? 2 : 1.5}
+              fill={d.hasData ? 'var(--blue)' : 'var(--text-faint)'}
+              stroke={d.isSelected ? 'var(--bg)' : 'none'}
+              stroke-width={d.isSelected ? '1.5' : '0'}
+              opacity={d.hasData ? 1 : 0.5}
+            />
+          {/each}
+        </svg>
+        <div class="weight-chart-labels">
+          {#each wc.labels as l}
+            <span class="weight-chart-label" class:today={l.isSelected}>{l.label}</span>
+          {/each}
+        </div>
+      {/if}
+    {/if}
+  </div>
+{/if}
+
 <!-- Day list -->
 <div class="daylist">
   <div class="daylist-hdr">
@@ -155,7 +445,7 @@
     </button>
   </div>
 
-  {#each unifiedItems as item (item.id)}
+  {#each manualItems as item (item.id)}
     <div class="item tap-area" class:done={item.done}
       onclick={(e) => handleTap(item, e)}
       oncontextmenu={(e) => handleContextMenu(item, e)}
@@ -179,10 +469,6 @@
       {/if}
       {#if item.hasProgress}<div class="item-prog"><ProgressBar current={item.progressCurrent ?? 0} target={item.progressTarget ?? 1} color="var(--text-dim)" /></div>{/if}
     </div>
-
-    {#if item.id === 'metric-weight' && weightTrend.length > 0}
-      <div class="spark-row"><Sparkline data={weightTrend} color="var(--blue)" height={24} width={90} fill={true} /></div>
-    {/if}
 
     {#if item.id === 'training' && expandedTraining}
       <div class="train-inline" onclick={(e) => e.stopPropagation()}>
@@ -303,6 +589,75 @@
   .item-prog { flex: 0 0 70px; }
   .spark-row { padding: 0 14px 8px; }
   .train-inline { padding: 0 14px 8px; }
+
+  .quality-stars { font-size: 11px; color: var(--amber); letter-spacing: 1px; }
+
+  /* Biometrics — Schritte + Schlaf nebeneinander */
+  .biometrics-row { display: flex; gap: 8px; padding: 0 0 4px; }
+  .biometrics-row .bio-section { flex: 1; }
+  .bio-section { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; }
+  .bio-section:active { background: var(--card-2); }
+  .bio-hdr { display: flex; align-items: center; justify-content: space-between; }
+  .bio-title { font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; font-weight: 600; }
+  .bio-value-lg { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.2; }
+  .bio-target { font-size: 13px; font-weight: 400; color: var(--text-faint); }
+  .bio-status { font-size: 11px; min-height: 14px; }
+  .bio-goal-reached { color: var(--green); font-weight: 600; }
+  .bio-pending { color: var(--text-faint); }
+  .bio-hint { color: var(--text-faint); }
+  .bio-unit { font-size: 13px; font-weight: 400; color: var(--text-faint); }
+  .bio-source-badge { font-size: 9px; color: var(--green); font-weight: 600; background: rgba(34,197,94,0.15); padding: 1px 5px; border-radius: 4px; }
+  .bio-source-manual { font-size: 9px; color: var(--text-faint); font-weight: 500; }
+  .bio-hdr-right { display: flex; align-items: center; gap: 4px; }
+  .bio-edit-btn { width: 22px; height: 22px; border-radius: 5px; border: none; background: transparent; color: var(--text-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .bio-edit-btn:active { background: var(--card-2); }
+  .bio-edit-row { padding: 4px 0; }
+  .bio-expand-btn { align-self: flex-start; background: none; border: none; color: var(--text-faint); font-size: 11px; cursor: pointer; padding: 2px 0; }
+
+  /* Weight section — direkt über der To-Do-Liste */
+  .weight-section { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 4px; }
+  .weight-value-row { display: flex; align-items: baseline; gap: 6px; }
+  .weight-value-btn { background: none; border: none; cursor: pointer; font-size: 22px; font-weight: 700; color: var(--text); padding: 0; display: flex; align-items: baseline; gap: 4px; }
+  .weight-value-btn:active { opacity: 0.7; }
+  .weight-edit-hint { font-size: 12px; color: var(--text-faint); font-weight: 400; margin-left: 4px; }
+  .weight-input { width: 100px; padding: 4px 8px; border-radius: 6px; background: var(--card-2); border: 1px solid var(--border-2); color: var(--text); font-size: 22px; font-weight: 700; }
+  .weight-input:focus { border-color: var(--blue); outline: none; }
+  .weight-chart-full { width: 100%; height: 60px; }
+  .weight-chart-labels { display: flex; justify-content: space-between; padding: 0 2px; }
+  .weight-chart-label { font-size: 8px; color: var(--text-faint); text-align: center; flex: 1; white-space: nowrap; overflow: hidden; }
+  .weight-chart-label.today { color: var(--blue); font-weight: 700; }
+
+  /* Weight mini stats — compact inline metrics */
+  .weight-mini-stats { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+  .wms { font-size: 10px; color: var(--text-faint); display: flex; align-items: baseline; gap: 2px; }
+  .wms b { font-size: 11px; font-weight: 600; color: var(--text-dim); }
+
+  /* Weight range selector */
+  .weight-range-tabs { display: flex; gap: 2px; }
+  .weight-range-tabs button { font-size: 10px; font-weight: 600; padding: 2px 6px; border: 1px solid var(--border-2); border-radius: 4px; background: transparent; color: var(--text-faint); cursor: pointer; line-height: 1.4; }
+  .weight-range-tabs button.active { background: var(--blue); color: var(--bg); border-color: var(--blue); }
+
+  /* Weight body composition detail */
+  .weight-detail { padding: 0 14px 10px; }
+  .weight-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .weight-stat { display: flex; flex-direction: column; gap: 2px; text-align: center; padding: 6px 4px; background: var(--card-2); border-radius: 6px; }
+  .weight-stat-l { font-size: 9px; color: var(--text-faint); text-transform: uppercase; font-weight: 600; }
+  .weight-stat-v { font-size: 12px; font-weight: 600; color: var(--text); }
+
+  /* Sleep donut */
+  .sleep-donut-row { display: flex; align-items: center; gap: 12px; }
+  .sleep-donut { width: 80px; height: 80px; flex-shrink: 0; }
+  .sleep-legend-col { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+  .sleep-leg-row { display: flex; align-items: center; gap: 6px; font-size: 11px; line-height: 1.4; }
+  .sleep-leg-label { color: var(--text-dim); flex: 1; white-space: nowrap; }
+  .sleep-leg-time { color: var(--text); font-weight: 600; text-align: right; min-width: 42px; }
+  .sleep-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Sleep summary */
+  .sleep-summary { display: flex; gap: 8px; margin-top: 4px; }
+  .sleep-sum-stat { flex: 1; display: flex; flex-direction: column; gap: 2px; text-align: center; padding: 6px 4px; background: var(--card-2); border-radius: 6px; }
+  .sleep-stat-l { font-size: 9px; color: var(--text-faint); text-transform: uppercase; font-weight: 600; }
+  .sleep-sum-v { font-size: 12px; font-weight: 600; color: var(--text); }
 
   .quickadd { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); }
   .quickadd input { flex: 1; padding: 8px 12px; border-radius: 8px; background: var(--card-2); border: 1px solid var(--border-2); color: var(--text); font-size: 14px; }

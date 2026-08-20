@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 
 from app.database import async_session
-from app.models import DayEntry, Meal, Todo, SyncLog
+from app.models import DayEntry, Exercise, Meal, MealTemplate, Todo, TrainingSet, SyncLog
 from app.routes.auth import get_current_user
 from app.schemas import SyncConflictItem, SyncRequest, SyncResponse
 
@@ -25,6 +25,9 @@ ENTITY_MODELS = {
     "day_entry": DayEntry,
     "meal": Meal,
     "todo": Todo,
+    "training_set": TrainingSet,
+    "exercise": Exercise,
+    "meal_template": MealTemplate,
 }
 
 
@@ -46,7 +49,9 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
 
             if change.action == "delete":
                 if existing is not None:
-                    await session.delete(existing)
+                    existing.deleted = True
+                    if hasattr(existing, "updated_at"):
+                        existing.updated_at = datetime.now(BERLIN_TZ)
                 applied.append({"entity_type": change.entity_type, "entity_id": str(change.entity_id), "action": "delete"})
                 continue
 

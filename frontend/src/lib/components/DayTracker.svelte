@@ -4,12 +4,12 @@
   import ProgressBar from './ProgressBar.svelte';
   import { api } from '$lib/api';
   import { dailyGoals } from '$lib/stores';
-  import type { DayData } from '$lib/types';
+  import type { DayData, DayEntry } from '$lib/types';
 
   export let dayData: DayData;
   export let currentDate: string;
 
-  let entry = dayData.dayEntry;
+  let entry: DayEntry = dayData.dayEntry ?? { date: currentDate };
   let weightTrend: number[] = [];
 
   $: entry = dayData.dayEntry ?? { date: currentDate };

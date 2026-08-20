@@ -33,6 +33,27 @@
     <section class="section-card"><div class="section-header"><span>Gewicht</span><span class="avg">{weekStats.avg_weight ? Number(weekStats.avg_weight).toFixed(1) : '—'} kg Ø</span></div><div class="body"><div class="chart">{#if weightData.length > 0}<Sparkline data={weightData} color="var(--blue)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
     <section class="section-card"><div class="section-header"><span>Kalorien</span><span class="avg">{weekStats.avg_kcal ? Math.round(Number(weekStats.avg_kcal)) : '—'} kcal Ø</span></div><div class="body"><div class="chart">{#if kcalData.length > 0}<Sparkline data={kcalData} color="var(--amber)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
     <section class="section-card"><div class="section-header"><span>Schritte</span><span class="avg">{weekStats.avg_steps ? Math.round(Number(weekStats.avg_steps)) : '—'} Ø</span></div><div class="body"><div class="chart">{#if stepsData.length > 0}<Sparkline data={stepsData} color="var(--green)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
+    {#if weekStats.avg_protein != null || weekStats.avg_carbs != null || weekStats.avg_fat != null}
+    <section class="section-card"><div class="section-header">Makros Ø</div><div class="body">
+      <div class="stat-r"><span class="stat-l">Protein</span><span class="stat-v">{weekStats.avg_protein ? Math.round(Number(weekStats.avg_protein)) : '—'} g</span></div>
+      <div class="stat-r"><span class="stat-l">Kohlenhydrate</span><span class="stat-v">{weekStats.avg_carbs ? Math.round(Number(weekStats.avg_carbs)) : '—'} g</span></div>
+      <div class="stat-r"><span class="stat-l">Fett</span><span class="stat-v">{weekStats.avg_fat ? Math.round(Number(weekStats.avg_fat)) : '—'} g</span></div>
+    </div></section>
+    {/if}
+    {#if weekStats.avg_sleep_hours != null || weekStats.total_cardio_minutes != null}
+    <section class="section-card"><div class="section-header">Schlaf &amp; Cardio</div><div class="body">
+      <div class="stat-r"><span class="stat-l">Schlaf Ø</span><span class="stat-v">{weekStats.avg_sleep_hours ? Number(weekStats.avg_sleep_hours).toFixed(1) : '—'} h</span></div>
+      <div class="stat-r"><span class="stat-l">Schlafqualität Ø</span><span class="stat-v">{weekStats.avg_sleep_quality ? `${Number(weekStats.avg_sleep_quality).toFixed(1)}/5 ★` : '—'}</span></div>
+      <div class="stat-r"><span class="stat-l">Cardio gesamt</span><span class="stat-v">{weekStats.total_cardio_minutes ? Math.round(Number(weekStats.total_cardio_minutes)) : '—'} min</span></div>
+    </div></section>
+    {/if}
+    {#if weekStats.training_streak != null || weekStats.step_goal_streak != null || weekStats.creatine_compliance != null}
+    <section class="section-card"><div class="section-header">Streaks</div><div class="body">
+      <div class="stat-r"><span class="stat-l">Training</span><span class="stat-v">{weekStats.training_streak ?? '—'} Tage</span></div>
+      <div class="stat-r"><span class="stat-l">Schritte-Ziel</span><span class="stat-v">{weekStats.step_goal_streak ?? '—'} Tage</span></div>
+      <div class="stat-r"><span class="stat-l">Kreatin</span><span class="stat-v">{weekStats.creatine_compliance ? Math.round(Number(weekStats.creatine_compliance) * 100) : '—'} %</span></div>
+    </div></section>
+    {/if}
     <section class="section-card"><div class="section-header">Abschluss</div><div class="body">
       <div class="stat-r"><span class="stat-l">Trainingstage</span><span class="stat-v">{weekStats.training_days}<span class="stat-m">/7</span></span></div>
       <div class="stat-r"><span class="stat-l">To-Dos erledigt</span><span class="stat-v">{weekStats.todo_done}<span class="stat-m">/{weekStats.todo_total}</span></span></div>

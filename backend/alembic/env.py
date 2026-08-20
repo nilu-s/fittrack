@@ -15,6 +15,9 @@ from app.database import Base
 from app.models import (  # noqa: F401 — ensure all models are imported
     DayEntry,
     Exercise,
+    ExerciseProgress,
+    Goal,
+    GoogleToken,
     Meal,
     MealTemplate,
     Photo,
