@@ -317,21 +317,20 @@
 <style>
   :global(body:has(.unit-workspace-overlay)), :global(body:has(.planner-overlay)) { overflow: hidden; }
   .page { display: flex; flex-direction: column; gap: 12px; padding-bottom: 24px; }
-  .sport-hero { position: relative; display: flex; justify-content: space-between; gap: 16px; min-height: 118px; padding: 20px; overflow: hidden; border: 1px solid rgba(10,132,255,.22); border-radius: 18px; background: radial-gradient(circle at 95% 10%, rgba(10,132,255,.2), transparent 42%), linear-gradient(145deg, #17191e, #121316); }
-  .sport-hero::after { content: ''; position: absolute; width: 120px; height: 120px; right: -54px; bottom: -72px; border: 18px solid rgba(255,255,255,.025); border-radius: 50%; }
-  .hero-copy { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 5px; }
-  .hero-copy strong { max-width: 300px; font-size: 21px; line-height: 1.18; letter-spacing: -.025em; }
+  .sport-hero { display: flex; justify-content: space-between; gap: var(--space-4); min-height: 96px; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
+  .hero-copy { display: flex; flex-direction: column; gap: 5px; }
+  .hero-copy strong { max-width: 300px; font-size: 19px; line-height: 1.2; letter-spacing: -.02em; }
   .hero-copy p, .workspace-head p, .cardio-panel p { margin: 0; color: var(--text-dim); font-size: 12px; line-height: 1.45; }
-  .eyebrow { color: var(--blue); font-size: 10px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
-  .hero-mark { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 15px; background: var(--blue); color: white; box-shadow: 0 10px 28px rgba(10,132,255,.28); }
+  .eyebrow { color: var(--text-dim); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .hero-mark { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: var(--radius-sm); background: var(--card-2); color: var(--text-dim); }
 
-  .view-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 14px; background: #111215; }
+  .view-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
   .view-tabs button { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 10px; background: transparent; color: var(--text-dim); font-size: 13px; font-weight: 650; cursor: pointer; }
   .view-tabs button.active { background: var(--card-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
   .view-tabs small { min-width: 18px; height: 18px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; background: rgba(255,255,255,.07); color: var(--text-dim); font-size: 10px; }
-  .view-tabs button.active small { background: rgba(10,132,255,.18); color: #78baff; }
+  .view-tabs button.active small { background: var(--card); color: var(--text-dim); }
 
-  .program-shell { min-height: 220px; padding: 18px 14px 14px; border: 1px solid var(--border); border-radius: 18px; background: linear-gradient(180deg, #151619, #121316); }
+  .program-shell { min-height: 220px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
   .workspace-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding: 0 2px; }
   .workspace-head h2 { margin: 3px 0 4px; color: var(--text); font-size: 18px; letter-spacing: -.02em; }
   .workspace-head p { max-width: 320px; }
@@ -369,7 +368,7 @@
 
   .unit-workspace-overlay { position: fixed; inset: 0; z-index: 70; display: flex; justify-content: center; background: var(--bg); }
   .unit-workspace { width: min(100%, 560px); height: 100dvh; display: flex; flex-direction: column; background: var(--bg); }
-  .unit-workspace-header { min-height: 64px; display: grid; grid-template-columns: 44px minmax(0,1fr) auto; align-items: center; gap: 8px; padding: max(8px, env(safe-area-inset-top, 0px)) 12px 8px; border-bottom: 1px solid var(--border); background: rgba(14,15,18,.96); backdrop-filter: blur(18px); }
+  .unit-workspace-header { min-height: 64px; display: grid; grid-template-columns: 44px minmax(0,1fr) auto; align-items: center; gap: 8px; padding: max(8px, env(safe-area-inset-top, 0px)) 12px 8px; border-bottom: 1px solid var(--border); background: var(--bg); }
   .back-button, .header-save { min-width: 44px; min-height: 44px; border: 0; border-radius: 10px; cursor: pointer; }
   .back-button { background: var(--card-2); color: var(--text); font-size: 30px; font-weight: 250; }
   .header-save { padding: 0 12px; background: rgba(10,132,255,.14); color: #75b8ff; font-size: 12px; font-weight: 700; }
@@ -409,7 +408,7 @@
   .cardio-visual { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 16px; background: rgba(255,159,10,.13); color: var(--amber); }
   .archive-button { width: 100%; min-height: 46px; border: 1px solid rgba(255,69,58,.17); border-radius: 12px; background: transparent; color: var(--red); font-size: 12px; cursor: pointer; }
 
-  .planner-overlay { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; padding: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); background: rgba(0,0,0,.66); backdrop-filter: blur(5px); }
+  .planner-overlay { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; padding: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); background: rgba(0,0,0,.66); }
   .planner-modal { width: min(100%, 460px); max-height: min(88dvh, 720px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 18px; border: 1px solid var(--border-2); border-radius: 20px; background: #18191d; box-shadow: 0 24px 70px rgba(0,0,0,.55); }
   .modal-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .modal-top > div { display: flex; flex-direction: column; gap: 3px; }
