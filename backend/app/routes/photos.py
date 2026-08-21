@@ -117,13 +117,60 @@ async def analyze_photo(
                 # --- Dish duplicate check (slot-independent) ---
                 dish_name = analysis.get("items", [{}])[0].get("name", "Erkanntes Gericht")
                 dish_match = await _match_dish(session, "luis", dish_name)
+                # Auto-create dish if no match found
+                if not dish_match.matched:
+                    item = analysis.get("items", [{}])[0]
+                    total = analysis.get("total", {})
+                    new_dish = Dish(
+                        user_id="luis",
+                        slot=None,
+                        name=dish_name,
+                        kcal=total.get("kcal"),
+                        protein_g=total.get("protein_g"),
+                        carbs_g=total.get("carbs_g"),
+                        fat_g=total.get("fat_g"),
+                        source="photo",
+                        is_default=False,
+                        usage_count=1,
+                        portion_label=item.get("portion_label"),
+                        portion_grams=item.get("portion_grams"),
+                        is_scalable=item.get("is_scalable", False),
+                    )
+                    session.add(new_dish)
+                    await session.commit()
+                    await session.refresh(new_dish)
+                    dish_match = DishMatchResult(matched=True, dish=DishResponse.model_validate(new_dish), similarity=1.0)
+                    logger.info("Auto-created dish from photo: %s", dish_name)
             else:
                 logger.warning("Meal %s not found for photo analysis", parsed_meal_id)
     elif analysis is not None:
-        # No meal_id — still do dish match for standalone photos
+        # No meal_id — still do dish match + auto-create for standalone photos
         dish_name = analysis.get("items", [{}])[0].get("name", "Erkanntes Gericht")
         async with async_session() as session:
             dish_match = await _match_dish(session, "luis", dish_name)
+            if not dish_match.matched:
+                item = analysis.get("items", [{}])[0]
+                total = analysis.get("total", {})
+                new_dish = Dish(
+                    user_id="luis",
+                    slot=None,
+                    name=dish_name,
+                    kcal=total.get("kcal"),
+                    protein_g=total.get("protein_g"),
+                    carbs_g=total.get("carbs_g"),
+                    fat_g=total.get("fat_g"),
+                    source="photo",
+                    is_default=False,
+                    usage_count=1,
+                    portion_label=item.get("portion_label"),
+                    portion_grams=item.get("portion_grams"),
+                    is_scalable=item.get("is_scalable", False),
+                )
+                session.add(new_dish)
+                await session.commit()
+                await session.refresh(new_dish)
+                dish_match = DishMatchResult(matched=True, dish=DishResponse.model_validate(new_dish), similarity=1.0)
+                logger.info("Auto-created dish from standalone photo: %s", dish_name)
 
     return PhotoAnalysisResponse(
         photo_id=photo_id,
