@@ -1,75 +1,16 @@
-/* FitTrack — Clean Design System
-   No gradients. No glows. No glassmorphism. No color-mix.
-   Solid colors, subtle borders, tabular numbers.
-   Inspired by Apple Health, Strava, Cron.
-*/
+@import './lib/styles/tokens.css';
+@import './lib/styles/primitives.css';
 
-:root {
-  --bg: #0b0c0e;
-  --card: #141518;
-  --card-2: #1b1c20;
-  --border: rgba(255, 255, 255, 0.055);
-  --border-2: rgba(255, 255, 255, 0.095);
-
-  --text: #f0f0f2;
-  --text-dim: #85888f;
-  --text-faint: #4b4e54;
-
-  --green: #34c759;
-  --blue: #0a84ff;
-  --amber: #ff9f0a;
-  --purple: #bf5af2;
-  --pink: #ff375f;
-  --red: #ff453a;
-
-  /* legacy aliases */
-  --bg-base: var(--bg);
-  --bg-elevated: var(--card);
-  --bg-surface: var(--card-2);
-  --bg-hover: #222326;
-  --border-subtle: var(--border);
-  --border-default: var(--border-2);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --text-primary: var(--text);
-  --text-secondary: var(--text-dim);
-  --text-tertiary: var(--text-faint);
-  --accent-green: var(--green);
-  --accent-blue: var(--blue);
-  --accent-amber: var(--amber);
-  --accent-purple: var(--purple);
-  --accent-pink: var(--pink);
-  --accent-red: var(--red);
-  --accent-done: var(--green);
-  --pill-kcal: var(--amber);
-  --pill-p: var(--blue);
-  --pill-kh: var(--purple);
-  --pill-f: var(--pink);
-  --progress-bg: rgba(255, 255, 255, 0.06);
-  --progress-fill: var(--text-dim);
-
-  --radius: 10px;
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 14px;
-  --radius-full: 999px;
-
-  --shadow-modal: 0 4px 20px rgba(0, 0, 0, 0.4);
-
-  --gap-sm: 6px;
-  --gap-md: 12px;
-  --gap-lg: 16px;
-}
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
+* { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
-  background: var(--bg);
-  color: var(--text);
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--color-bg);
+  color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 15px;
   line-height: 1.45;
-  letter-spacing: -0.008em;
+  letter-spacing: -.008em;
   font-feature-settings: 'tnum' 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -78,146 +19,10 @@ html, body {
   -webkit-touch-callout: none;
   user-select: none;
 }
-
 body { min-height: 100vh; min-height: 100dvh; }
-
-input, textarea, select, button {
-  font-family: inherit; font-size: inherit; color: inherit;
-  background: transparent; border: none; outline: none;
-}
-
-input { user-select: text; -webkit-user-select: text; }
-a { color: var(--text); text-decoration: none; }
+input, textarea, select, button { color: inherit; font: inherit; background: transparent; border: 0; outline: 0; }
+input, textarea { user-select: text; -webkit-user-select: text; }
+button, a { -webkit-tap-highlight-color: transparent; }
+a { color: inherit; text-decoration: none; }
 ul { list-style: none; }
-
 ::-webkit-scrollbar { width: 0; }
-
-/* Cards */
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--gap-lg);
-}
-
-.section-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px var(--gap-lg);
-  border-bottom: 1px solid var(--border);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
-  background: var(--card-2);
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s;
-  border: 1px solid var(--border-2);
-  min-height: 38px;
-}
-
-.btn:active { background: #26272a; }
-
-.btn-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  cursor: pointer;
-  transition: background 0.15s;
-  border: none;
-  color: var(--text-dim);
-}
-
-.btn-icon:active { background: var(--card-2); }
-
-/* Text utils */
-.text-secondary { color: var(--text-dim); }
-.text-sm { font-size: 13px; }
-.text-xs { font-size: 11px; }
-.muted { color: var(--text-dim); }
-.tap-area { cursor: pointer; -webkit-tap-highlight-color: transparent; }
-
-/* Animations */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.fade-in { animation: fadeIn 0.15s ease; }
-
-@keyframes slideDown {
-  from { opacity: 0; max-height: 0; }
-  to { opacity: 1; max-height: 600px; }
-}
-.slide-down { animation: slideDown 0.2s ease; overflow: hidden; }
-
-/* Sync */
-.sync-icon { font-size: 14px; display: inline-block; }
-.sync-icon.synced { color: var(--green); }
-.sync-icon.syncing { color: var(--amber); }
-.sync-icon.offline { color: var(--text-faint); }
-.sync-icon.error { color: var(--red); }
-
-/* SVG icon sizing */
-.icon { width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.icon-sm { width: 16px; height: 16px; }
-.icon-xs { width: 14px; height: 14px; }
-
-/* Modal */
-.modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex; align-items: center; justify-content: center;
-  padding: var(--gap-lg); z-index: 100;
-  animation: fadeIn 0.15s ease;
-}
-
-.modal-card {
-  background: var(--card);
-  border: 1px solid var(--border-2);
-  border-radius: var(--radius-lg);
-  padding: var(--gap-lg);
-  width: 100%; max-width: 340px;
-  display: flex; flex-direction: column; gap: 14px;
-  box-shadow: var(--shadow-modal);
-}
-
-.modal-title { font-size: 15px; font-weight: 600; text-align: center; }
-
-.modal-primary {
-  flex: 1; padding: 10px 14px; border-radius: var(--radius-sm);
-  background: var(--green); color: #000; border: none;
-  font-size: 14px; font-weight: 600; cursor: pointer;
-  transition: opacity 0.15s; min-height: 38px;
-}
-.modal-primary:active { opacity: 0.8; }
-
-.modal-secondary {
-  flex: 1; padding: 10px 14px; border-radius: var(--radius-sm);
-  background: var(--card-2); color: var(--text);
-  border: 1px solid var(--border-2);
-  font-size: 14px; font-weight: 500; cursor: pointer;
-  transition: background 0.15s; min-height: 38px;
-}
-.modal-secondary:active { background: #26272a; }
-
-.modal-actions { display: flex; gap: 8px; }

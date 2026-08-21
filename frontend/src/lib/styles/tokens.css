@@ -1,0 +1,64 @@
+:root {
+  --color-bg: #0b0c0e;
+  --surface-default: #141518;
+  --surface-raised: #1b1c20;
+  --surface-pressed: #26272a;
+  --border-subtle: rgba(255, 255, 255, 0.055);
+  --border-default: rgba(255, 255, 255, 0.095);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  --text-primary: #f0f0f2;
+  --text-secondary: #85888f;
+  --text-tertiary: #4b4e54;
+
+  --status-success: #34c759;
+  --status-info: #0a84ff;
+  --status-warning: #ff9f0a;
+  --status-accent: #bf5af2;
+  --status-highlight: #ff375f;
+  --status-danger: #ff453a;
+  --data-sleep-deep: #1e40af;
+  --data-sleep-rem: #7c3aed;
+  --data-sleep-light: #60a5fa;
+  --data-sleep-awake: #6b7280;
+
+  --space-1: 6px;
+  --space-2: 10px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --radius-control: 8px;
+  --radius-surface: 10px;
+  --radius-modal: 12px;
+  --radius-full: 999px;
+  --control-min: 38px;
+  --shell-max: 480px;
+  --motion-fast: 150ms;
+  --motion-standard: 200ms;
+  --shadow-modal: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --z-modal: 100;
+
+  /* Compatibility aliases: all existing feature components now resolve through this token source. */
+  --bg: var(--color-bg);
+  --card: var(--surface-default);
+  --card-2: var(--surface-raised);
+  --border: var(--border-subtle);
+  --border-2: var(--border-default);
+  --text: var(--text-primary);
+  --text-dim: var(--text-secondary);
+  --text-faint: var(--text-tertiary);
+  --green: var(--status-success);
+  --blue: var(--status-info);
+  --amber: var(--status-warning);
+  --purple: var(--status-accent);
+  --pink: var(--status-highlight);
+  --red: var(--status-danger);
+  --radius: var(--radius-surface);
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-surface);
+  --radius-lg: var(--radius-modal);
+  --radius-xl: 14px;
+  --gap-sm: var(--space-1);
+  --gap-md: var(--space-3);
+  --gap-lg: var(--space-4);
+}

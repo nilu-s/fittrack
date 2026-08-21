@@ -9,6 +9,7 @@
   import { db } from '$lib/db';
   import { isAuthenticated, authEmail, checkAuth, logout } from '$lib/auth';
   import Icon from '$lib/components/Icon.svelte';
+  import UiIconButton from '$lib/components/ui/UiIconButton.svelte';
   import type { DayData, DayEntry, Meal, Todo, TrainingSuggestion } from '$lib/types';
 
   let syncIcon = '✓';
@@ -85,9 +86,9 @@
     <span class="hdr-title">FitTrack</span>
     <div class="hdr-spacer"></div>
     <div class="hdr-actions">
-      <a href="/settings" class="hdr-btn" aria-label="Einstellungen"><Icon name="settings" size={18} /></a>
-      <button class="hdr-btn" onclick={handleRefresh} disabled={isRefreshing} aria-label="Aktualisieren"><Icon name="refresh" size={18} /></button>
-      {#if $isAuthenticated}<button class="hdr-btn" onclick={handleLogout} aria-label="Logout"><Icon name="logout" size={18} /></button>{/if}
+      <a href="/settings" class="hdr-btn ui-icon-button" aria-label="Einstellungen"><Icon name="settings" size={18} /></a>
+      <UiIconButton onclick={handleRefresh} disabled={isRefreshing} ariaLabel="Aktualisieren"><Icon name="refresh" size={18} /></UiIconButton>
+      {#if $isAuthenticated}<UiIconButton onclick={handleLogout} ariaLabel="Logout"><Icon name="logout" size={18} /></UiIconButton>{/if}
     </div>
   </header>
 

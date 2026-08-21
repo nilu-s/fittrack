@@ -24,10 +24,10 @@
 
 <style>
   .page { display: flex; flex-direction: column; gap: 12px; }
-  .intro { padding: 14px; border-radius: 14px; background: linear-gradient(135deg, var(--card), var(--card-2)); border: 1px solid var(--border); }
-  .eyebrow { display: block; color: var(--blue); font-size: 11px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 6px; }
+  .intro { padding: 14px; border-radius: var(--radius-modal); background: var(--surface-default); border: 1px solid var(--border-subtle); }
+  .eyebrow { display: block; color: var(--status-info); font-size: 11px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 6px; }
   h2 { font-size: 18px; font-weight: 700; margin-bottom: 5px; }
-  p { color: var(--text-dim); font-size: 13px; line-height: 1.45; }
-  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  p { color: var(--text-secondary); font-size: 13px; line-height: 1.45; }
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
   @media (max-width: 360px) { .tiles { grid-template-columns: 1fr; } }
 </style>
