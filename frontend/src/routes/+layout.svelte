@@ -13,7 +13,6 @@
 
   let syncIcon = '✓';
   let syncClass = 'synced';
-  let dateDisplay = '';
   let authChecked = false;
   let pullDistance = 0;
   let isPulling = false;
@@ -22,14 +21,6 @@
   let touchStartY = 0;
   let mainEl: HTMLElement;
 
-  $: dateDisplay = formatDate($currentDate);
-
-  function formatDate(dateStr: string): string {
-    const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-    const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-    const d = new Date(dateStr + 'T00:00:00');
-    return `${days[d.getDay()]}, ${d.getDate()}. ${months[d.getMonth()]}`;
-  }
 
   async function loadDayData(date: string) {
     const fitSyncPromise = api.syncGoogleFit(date).catch(() => null);
@@ -93,7 +84,6 @@
   <header class="hdr">
     <span class="hdr-title">FitTrack</span>
     <div class="hdr-spacer"></div>
-    <span class="hdr-date">{dateDisplay}</span>
     <div class="hdr-actions">
       <a href="/settings" class="hdr-btn" aria-label="Einstellungen"><Icon name="settings" size={18} /></a>
       <button class="hdr-btn" onclick={handleRefresh} disabled={isRefreshing} aria-label="Aktualisieren"><Icon name="refresh" size={18} /></button>
@@ -115,8 +105,7 @@
   .shell { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; max-width: 480px; margin: 0 auto; width: 100%; }
   .hdr { display: flex; align-items: center; padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); gap: 8px; border-bottom: 1px solid var(--border); }
   .hdr-title { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
-  .hdr-spacer { flex: 0 0 auto; width: 8px; }
-  .hdr-date { flex: 1; font-size: 14px; color: var(--text-dim); }
+  .hdr-spacer { flex: 1; }
   .hdr-actions { display: flex; align-items: center; gap: 2px; }
   .hdr-btn { color: var(--text-dim); text-decoration: none; cursor: pointer; background: none; border: none; padding: 6px; display: flex; align-items: center; border-radius: 6px; transition: background 0.15s; }
   .hdr-btn:active { background: var(--card-2); }

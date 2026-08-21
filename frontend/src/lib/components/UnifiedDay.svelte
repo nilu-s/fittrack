@@ -76,7 +76,6 @@
     return items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   }
 
-  let lastTap: Record<string, number> = {};
   let longPressTimer: ReturnType<typeof setTimeout> | null = null;
   let longPressTriggered = false;
   let actionSheetItem: UnifiedItem | null = null;
@@ -138,12 +137,23 @@
 
   function handleTap(item: UnifiedItem, e: MouseEvent) {
     if (longPressTriggered) { longPressTriggered = false; return; }
-    const now = Date.now(); const id = item.id;
-    if (lastTap[id] && now - lastTap[id] < 300) { lastTap[id] = 0; const canToggle = (item.type === 'metric' && item.metricCheckable) || item.type === 'meal' || item.type === 'training' || item.type === 'cardio' || item.type === 'todo'; if (!canToggle) return; if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); toggleDone(item); return; }
-    lastTap[id] = now;
     if (item.type === 'training') { expandedTraining = !expandedTraining; return; }
+    if (item.type === 'meal') { openMealEdit(item); return; }
+    if (item.type === 'todo') { actionSheetItem = item; return; }
     if (item.id === 'metric-sleep') { expandedSleep = !expandedSleep; return; }
     if (item.id === 'metric-weight' && item.weightDetails) { expandedWeight = !expandedWeight; return; }
+  }
+
+  function handleItemKey(item: UnifiedItem, e: KeyboardEvent) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    handleTap(item, e as unknown as MouseEvent);
+  }
+
+  function handleCheck(item: UnifiedItem, e: MouseEvent) {
+    e.stopPropagation();
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(25);
+    toggleDone(item);
   }
 
   async function toggleDone(item: UnifiedItem) {
@@ -635,8 +645,11 @@
       ontouchend={handleTouchEnd}
       ontouchmove={handleTouchMove}
       ontouchcancel={handleTouchEnd}
+      onkeydown={(e) => handleItemKey(item, e)}
       role="button" tabindex="0">
-      <div class="item-check" class:done={item.done}>{#if item.done}<Icon name="check" size={14} />{/if}</div>
+      <button class="item-check" class:done={item.done} onclick={(e) => handleCheck(item, e)} aria-label={item.done ? `${item.title} als offen markieren` : `${item.title} erledigen`}>
+        {#if item.done}<Icon name="check" size={14} />{/if}
+      </button>
       <Icon name={item.icon} size={18} />
       <div class="item-body">
         <span class="item-title" class:strike={item.done}>{item.title}</span>
@@ -900,13 +913,17 @@
   .photo-btn:active { background: #26272a; }
   .photo-btn:disabled { opacity: 0.5; }
 
-  .item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer; transition: opacity 0.15s; min-height: 48px; -webkit-user-select: none; user-select: none; }
+  .item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s, opacity 0.15s; min-height: 56px; -webkit-user-select: none; user-select: none; }
   .item:last-of-type { border-bottom: none; }
-  .item.done { opacity: 0.35; }
+  .item.done { opacity: 0.5; }
   .item:active { background: var(--card-2); }
 
-  .item-check { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--border-2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; color: transparent; }
-  .item-check.done { background: var(--green); border-color: var(--green); color: #000; }
+  .item-check { width: 40px; height: 40px; border-radius: 50%; border: 0; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: transparent; cursor: pointer; position: relative; }
+  .item-check::before { content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--border-2); transition: background .15s, border-color .15s; }
+  .item-check.done { color: #07120a; }
+  .item-check.done::before { background: var(--green); border-color: var(--green); }
+  .item-check :global(svg) { position: relative; z-index: 1; }
+  .item-check:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 
   .item-body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .item-title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; color: var(--text); }
