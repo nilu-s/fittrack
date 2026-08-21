@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import logging
+import re
 from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Dish, Exercise, Goal, MealTemplate, TrainingRotation
+from app.models import Dish, Exercise, Goal, MealTemplate, TrainingRotation, TrainingUnit
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,13 @@ MEAL_TEMPLATES = [
     (4, "Smoky Loaded Potatoes", Decimal("800"), Decimal("57")),
 ]
 
+NUTRITION_ESTIMATES = {
+    "Cheesecake-Bowl": {"fiber_g": Decimal("9"), "sugar_g": Decimal("24"), "free_sugar_g": Decimal("8")},
+    "Teriyaki-Tofu-Bowl": {"fiber_g": Decimal("11"), "sugar_g": Decimal("17"), "free_sugar_g": Decimal("10")},
+    "Banana-Whey-Cream": {"fiber_g": Decimal("4"), "sugar_g": Decimal("20"), "free_sugar_g": Decimal("0")},
+    "Smoky Loaded Potatoes": {"fiber_g": Decimal("12"), "sugar_g": Decimal("12"), "free_sugar_g": Decimal("5")},
+}
+
 TOTAL_KCAL = Decimal("2480")
 TOTAL_P = Decimal("194")
 TOTAL_KH = Decimal("258")
@@ -48,6 +56,9 @@ DEFAULT_GOALS = {
     "protein": Decimal("194"),
     "carbs": Decimal("258"),
     "fat": Decimal("78"),
+    "fiber_g": Decimal("36"),
+    "free_sugar_g": Decimal("31"),
+    "free_sugar_limit_g": Decimal("62"),
     "steps": Decimal("10000"),
     "sleep_hours": Decimal("7"),
     "training_days_per_week": Decimal("4"),
@@ -86,6 +97,11 @@ TRAINING_ROTATION = [
 #             base_reps_low, base_reps_high, weight, strategy, is_topset, rir,
 #             sort_order, increment)
 # ---------------------------------------------------------------------------
+def _set_count(value: str) -> int:
+    counts = [int(count) for count in re.findall(r"(\d+)\s*[×x]", value)]
+    return sum(counts) if counts else max(1, int(value))
+
+
 EXERCISES = [
     # --- Oberkörper A ---
     ("Oberkörper A", "Bankdrücken oder Smith-Bankdrücken", "1×5-8+2×6-10 Back-off", 5, 10, 5, 10, None, "double_progression", True, 2, 0, Decimal("2.5")),
@@ -134,6 +150,7 @@ async def seed_default_data(session: AsyncSession) -> None:
             session.add(MealTemplate(
                 user_id=USER_ID, slot=slot, name=name,
                 kcal=kcal, protein_g=protein, carbs_g=kh, fat_g=fat,
+                **NUTRITION_ESTIMATES[name],
             ))
         logger.info("Seeded %d meal templates", len(MEAL_TEMPLATES))
 
@@ -149,12 +166,38 @@ async def seed_default_data(session: AsyncSession) -> None:
             ))
         logger.info("Seeded %d default dishes", len(MEAL_TEMPLATES))
 
+    # --- Training units ---
+    unit_names = sorted({entry[0] for entry in EXERCISES} | {entry[1] for entry in TRAINING_ROTATION} | {"Cardio"})
+    cardio_unit_names = {name for _, name, cardio in TRAINING_ROTATION if cardio is not None} | {"Cardio"}
+    cardio_unit_names |= {name for name in unit_names if any(term in name.lower() for term in ("cardio", "laufen", "spaziergang", "rad", "bike", "run"))}
+    result = await session.execute(select(TrainingUnit).where(TrainingUnit.user_id == USER_ID))
+    existing_units = {unit.name: unit for unit in result.scalars().all()}
+    cardio_unit_names |= {name for name in existing_units if any(term in name.lower() for term in ("cardio", "laufen", "spaziergang", "rad", "bike", "run"))}
+    cardio_minutes_by_name = {name: max(((cardio or 0) for _, rotation_name, cardio in TRAINING_ROTATION if rotation_name == name), default=0) for name in cardio_unit_names}
+    for name in unit_names:
+        description = "Cardio-Trainingseinheit" if name in cardio_unit_names else "Gym-Trainingseinheit"
+        unit_type = "cardio" if name in cardio_unit_names else "gym"
+        duration = cardio_minutes_by_name.get(name) or None
+        if name not in existing_units:
+            session.add(TrainingUnit(user_id=USER_ID, name=name, description=description, unit_type=unit_type, cardio_minutes=duration))
+        elif name in cardio_unit_names:
+            existing_units[name].unit_type = "cardio"
+            if existing_units[name].cardio_minutes is None and duration is not None:
+                existing_units[name].cardio_minutes = duration
+            if existing_units[name].description in (None, "Gym-Trainingseinheit"):
+                existing_units[name].description = description
+    for name, unit in existing_units.items():
+        if name in cardio_unit_names and unit.description in (None, "Gym-Trainingseinheit"):
+            unit.description = "Cardio-Trainingseinheit"
+    if unit_names:
+        logger.info("Ensured %d training units", len(unit_names))
+
     # --- Training rotation ---
     result = await session.execute(select(TrainingRotation).where(TrainingRotation.user_id == USER_ID))
     if not result.scalars().first():
         for slot, ttype, cardio in TRAINING_ROTATION:
             session.add(TrainingRotation(
-                user_id=USER_ID, slot=slot, training_type=ttype, cardio_minutes=cardio,
+                user_id=USER_ID, slot=slot, training_type=ttype,
             ))
         logger.info("Seeded %d training rotation entries", len(TRAINING_ROTATION))
 
@@ -165,10 +208,15 @@ async def seed_default_data(session: AsyncSession) -> None:
             (ttype, exname, tsets, rlow, rhigh, base_rlow, base_rhigh, weight, strat, topset, rir, sort, incr) = entry
             session.add(Exercise(
                 user_id=USER_ID, training_type=ttype, exercise_name=exname,
-                target_sets=tsets, target_reps_low=rlow, target_reps_high=rhigh,
+                target_sets=str(_set_count(tsets)), target_reps_low=rlow, target_reps_high=rhigh,
                 base_reps_low=base_rlow, base_reps_high=base_rhigh,
                 target_weight_kg=weight, progression_strategy=strat,
                 progression_increment_weight=incr, is_topset=topset,
+                top_set_count=1 if topset else 0,
+                backoff_set_count=max(_set_count(tsets) - 1, 0) if topset else 0,
+                backoff_reps_low=base_rlow if topset else None,
+                backoff_reps_high=base_rhigh if topset else None,
+                backoff_weight_percent=Decimal("90") if topset else None,
                 target_rir=rir, sort_order=sort,
             ))
         logger.info("Seeded %d exercises", len(EXERCISES))

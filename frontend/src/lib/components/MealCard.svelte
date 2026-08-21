@@ -9,7 +9,7 @@
   const dispatch = createEventDispatcher();
 
   let expanded = false;
-  let editName = ''; let editKcal = ''; let editProtein = ''; let editCarbs = ''; let editFat = '';
+  let editName = ''; let editKcal = ''; let editProtein = ''; let editCarbs = ''; let editFat = ''; let editFiber = ''; let editSugar = '';
   let lastTap = 0;
   let photoInput: HTMLInputElement;
   let photoLoading = false;
@@ -28,6 +28,8 @@
   $: proteinNum = Number(meal.protein_g) || 0;
   $: carbsNum = Number(meal.carbs_g) || 0;
   $: fatNum = Number(meal.fat_g) || 0;
+  $: fiberNum = Number(meal.fiber_g) || 0;
+  $: sugarNum = Number(meal.sugar_g) || 0;
 
   // --- Gesture handling ---
   function onTouchStart() {
@@ -67,6 +69,8 @@
             editProtein = String(meal.protein_g ?? '');
             editCarbs = String(meal.carbs_g ?? '');
             editFat = String(meal.fat_g ?? '');
+            editFiber = String(meal.fiber_g ?? '');
+            editSugar = String(meal.sugar_g ?? '');
           }
         }
       }, 320);
@@ -97,6 +101,9 @@
         protein_g: Number(dish.protein_g) || 0,
         carbs_g: Number(dish.carbs_g) || 0,
         fat_g: Number(dish.fat_g) || 0,
+        fiber_g: Number(dish.fiber_g) || 0,
+        sugar_g: Number(dish.sugar_g) || 0,
+        free_sugar_g: Number(dish.free_sugar_g) || 0,
       },
     });
     try { await api.incrementDishUsage(dish.id); } catch {}
@@ -126,6 +133,8 @@
             protein_g: Number(total.protein_g) || 0,
             carbs_g: Number(total.carbs_g) || 0,
             fat_g: Number(total.fat_g) || 0,
+            fiber_g: Number(total.fiber_g) || 0,
+            sugar_g: Number(total.sugar_g) || 0, free_sugar_g: Number(total.free_sugar_g) || 0,
           },
         });
 
@@ -143,6 +152,8 @@
               protein_g: Number(total.protein_g) || 0,
               carbs_g: Number(total.carbs_g) || 0,
               fat_g: Number(total.fat_g) || 0,
+              fiber_g: Number(total.fiber_g) || 0,
+              sugar_g: Number(total.sugar_g) || 0, free_sugar_g: Number(total.free_sugar_g) || 0,
               source: 'photo',
             });
           } catch {}
@@ -164,6 +175,8 @@
         protein_g: parseFloat(editProtein) || 0,
         carbs_g: parseFloat(editCarbs) || 0,
         fat_g: parseFloat(editFat) || 0,
+        fiber_g: parseFloat(editFiber) || 0,
+        sugar_g: parseFloat(editSugar) || 0,
       },
     });
     expanded = false;
@@ -182,17 +195,19 @@
   role="button"
   tabindex="0"
 >
+  <div class="mc-slot"><span>{slotName}</span>{#if displayTime}<span>{displayTime}</span>{/if}</div>
   <div class="mc-hdr">
     <div class="mc-check" class:done={meal.is_done}>{#if meal.is_done}<Icon name="check" size={14} />{/if}</div>
-    <span class="mc-name">{meal.name || slotName}</span>
-    {#if displayTime}<span class="mc-time">{displayTime}</span>{/if}
+    <span class="mc-name">{meal.name || 'Gericht auswählen'}</span>
   </div>
   {#if meal.photo_url}<div class="mc-photo"><img src={meal.photo_url} alt={meal.name ?? ''} /></div>{/if}
   <div class="mc-pills">
     {#if kcalNum > 0}<PillBadge value={kcalNum} unit="kcal" color="var(--amber)" />{/if}
     {#if proteinNum > 0}<PillBadge value={proteinNum} unit="g" color="var(--blue)" />{/if}
     {#if carbsNum > 0}<PillBadge value={carbsNum} unit="g" color="var(--purple)" />{/if}
-    {#if fatNum > 0}<PillBadge value={fatNum} unit="g" color="var(--pink)" />{/if}
+    {#if fatNum > 0}<PillBadge value={fatNum} unit="g F" color="var(--pink)" />{/if}
+    {#if fiberNum > 0}<PillBadge value={fiberNum} unit="g Ballaststoffe" color="var(--green)" />{/if}
+    {#if sugarNum > 0}<PillBadge value={sugarNum} unit="g Zucker" color="var(--amber)" />{/if}
   </div>
   <div class="mc-hint">Lange drücken zum Bearbeiten · Doppeltap = Done</div>
   {#if expanded}
@@ -203,6 +218,8 @@
         <input type="number" placeholder="P" bind:value={editProtein} />
         <input type="number" placeholder="KH" bind:value={editCarbs} />
         <input type="number" placeholder="F" bind:value={editFat} />
+        <input type="number" placeholder="Ballaststoffe" bind:value={editFiber} />
+        <input type="number" placeholder="Zucker" bind:value={editSugar} />
       </div>
       <div class="mc-actions">
         <button class="btn" onclick={saveManualEdit}>Speichern</button>
@@ -244,6 +261,8 @@
               <div class="dish-macros">
                 <span>{Math.round(Number(dish.kcal) || 0)} kcal</span>
                 <span>{Math.round(Number(dish.protein_g) || 0)}g P</span>
+                <span>{Math.round(Number(dish.fiber_g) || 0)}g Ballaststoffe</span>
+                <span>{Math.round(Number(dish.sugar_g) || 0)}g Zucker</span>
               </div>
             </button>
           {/each}
@@ -267,6 +286,8 @@
   .mc.done { opacity: 0.4; border-color: var(--green); }
   .mc.expanded { border-color: var(--border-2); }
   .mc:active { opacity: 0.8; }
+  .mc-slot { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; color: var(--blue); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .mc-slot span:last-child { color: var(--text-faint); font-weight: 500; letter-spacing: 0; text-transform: none; }
   .mc-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
   .mc-check { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border-2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: transparent; transition: all 0.2s; }
   .mc-check.done { background: var(--green); border-color: var(--green); color: #000; }

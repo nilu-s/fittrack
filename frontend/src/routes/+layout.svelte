@@ -9,7 +9,7 @@
   import { db } from '$lib/db';
   import { isAuthenticated, authEmail, checkAuth, logout } from '$lib/auth';
   import Icon from '$lib/components/Icon.svelte';
-  import type { DayData, DayEntry, Meal, Todo, TrainingSuggestion, TrainingRotation } from '$lib/types';
+  import type { DayData, DayEntry, Meal, Todo, TrainingSuggestion } from '$lib/types';
 
   let syncIcon = '✓';
   let syncClass = 'synced';
@@ -35,7 +35,7 @@
     const fitSyncPromise = api.syncGoogleFit(date).catch(() => null);
     try {
       const [dayEntry, meals, todos, trainingSuggestion] = await Promise.all([api.getDayEntry(date), api.getMeals(date), api.getTodos(date), api.getTraining(date)]);
-      let nextTraining: TrainingRotation | null = null;
+      let nextTraining: TrainingSuggestion | null = null;
       if (dayEntry?.training_type) nextTraining = await api.getNextTraining(dayEntry.training_type);
       const data: DayData = { dayEntry: dayEntry ?? { date }, meals: meals ?? [], todos: todos ?? [], trainingSuggestion: trainingSuggestion as TrainingSuggestion | null, nextTraining, weekStats: null };
       dayData.set(data);
@@ -61,7 +61,7 @@
     const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
     Promise.race([checkAuth(), timeout]).then(() => {
       authChecked = true;
-      const checkAuthGate = () => { const p = $page?.url?.pathname ?? ''; if (p === '/login' || p === '/settings') return; if (!$isAuthenticated) goto('/login'); };
+      const checkAuthGate = () => { const p = $page?.url?.pathname ?? ''; if (p === '/login' || p.startsWith('/settings')) return; if (!$isAuthenticated) goto('/login'); };
       checkAuthGate();
     });
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch((e) => console.warn('SW registration failed:', e));
@@ -80,7 +80,7 @@
 
   async function handleRefresh() { if (isRefreshing) return; isRefreshing = true; await loadDayData($currentDate); if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30); isRefreshing = false; }
 
-  afterUpdate(() => { const p = $page?.url?.pathname ?? ''; if (p === '/login' || p === '/settings') return; if (authChecked && !$isAuthenticated) goto('/login'); });
+  afterUpdate(() => { const p = $page?.url?.pathname ?? ''; if (p === '/login' || p.startsWith('/settings')) return; if (authChecked && !$isAuthenticated) goto('/login'); });
 
   async function handleLogout() { await logout(); goto('/login'); }
 

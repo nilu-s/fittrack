@@ -14,25 +14,27 @@
   $: totalP = (meals ?? []).reduce((s, m) => s + (Number(m.protein_g) || 0), 0);
   $: totalKH = (meals ?? []).reduce((s, m) => s + (Number(m.carbs_g) || 0), 0);
   $: totalF = (meals ?? []).reduce((s, m) => s + (Number(m.fat_g) || 0), 0);
+  $: totalFiber = (meals ?? []).reduce((s, m) => s + (Number(m.fiber_g) || 0), 0);
+  $: totalSugar = (meals ?? []).reduce((s, m) => s + (Number(m.sugar_g) || 0), 0);
   $: goals = $dailyGoals;
   const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abendessen' };
   let photoInput: HTMLInputElement;
   let photoLoading = false;
-  let confirmData: { slot: number; name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; matched?: boolean } | null = null;
+  let confirmData: { slot: number; name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number; sugar_g: number; free_sugar_g: number; matched?: boolean } | null = null;
   let choosingSlot = false;
 
   function getCurrentSlot(): number { const now = new Date(); const t = now.getHours() * 60 + now.getMinutes(); if (t >= 240 && t < 630) return 1; if (t >= 630 && t < 840) return 2; if (t >= 840 && t < 1050) return 3; if (t >= 1050 && t < 1320) return 4; return 1; }
-  function parseVisionResult(result: PhotoAnalysisResponse | null): { name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null {
+  function parseVisionResult(result: PhotoAnalysisResponse | null): { name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number; sugar_g: number; free_sugar_g: number } | null {
     if (!result?.analysis?.total) return null;
     const total = result.analysis.total;
     const firstItem = result.analysis.items?.[0];
-    return { name: firstItem?.name ?? 'Erkanntes Gericht', kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0 };
+    return { name: firstItem?.name ?? 'Erkanntes Gericht', kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0, fiber_g: Number(total.fiber_g) || 0, sugar_g: Number(total.sugar_g) || 0, free_sugar_g: Number(total.free_sugar_g) || 0 };
   }
   async function markDone(id: string | number) { if (!id) return; try { await api.markMealDone(id); meals = meals.map((m) => (m.id === id ? { ...m, is_done: !m.is_done } : m)); } catch {} }
   async function patchMeal(id: string | number, data: Partial<Meal>) { if (!id) return; try { await api.updateMeal(id, data); meals = meals.map((m) => (m.id === id ? { ...m, ...data } : m)); } catch {} }
   async function updateMeal(event: CustomEvent) { const { id, data } = event.detail; await patchMeal(id, data); }
   async function handlePhoto(event: CustomEvent) { const { file } = event.detail; if (!file) return; if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30); }
-  async function onAnalysisApply(event: CustomEvent) { const { id, analysis } = event.detail; await patchMeal(id, { kcal: analysis.total.kcal, protein_g: analysis.total.protein_g, carbs_g: analysis.total.carbs_g, fat_g: analysis.total.fat_g }); }
+  async function onAnalysisApply(event: CustomEvent) { const { id, analysis } = event.detail; await patchMeal(id, { kcal: analysis.total.kcal, protein_g: analysis.total.protein_g, carbs_g: analysis.total.carbs_g, fat_g: analysis.total.fat_g, fiber_g: analysis.total.fiber_g, sugar_g: analysis.total.sugar_g, free_sugar_g: analysis.total.free_sugar_g }); }
   function triggerStandalonePhoto() { photoInput?.click(); }
   async function onStandalonePhotoSelected(e: Event) {
     const input = e.target as HTMLInputElement;
@@ -52,11 +54,11 @@
     if (!confirmData) return;
     const meal = meals.find((m) => m.meal_slot === slot);
     if (!meal || !meal.id) { choosingSlot = false; confirmData = null; return; }
-    await patchMeal(meal.id, { name: confirmData.name, kcal: confirmData.kcal, protein_g: confirmData.protein_g, carbs_g: confirmData.carbs_g, fat_g: confirmData.fat_g });
+    await patchMeal(meal.id, { name: confirmData.name, kcal: confirmData.kcal, protein_g: confirmData.protein_g, carbs_g: confirmData.carbs_g, fat_g: confirmData.fat_g, fiber_g: confirmData.fiber_g, sugar_g: confirmData.sugar_g });
     try { await api.markMealDone(meal.id); meals = meals.map((m) => (m.id === meal.id ? { ...m, is_done: true } : m)); } catch {}
     // Create dish in DB if no match
     if (!confirmData.matched) {
-      try { await api.createDish({ slot, name: confirmData.name, kcal: confirmData.kcal, protein_g: confirmData.protein_g, carbs_g: confirmData.carbs_g, fat_g: confirmData.fat_g, source: 'photo' }); } catch {}
+      try { await api.createDish({ slot, name: confirmData.name, kcal: confirmData.kcal, protein_g: confirmData.protein_g, carbs_g: confirmData.carbs_g, fat_g: confirmData.fat_g, fiber_g: confirmData.fiber_g, sugar_g: confirmData.sugar_g, source: 'photo' }); } catch {}
     }
     confirmData = null; choosingSlot = false;
   }
@@ -75,7 +77,7 @@
       {#each sortedMeals as meal (meal.id ?? meal.meal_slot)}<MealCard {meal} on:done={(e) => markDone(e.detail)} on:update={updateMeal} on:photo={handlePhoto} on:analysisApply={onAnalysisApply} />{:else}<div class="empty">Keine Mahlzeiten</div>{/each}
     </div>
     <div class="summary">
-      <div class="sum-pills"><PillBadge value={Math.round(totalKcal)} unit="kcal" color="var(--amber)" /><PillBadge value={Math.round(totalP)} unit="g P" color="var(--blue)" /><PillBadge value={Math.round(totalKH)} unit="g KH" color="var(--purple)" /><PillBadge value={Math.round(totalF)} unit="g F" color="var(--pink)" /></div>
+      <div class="sum-pills"><PillBadge value={Math.round(totalKcal)} unit="kcal" color="var(--amber)" /><PillBadge value={Math.round(totalP)} unit="g P" color="var(--blue)" /><PillBadge value={Math.round(totalKH)} unit="g KH" color="var(--purple)" /><PillBadge value={Math.round(totalF)} unit="g F" color="var(--pink)" /><PillBadge value={Math.round(totalFiber)} unit="g Ballaststoffe" color="var(--green)" /><PillBadge value={Math.round(totalSugar)} unit="g Zucker" color="var(--amber)" /></div>
       <div class="sum-bars"><ProgressBar current={Math.round(totalKcal)} target={goals.kcal} label="kcal" color="var(--amber)" /><ProgressBar current={Math.round(totalP)} target={goals.protein} label="Protein" color="var(--blue)" /><ProgressBar current={Math.round(totalKH)} target={goals.carbs} label="KH" color="var(--purple)" /><ProgressBar current={Math.round(totalF)} target={goals.fat} label="F" color="var(--pink)" /></div>
     </div>
   </div>
@@ -86,7 +88,7 @@
       {:else}{@const d = confirmData}<div class="modal-title">{d.name}</div>
         {#if d.matched}<p class="modal-match">✓ Gericht bereits in Datenbank</p>{/if}
         <p class="modal-hint">Zugewiesen zu <strong style="color:var(--green)">{SLOT_NAMES[d.slot] || `Slot ${d.slot}`}</strong></p>
-        <div class="modal-pills"><PillBadge value={Math.round(d.kcal)} unit="kcal" color="var(--amber)" /><PillBadge value={Math.round(d.protein_g)} unit="g P" color="var(--blue)" /><PillBadge value={Math.round(d.carbs_g)} unit="g KH" color="var(--purple)" /><PillBadge value={Math.round(d.fat_g)} unit="g F" color="var(--pink)" /></div>
+        <div class="modal-pills"><PillBadge value={Math.round(d.kcal)} unit="kcal" color="var(--amber)" /><PillBadge value={Math.round(d.protein_g)} unit="g P" color="var(--blue)" /><PillBadge value={Math.round(d.carbs_g)} unit="g KH" color="var(--purple)" /><PillBadge value={Math.round(d.fat_g)} unit="g F" color="var(--pink)" /><PillBadge value={Math.round(d.fiber_g)} unit="g Ballaststoffe" color="var(--green)" /><PillBadge value={Math.round(d.sugar_g)} unit="g Zucker" color="var(--amber)" /></div>
         <div class="modal-actions"><button class="modal-primary" onclick={() => assignToSlot(d.slot)}>Akzeptieren</button><button class="modal-secondary" onclick={() => (choosingSlot = true)}>Andere wählen</button></div>
       {/if}
     </div></div>

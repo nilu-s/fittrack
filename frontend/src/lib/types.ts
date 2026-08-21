@@ -49,6 +49,9 @@ export interface Meal {
   protein_g?: number | string | null;
   carbs_g?: number | string | null;
   fat_g?: number | string | null;
+  fiber_g?: number | string | null;
+  sugar_g?: number | string | null;
+  free_sugar_g?: number | string | null;
   is_standard?: boolean;
   is_done?: boolean;
   replaced_by?: string | null;
@@ -88,12 +91,18 @@ export interface Exercise {
   exercise_name: string;
   target_sets: string;
   base_reps_low?: number | null;
+  base_reps_high?: number | null;
   target_reps_low?: number | null;
   target_reps_high?: number | null;
   target_weight_kg?: number | null;
   progression_strategy?: string;
   progression_increment_weight?: number;
   is_topset?: boolean;
+  top_set_count?: number;
+  backoff_set_count?: number;
+  backoff_reps_low?: number | null;
+  backoff_reps_high?: number | null;
+  backoff_weight_percent?: number | null;
   target_rir?: number | null;
   sort_order?: number;
 }
@@ -118,7 +127,20 @@ export interface TrainingRotation {
   user_id?: string;
   slot: number;
   training_type: string;
+  weekday?: number | null;
+  frequency_weeks?: number;
+  week_offset?: number;
+  start_date?: string | null;
+}
+
+export interface TrainingUnit {
+  id?: string;
+  user_id?: string;
+  name: string;
+  description?: string | null;
+  unit_type?: 'gym' | 'cardio' | string;
   cardio_minutes?: number | null;
+  is_active?: boolean;
 }
 
 export interface TrainingSuggestion {
@@ -136,6 +158,11 @@ export interface TrainingSuggestionExercise {
   target_reps_high?: number | null;
   target_weight_kg?: number | null;
   is_topset?: boolean;
+  top_set_count?: number;
+  backoff_set_count?: number;
+  backoff_reps_low?: number | null;
+  backoff_reps_high?: number | null;
+  backoff_weight_percent?: number | null;
   target_rir?: number | null;
   sort_order?: number;
 }
@@ -151,6 +178,22 @@ export interface TrainingCompleteRequest {
     weight_kg?: number | null;
     rir?: number | null;
   }[];
+  cardio_minutes?: number | null;
+}
+
+export interface ExerciseProgress {
+  id: string;
+  exercise_id: string;
+  date: string;
+  training_type: string;
+  exercise_name: string;
+  topset_reps?: number | null;
+  topset_weight_kg?: number | null;
+  topset_rir?: number | null;
+  total_volume_kg?: number | null;
+  progression_action: string;
+  new_target_weight_kg?: number | null;
+  new_target_reps_low?: number | null;
 }
 
 export interface TrainingCompleteResponse {
@@ -168,6 +211,9 @@ export interface MealTemplate {
   protein_g?: number | null;
   carbs_g?: number | null;
   fat_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  free_sugar_g?: number | null;
 }
 
 export interface Dish {
@@ -179,6 +225,9 @@ export interface Dish {
   protein_g?: number | null;
   carbs_g?: number | null;
   fat_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  free_sugar_g?: number | null;
   photo_url?: string | null;
   is_default?: boolean;
   usage_count?: number;
@@ -207,6 +256,9 @@ export interface PhotoAnalysisItem {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  fiber_g?: number;
+  sugar_g?: number;
+  free_sugar_g?: number;
   portion_label?: string | null;
   portion_grams?: number | null;
   is_scalable?: boolean;
@@ -214,7 +266,7 @@ export interface PhotoAnalysisItem {
 
 export interface PhotoAnalysis {
   items: PhotoAnalysisItem[];
-  total: { kcal: number; protein_g: number; carbs_g: number; fat_g: number };
+  total: { kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g?: number; sugar_g?: number; free_sugar_g?: number };
 }
 
 export interface PhotoAnalysisResponse {
@@ -243,6 +295,9 @@ export interface WeekStats {
   avg_protein?: number | null;
   avg_carbs?: number | null;
   avg_fat?: number | null;
+  avg_fiber?: number | null;
+  avg_sugar?: number | null;
+  avg_free_sugar?: number | null;
   avg_sleep_hours?: number | null;
   avg_sleep_quality?: number | null;
   total_cardio_minutes?: number | null;
@@ -262,6 +317,9 @@ export interface Goals {
   protein?: number | null;
   carbs?: number | null;
   fat?: number | null;
+  fiber_g?: number | null;
+  free_sugar_g?: number | null;
+  free_sugar_limit_g?: number | null;
   steps?: number | null;
   sleep_hours?: number | null;
 }
@@ -300,6 +358,6 @@ export interface DayData {
   meals: Meal[];
   todos: Todo[];
   trainingSuggestion: TrainingSuggestion | null;
-  nextTraining: TrainingRotation | null;
+  nextTraining: TrainingSuggestion | null;
   weekStats?: WeekStats | null;
 }

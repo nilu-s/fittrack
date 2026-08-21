@@ -79,6 +79,9 @@ class Meal(Base):
     protein_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
     carbs_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
     fat_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    fiber_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    free_sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
     is_standard: Mapped[bool] = mapped_column(Boolean, default=False)
     is_done: Mapped[bool] = mapped_column(Boolean, default=False)
     replaced_by: Mapped[str | None] = mapped_column(Text)
@@ -125,6 +128,22 @@ class MealTemplate(Base):
     protein_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
     carbs_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
     fat_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    fiber_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    free_sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+
+
+class TrainingUnit(Base):
+    __tablename__ = "training_units"
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_training_units_user_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    unit_type: Mapped[str] = mapped_column(Text, nullable=False, default="gym")
+    cardio_minutes: Mapped[int | None] = mapped_column(Integer)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class TrainingRotation(Base):
@@ -135,7 +154,10 @@ class TrainingRotation(Base):
     user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     slot: Mapped[int] = mapped_column(Integer, nullable=False)
     training_type: Mapped[str] = mapped_column(Text, nullable=False)
-    cardio_minutes: Mapped[int | None] = mapped_column(Integer)
+    weekday: Mapped[int | None] = mapped_column(Integer)
+    frequency_weeks: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    week_offset: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    start_date: Mapped[date | None] = mapped_column(Date)
 
 
 class TrainingSet(Base):
@@ -177,6 +199,11 @@ class Exercise(Base):
     progression_strategy: Mapped[str] = mapped_column(Text, default="double_progression")
     progression_increment_weight: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), default=Decimal("2.5"))
     is_topset: Mapped[bool] = mapped_column(Boolean, default=False)
+    top_set_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    backoff_set_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    backoff_reps_low: Mapped[int | None] = mapped_column(Integer)
+    backoff_reps_high: Mapped[int | None] = mapped_column(Integer)
+    backoff_weight_percent: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     target_rir: Mapped[int | None] = mapped_column(Integer, default=2)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -223,13 +250,9 @@ class GoogleToken(Base):
 
 
 class ExerciseProgress(Base):
-    """Tracks actual performance per exercise per session — separate from Exercise definition.
-
-    Exercise.target_reps_low / target_weight_kg are the CURRENT target (mutated by progression).
-    ExerciseProgress records what actually happened and the progression decision applied.
-    This prevents the old bug where target_reps_low drifts up and gets stuck.
-    """
+    """Tracks actual performance per exercise per completed session."""
     __tablename__ = "exercise_progress"
+    __table_args__ = (UniqueConstraint("user_id", "exercise_id", "date", name="uq_exercise_progress_user_exercise_date"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
@@ -277,6 +300,9 @@ class Dish(Base):
     protein_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
     carbs_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
     fat_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    fiber_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    free_sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
     photo_url: Mapped[str | None] = mapped_column(Text)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     usage_count: Mapped[int] = mapped_column(Integer, default=0)

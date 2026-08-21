@@ -7,6 +7,8 @@
   export let todo: Todo;
   export let kcal: number | null = null;
   export let protein: number | null = null;
+  export let fiber: number | null = null;
+  export let sugar: number | null = null;
   const dispatch = createEventDispatcher();
   let expanded = false;
   let lastTap = 0;
@@ -96,6 +98,8 @@
     <span class="ti-title">{todo.title}</span>
     {#if kcal != null && kcal > 0}<PillBadge value={Math.round(kcal)} unit="kcal" color="var(--amber)" />{/if}
     {#if protein != null && protein > 0}<PillBadge value={Math.round(protein)} unit="g P" color="var(--blue)" />{/if}
+    {#if fiber != null && fiber > 0}<PillBadge value={Math.round(fiber)} unit="g Ballaststoffe" color="var(--green)" />{/if}
+    {#if sugar != null && sugar > 0}<PillBadge value={Math.round(sugar)} unit="g Zucker" color="var(--amber)" />{/if}
     {#if todo.category}<span class="ti-badge">{todo.category}</span>{/if}
     {#if todo.due_time}<span class="ti-time">{todo.due_time}</span>{/if}
     {#if todo.source === 'google_calendar'}<Icon name="calendar" size={14} />{/if}

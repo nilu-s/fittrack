@@ -11,7 +11,7 @@ from difflib import SequenceMatcher
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func, or_, cast, Numeric
+from sqlalchemy import select, func, cast, Numeric
 
 from app.database import async_session
 from app.models import Dish
@@ -50,7 +50,10 @@ async def list_dishes(
     async with async_session() as session:
         stmt = select(Dish).where(Dish.user_id == "luis")
         if slot is not None:
-            stmt = stmt.where(or_(Dish.slot == slot, Dish.slot.is_(None)))
+            # A slot is a meal category.  Slot-filtered alternatives must be
+            # explicitly categorized; uncategorized dishes belong only to the
+            # global search, never to a category recommendation.
+            stmt = stmt.where(Dish.slot == slot)
         if q:
             stmt = stmt.where(func.lower(Dish.name).like(f"%{q.lower()}%"))
         stmt = stmt.order_by(Dish.is_default.desc(), Dish.usage_count.desc(), Dish.name)
@@ -63,12 +66,11 @@ async def recommend_for_slot(
     slot: int = Query(..., description="Meal slot 1-4"),
     user: str = Depends(get_current_user),
 ):
-    """Get the default dish for a slot + 2 alternatives with similar nutritional values.
+    """Get the default dish for a slot and alternatives from that same slot.
 
-    Logic:
-    1. Find the is_default dish with this preferred slot → that's the default
-    2. Find 2 other dishes with the closest kcal to the default → alternatives
-    3. If no default for this slot, use the most-used dish with this slot
+    A meal slot is a product category (breakfast, lunch, snack, dinner), so an
+    alternative must have the same preferred slot. Macro distance is only used
+    to rank dishes inside that category; it must never broaden the category.
     """
     async with async_session() as session:
         # 1. Default dish for this slot
@@ -91,33 +93,33 @@ async def recommend_for_slot(
             )
             default_dish = fallback_result.scalars().first()
 
-        # 2. Find alternatives — closest kcal to default, excluding the default itself
+        # 2. Find alternatives strictly inside this meal category.  Never
+        # fall back to dishes from another slot: lunch must stay lunch, etc.
         alternatives: list[Dish] = []
         if default_dish and default_dish.kcal is not None:
             target_kcal = float(default_dish.kcal)
-            all_result = await session.execute(
+            alternatives_result = await session.execute(
                 select(Dish).where(
                     Dish.user_id == "luis",
+                    Dish.slot == slot,
                     Dish.id != default_dish.id,
                     Dish.kcal.is_not(None),
                 ).order_by(
-                    func.abs(cast(Dish.kcal, Numeric) - target_kcal)
-                ).limit(6)
+                    func.abs(cast(Dish.kcal, Numeric) - target_kcal),
+                    Dish.usage_count.desc(),
+                    Dish.name,
+                ).limit(2)
             )
-            all_dishes = list(all_result.scalars().all())
-            # Pick top 2, prefer dishes already associated with this slot
-            same_slot = [d for d in all_dishes if d.slot == slot]
-            other_slot = [d for d in all_dishes if d.slot != slot]
-            alternatives = (same_slot[:2] + other_slot)[:2]
+            alternatives = list(alternatives_result.scalars().all())
         elif default_dish:
-            # No kcal to compare — just get 2 other dishes
-            all_result = await session.execute(
+            alternatives_result = await session.execute(
                 select(Dish).where(
                     Dish.user_id == "luis",
+                    Dish.slot == slot,
                     Dish.id != default_dish.id,
-                ).order_by(Dish.usage_count.desc()).limit(2)
+                ).order_by(Dish.usage_count.desc(), Dish.name).limit(2)
             )
-            alternatives = list(all_result.scalars().all())
+            alternatives = list(alternatives_result.scalars().all())
 
         return DishRecommendResult(
             default=_dish_to_response(default_dish) if default_dish else None,

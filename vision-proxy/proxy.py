@@ -106,15 +106,16 @@ async def _do_analysis(b64: str) -> JSONResponse:
         'You are a nutrition expert. Analyze this food photo. '
         'If this is NOT a food photo (e.g. clothes, furniture, scenery), respond: {"not_food": true}. '
         'If it IS food, respond ONLY with valid JSON:\n'
-        '{"not_food": false, "items": [{"name": "German dish name", "kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0, '
-        '"portion_label": "100g", "portion_grams": 100, "is_scalable": true}], '
-        '"total": {"kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}}\n\n'
-        'Portion rules:\n'
+        '        {"not_food": false, "items": [{"name": "German dish name", "kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0, "fiber_g": 0, "sugar_g": 0, "free_sugar_g": 0, '
+                '"portion_label": "100g", "portion_grams": 100, "is_scalable": true}], '
+                '"total": {"kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0, "fiber_g": 0, "sugar_g": 0, "free_sugar_g": 0}}\n\n'
+                'Portion rules:\n'
         '- For packaged/weighted foods (chips, yogurt, pasta, etc.): set portion_label to the package size '
         '(e.g. "100g", "200g"), portion_grams to the numeric value, is_scalable=true. '
         'Nutritional values are PER the full package/serving shown.\n'
         '- For single-serving foods (Döner, pizza slice, apple, bowl): set portion_label to "1 Portion", '
         'portion_grams to null, is_scalable=false. Nutritional values are for one serving.\n'
+        '- Estimate free_sugar_g separately: sugars added during preparation plus honey, syrups and fruit juice; natural sugars in intact fruit and plain dairy are not free sugars. '
         '- Always research realistic nutritional values for the identified dish.'
     )
 
@@ -176,8 +177,8 @@ async def _do_analysis(b64: str) -> JSONResponse:
 
         # Normalize format
         if "items" not in result and "name" in result:
-            item = {k: result[k] for k in ("name", "kcal", "protein_g", "carbs_g", "fat_g") if k in result}
-            result = {"items": [item], "total": {k: result.get(k, 0) for k in ("kcal", "protein_g", "carbs_g", "fat_g")}}
+            item = {k: result[k] for k in ("name", "kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g", "free_sugar_g") if k in result}
+            result = {"items": [item], "total": {k: result.get(k, 0) for k in ("kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g", "free_sugar_g")}}
         if "items" in result and "total" not in result:
             items = result["items"]
             result["total"] = {
@@ -185,6 +186,9 @@ async def _do_analysis(b64: str) -> JSONResponse:
                 "protein_g": sum(float(i.get("protein_g", 0)) for i in items),
                 "carbs_g": sum(float(i.get("carbs_g", 0)) for i in items),
                 "fat_g": sum(float(i.get("fat_g", 0)) for i in items),
+                "fiber_g": sum(float(i.get("fiber_g", 0)) for i in items),
+                "sugar_g": sum(float(i.get("sugar_g", 0)) for i in items),
+                "free_sugar_g": sum(float(i.get("free_sugar_g", 0)) for i in items),
             }
 
         return JSONResponse({"not_food": False, "analysis": result, "error": None})

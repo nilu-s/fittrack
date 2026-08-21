@@ -23,7 +23,7 @@
   let expandedTraining = false;
   let photoInput: HTMLInputElement;
   let photoLoading = false;
-  let confirmData: { slot: number; name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; matched?: boolean } | null = null;
+  let confirmData: { slot: number; name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number; sugar_g: number; free_sugar_g: number; matched?: boolean } | null = null;
   let choosingSlot = false;
   // Meal edit modal (long-press on meal in todo list)
   let mealEditModal: { mealId: string; slot: number } | null = null;
@@ -39,18 +39,19 @@
   function buildRoutineTodos(entry: DayEntry | null, mealList: Meal[], suggestion: TrainingSuggestion | null): Todo[] {
     const items: Todo[] = [];
     for (const m of mealList ?? []) { const slotLabel = SLOT_NAMES[m.meal_slot] || `Slot ${m.meal_slot}`; const dishName = m.name || '— nichts gewählt —'; items.push({ id: `routine-meal-${m.id ?? m.meal_slot}`, title: `${slotLabel}: ${dishName}`, status: m.is_done ? 'done' : 'open', due_time: m.default_time ? m.default_time.slice(0, 5) : null, due_date: currentDate, priority: 2, source: 'meal_routine', sort_order: m.meal_slot }); }
-    if (entry || suggestion) { const trainingType = suggestion?.training_type ?? entry?.training_type ?? 'Training'; items.push({ id: 'routine-training', title: trainingType, status: entry?.training_done ? 'done' : 'open', due_time: null, due_date: currentDate, priority: 2, source: 'training', sort_order: 99 }); }
-    const cardioMinutes = entry?.cardio_minutes ?? suggestion?.cardio_minutes ?? 0;
-    if (entry || suggestion) { items.push({ id: 'routine-cardio', title: cardioMinutes > 0 ? `Cardio ${cardioMinutes}min` : 'Cardio', status: entry?.cardio_done ? 'done' : 'open', due_time: null, due_date: currentDate, priority: 2, source: 'cardio', sort_order: 100 }); }
+    const trainingType = suggestion?.training_type ?? entry?.training_type;
+    if (trainingType && trainingType !== 'Ruhetag') {
+      items.push({ id: 'routine-training', title: trainingType, status: entry?.training_done ? 'done' : 'open', due_time: null, due_date: currentDate, priority: 2, source: 'training', sort_order: 99 });
+    }
     return items;
   }
 
-  function getMealMacros(todo: Todo): { kcal: number | null; protein: number | null } {
-    if (todo.source !== 'meal_routine') return { kcal: null, protein: null };
+  function getMealMacros(todo: Todo): { kcal: number | null; protein: number | null; fiber: number | null; sugar: number | null } {
+    if (todo.source !== 'meal_routine') return { kcal: null, protein: null, fiber: null, sugar: null };
     const slotOrId = todo.id?.replace('routine-meal-', '') ?? '';
     const meal = meals.find((m) => String(m.id) === slotOrId || String(m.meal_slot) === slotOrId);
-    if (!meal) return { kcal: null, protein: null };
-    return { kcal: Number(meal.kcal) || null, protein: Number(meal.protein_g) || null };
+    if (!meal) return { kcal: null, protein: null, fiber: null, sugar: null };
+    return { kcal: Number(meal.kcal) || null, protein: Number(meal.protein_g) || null, fiber: Number(meal.fiber_g) || null, sugar: Number(meal.sugar_g) || null };
   }
 
   $: categories = [...new Set((todos ?? []).map((t) => t.category).filter(Boolean))] as string[];
@@ -80,11 +81,11 @@
   async function addQuick() { const title = quickAdd.trim(); if (!title) return; try { const n = await api.createTodo({ due_date: currentDate, title, status: 'open', priority: 2, source: 'manual' } as any); if (n) todos = [...todos, n]; quickAdd = ''; } catch {} }
   function handleKey(e: KeyboardEvent) { if (e.key === 'Enter') { e.preventDefault(); addQuick(); } }
   function getCurrentSlot(): number { const now = new Date(); const t = now.getHours() * 60 + now.getMinutes(); if (t >= 240 && t < 630) return 1; if (t >= 630 && t < 840) return 2; if (t >= 840 && t < 1050) return 3; if (t >= 1050 && t < 1320) return 4; return 1; }
-  function parseVisionResult(result: any) { if (!result?.analysis?.total) return null; const total = result.analysis.total; const firstItem = result.analysis.items?.[0]; return { name: firstItem?.name ?? 'Erkanntes Gericht', kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0 }; }
+  function parseVisionResult(result: any) { if (!result?.analysis?.total) return null; const total = result.analysis.total; const firstItem = result.analysis.items?.[0]; return { name: firstItem?.name ?? 'Erkanntes Gericht', kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0, fiber_g: Number(total.fiber_g) || 0, sugar_g: Number(total.sugar_g) || 0, free_sugar_g: Number(total.free_sugar_g) || 0 }; }
   async function patchMeal(id: string | number, data: Partial<Meal>) { if (!id) return; try { await api.updateMeal(id, data); dispatch('mealupdate', { id, data }); } catch {} }
   function triggerStandalonePhoto() { photoInput?.click(); }
   async function onStandalonePhotoSelected(e: Event) { const input = e.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return; photoLoading = true; try { const result = await api.analyzePhoto(file); const parsed = parseVisionResult(result); if (parsed) { confirmData = { slot: getCurrentSlot(), ...parsed }; choosingSlot = false; } } catch {} finally { photoLoading = false; input.value = ''; } }
-  async function assignToSlot(slot: number) { if (!confirmData) return; const meal = meals.find((m) => m.meal_slot === slot); if (!meal || !meal.id) { choosingSlot = false; confirmData = null; return; } await patchMeal(meal.id, { name: confirmData.name, kcal: confirmData.kcal, protein_g: confirmData.protein_g, carbs_g: confirmData.carbs_g, fat_g: confirmData.fat_g }); try { await api.markMealDone(meal.id); dispatch('mealtoggle', { id: meal.id, is_done: true }); } catch {} confirmData = null; choosingSlot = false; }
+  async function assignToSlot(slot: number) { if (!confirmData) return; const meal = meals.find((m) => m.meal_slot === slot); if (!meal || !meal.id) { choosingSlot = false; confirmData = null; return; } await patchMeal(meal.id, { name: confirmData.name, kcal: confirmData.kcal, protein_g: confirmData.protein_g, carbs_g: confirmData.carbs_g, fat_g: confirmData.fat_g, fiber_g: confirmData.fiber_g, sugar_g: confirmData.sugar_g, free_sugar_g: confirmData.free_sugar_g }); try { await api.markMealDone(meal.id); dispatch('mealtoggle', { id: meal.id, is_done: true }); } catch {} confirmData = null; choosingSlot = false; }
   function cancelConfirm() { confirmData = null; choosingSlot = false; }
 
   // --- Meal edit modal (long-press on meal routine todo) ---
@@ -110,6 +111,8 @@
       protein_g: Number(dish.protein_g) || 0,
       carbs_g: Number(dish.carbs_g) || 0,
       fat_g: Number(dish.fat_g) || 0,
+      fiber_g: Number(dish.fiber_g) || 0,
+      sugar_g: Number(dish.sugar_g) || 0,
     });
     try { await api.incrementDishUsage(dish.id); } catch {}
     mealEditModal = null;
@@ -133,11 +136,13 @@
           protein_g: Number(total.protein_g) || 0,
           carbs_g: Number(total.carbs_g) || 0,
           fat_g: Number(total.fat_g) || 0,
+          fiber_g: Number(total.fiber_g) || 0,
+          sugar_g: Number(total.sugar_g) || 0, free_sugar_g: Number(total.free_sugar_g) || 0,
         });
         if (result.dish_match?.matched && result.dish_match.dish) {
           try { await api.incrementDishUsage(result.dish_match.dish.id); } catch {}
         } else {
-          try { await api.createDish({ slot: mealEditModal.slot, name: firstName, kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0, source: 'photo' }); } catch {}
+          try { await api.createDish({ slot: mealEditModal.slot, name: firstName, kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0, fiber_g: Number(total.fiber_g) || 0, sugar_g: Number(total.sugar_g) || 0, free_sugar_g: Number(total.free_sugar_g) || 0, source: 'photo' }); } catch {}
         }
       }
     } catch {} finally { editPhotoLoading = false; input.value = ''; mealEditModal = null; }
@@ -159,12 +164,12 @@
     </div>
   {/if}
   <div class="todo-list">
-    {#if filteredTodos.length > 0}{#each filteredTodos as todo (todo.id)}{@const macros = getMealMacros(todo)}<TodoItem {todo} kcal={macros.kcal} protein={macros.protein} on:done={(e) => markDone(e.detail)} on:expand={(e) => handleExpand(e.detail)} on:update={updateTodo} on:delete={(e) => deleteTodo(e.detail)} on:editmeal={(e) => openMealEdit(e.detail)} />{#if todo.id === 'routine-training' && expandedTraining}<div class="train-inline"><TrainingDetail training_type={trainingSuggestion?.training_type ?? dayEntry?.training_type ?? 'Training'} date={currentDate} oncomplete={handleTrainingComplete} onclose={() => (expandedTraining = false)} /></div>{/if}{/each}{:else}<div class="empty">Keine To-Dos</div>{/if}
+    {#if filteredTodos.length > 0}{#each filteredTodos as todo (todo.id)}{@const macros = getMealMacros(todo)}<TodoItem {todo} kcal={macros.kcal} protein={macros.protein} fiber={macros.fiber} sugar={macros.sugar} on:done={(e) => markDone(e.detail)} on:expand={(e) => handleExpand(e.detail)} on:update={updateTodo} on:delete={(e) => deleteTodo(e.detail)} on:editmeal={(e) => openMealEdit(e.detail)} />{#if todo.id === 'routine-training' && expandedTraining}<div class="train-inline"><TrainingDetail training_type={trainingSuggestion?.training_type ?? dayEntry?.training_type ?? 'Training'} date={currentDate} oncomplete={handleTrainingComplete} onclose={() => (expandedTraining = false)} /></div>{/if}{/each}{:else}<div class="empty">Keine To-Dos</div>{/if}
   </div>
   <div class="quickadd"><input placeholder="+ To-Do hinzufügen…" bind:value={quickAdd} onkeydown={handleKey} /><button onclick={addQuick} disabled={!quickAdd.trim()} aria-label="Hinzufügen"><Icon name="plus" size={16} /></button></div>
   <input bind:this={photoInput} type="file" accept="image/*" capture="environment" style="display:none" onchange={onStandalonePhotoSelected} />
   <input bind:this={editPhotoInput} type="file" accept="image/*" capture="environment" style="display:none" onchange={onEditPhotoSelected} />
-  {#if confirmData}<div class="modal-overlay" onclick={cancelConfirm}><div class="modal-card" onclick={(e) => e.stopPropagation()}>{#if choosingSlot}<div class="modal-title">Mahlzeit wählen</div><div class="slot-list">{#each sortedMeals as meal (meal.id ?? meal.meal_slot)}<button class="slot-btn" onclick={() => assignToSlot(meal.meal_slot)}><span>{meal.name || SLOT_NAMES[meal.meal_slot] || `Slot ${meal.meal_slot}`}</span><span class="slot-t">{meal.default_time ? meal.default_time.slice(0, 5) : ''}</span></button>{/each}</div><button class="modal-secondary" onclick={cancelConfirm}>Abbrechen</button>{:else}{@const d = confirmData}<div class="modal-title">{d.name}</div>{#if d.matched}<p class="modal-match">✓ Gericht bereits in Datenbank</p>{/if}<p class="modal-hint">Zugewiesen zu <strong style="color:var(--green)">{SLOT_NAMES[d.slot] || `Slot ${d.slot}`}</strong></p><div class="modal-pills"><PillBadge value={Math.round(d.kcal)} unit="kcal" color="var(--amber)" /><PillBadge value={Math.round(d.protein_g)} unit="g P" color="var(--blue)" /><PillBadge value={Math.round(d.carbs_g)} unit="g KH" color="var(--purple)" /><PillBadge value={Math.round(d.fat_g)} unit="g F" color="var(--pink)" /></div><div class="modal-actions"><button class="modal-primary" onclick={() => assignToSlot(d.slot)}>Akzeptieren</button><button class="modal-secondary" onclick={() => (choosingSlot = true)}>Andere wählen</button></div>{/if}</div></div>{/if}
+  {#if confirmData}<div class="modal-overlay" onclick={cancelConfirm}><div class="modal-card" onclick={(e) => e.stopPropagation()}>{#if choosingSlot}<div class="modal-title">Mahlzeit wählen</div><div class="slot-list">{#each sortedMeals as meal (meal.id ?? meal.meal_slot)}<button class="slot-btn" onclick={() => assignToSlot(meal.meal_slot)}><span>{meal.name || SLOT_NAMES[meal.meal_slot] || `Slot ${meal.meal_slot}`}</span><span class="slot-t">{meal.default_time ? meal.default_time.slice(0, 5) : ''}</span></button>{/each}</div><button class="modal-secondary" onclick={cancelConfirm}>Abbrechen</button>{:else}{@const d = confirmData}<div class="modal-title">{d.name}</div>{#if d.matched}<p class="modal-match">✓ Gericht bereits in Datenbank</p>{/if}<p class="modal-hint">Zugewiesen zu <strong style="color:var(--green)">{SLOT_NAMES[d.slot] || `Slot ${d.slot}`}</strong></p><div class="modal-pills"><PillBadge value={Math.round(d.kcal)} unit="kcal" color="var(--amber)" /><PillBadge value={Math.round(d.protein_g)} unit="g P" color="var(--blue)" /><PillBadge value={Math.round(d.carbs_g)} unit="g KH" color="var(--purple)" /><PillBadge value={Math.round(d.fat_g)} unit="g F" color="var(--pink)" /><PillBadge value={Math.round(d.fiber_g)} unit="g Ballaststoffe" color="var(--green)" /><PillBadge value={Math.round(d.sugar_g)} unit="g Zucker" color="var(--amber)" /></div><div class="modal-actions"><button class="modal-primary" onclick={() => assignToSlot(d.slot)}>Akzeptieren</button><button class="modal-secondary" onclick={() => (choosingSlot = true)}>Andere wählen</button></div>{/if}</div></div>{/if}
   {#if mealEditModal}
     <div class="modal-overlay" onclick={closeMealEdit}>
       <div class="modal-card" onclick={(e) => e.stopPropagation()}>
@@ -186,6 +191,8 @@
                 <div class="dish-macros">
                   <span>{Math.round(Number(dish.kcal) || 0)} kcal</span>
                   <span>{Math.round(Number(dish.protein_g) || 0)}g P</span>
+                  <span>{Math.round(Number(dish.fiber_g) || 0)}g Ballaststoffe</span>
+                  <span>{Math.round(Number(dish.sugar_g) || 0)}g Zucker</span>
                 </div>
               </button>
             {/each}

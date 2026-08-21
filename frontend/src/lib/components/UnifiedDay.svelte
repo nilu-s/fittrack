@@ -34,19 +34,23 @@
   $: totalP = Math.round(doneMeals.reduce((s, m) => s + (Number(m.protein_g) || 0), 0));
   $: totalKH = Math.round(doneMeals.reduce((s, m) => s + (Number(m.carbs_g) || 0), 0));
   $: totalF = Math.round(doneMeals.reduce((s, m) => s + (Number(m.fat_g) || 0), 0));
+  $: totalFiber = Math.round(doneMeals.reduce((s, m) => s + (Number(m.fiber_g) || 0), 0));
+  $: totalSugar = Math.round(doneMeals.reduce((s, m) => s + (Number(m.sugar_g) || 0), 0));
+  $: totalFreeSugar = Math.round(doneMeals.reduce((s, m) => s + (Number(m.free_sugar_g) || 0), 0));
 
   let expandedTraining = false;
   let expandedSleep = false;
   let expandedWeight = false;
+  let expandedNutrition = false;
   let weightEditing = false;
   let quickAdd = '';
   let photoInput: HTMLInputElement;
   let photoLoading = false;
   let photoStatus = '';  // '', 'upload', 'analyze', 'match', 'done'
-  let confirmData: { slot: number; name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null = null;
+  let confirmData: { slot: number; name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number; sugar_g: number; free_sugar_g: number } | null = null;
   let choosingSlot = false;
 
-  type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; mealTime?: string | null; todoData?: Todo; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bodyFat: number | null; muscle: number | null; water: number | null; bone: number | null; bmi: number | null; bmr: number | null; visceralFat: number | null; metabolicAge: number | null }; };
+  type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; fiber?: number | null; sugar?: number | null; mealTime?: string | null; todoData?: Todo; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bodyFat: number | null; muscle: number | null; water: number | null; bone: number | null; bmi: number | null; bmr: number | null; visceralFat: number | null; metabolicAge: number | null }; };
 
   $: unifiedItems = buildUnifiedItems(entry, meals, todos, trainingSuggestion);
 
@@ -63,11 +67,11 @@
     items.push({ id: 'metric-creatine', type: 'metric', icon: 'creatine', title: 'Kreatin', done: entry.creatine_done ?? false, sortKey: '00-03', metricField: 'creatine_done', metricValue: entry.creatine_done ? 'Eingenommen' : 'Ausstehend', metricCheckable: true, metricDoneField: 'creatine_done', metricEditable: false });
     items.push({ id: 'metric-belly', type: 'metric', icon: 'belly', title: 'Bauchumfang', done: false, sortKey: '00-04', metricField: 'belly_cm', metricValue: entry.belly_cm ?? null, metricUnit: 'cm', metricEditable: true });
     const sortedMeals = [...mealList].sort((a, b) => (a.meal_slot ?? 99) - (b.meal_slot ?? 99));
-    for (const m of sortedMeals) { const slotLabel = SLOT_NAMES[m.meal_slot] || `Slot ${m.meal_slot}`; const dishName = m.name || '— nichts gewählt —'; items.push({ id: `meal-${m.id ?? m.meal_slot}`, type: 'meal', icon: 'meal', title: `${slotLabel}: ${dishName}`, done: m.is_done ?? false, sortKey: `01-${String(m.meal_slot).padStart(2,'0')}`, kcal: Number(m.kcal) || null, protein: Number(m.protein_g) || null, mealTime: m.default_time ? m.default_time.slice(0, 5) : null }); }
-    const trainingType = suggestion?.training_type ?? entry.training_type ?? 'Training';
-    items.push({ id: 'training', type: 'training', icon: 'training', title: trainingType, done: entry.training_done ?? false, sortKey: '02-00' });
-    const cardioMin = entry.cardio_minutes ?? suggestion?.cardio_minutes ?? 0;
-    items.push({ id: 'cardio', type: 'cardio', icon: 'cardio', title: cardioMin > 0 ? `Cardio ${cardioMin}min` : 'Cardio', done: entry.cardio_done ?? false, sortKey: '02-01' });
+    for (const m of sortedMeals) { const slotLabel = SLOT_NAMES[m.meal_slot] || `Slot ${m.meal_slot}`; const dishName = m.name || '— nichts gewählt —'; items.push({ id: `meal-${m.id ?? m.meal_slot}`, type: 'meal', icon: 'meal', title: `${slotLabel}: ${dishName}`, done: m.is_done ?? false, sortKey: `01-${String(m.meal_slot).padStart(2,'0')}`, kcal: Number(m.kcal) || null, protein: Number(m.protein_g) || null, fiber: Number(m.fiber_g) || null, sugar: Number(m.sugar_g) || null, mealTime: m.default_time ? m.default_time.slice(0, 5) : null }); }
+    const trainingType = suggestion?.training_type ?? entry.training_type;
+    if (trainingType && trainingType !== 'Ruhetag') {
+      items.push({ id: 'training', type: 'training', icon: 'training', title: trainingType, done: entry.training_done ?? false, sortKey: '02-00' });
+    }
     for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.due_time ?? '99:99'}`, todoData: t }); }
     return items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   }
@@ -157,7 +161,7 @@
   function handleKey(e: KeyboardEvent) { if (e.key === 'Enter') { e.preventDefault(); addQuick(); } }
 
   function getCurrentSlot(): number { const now = new Date(); const t = now.getHours() * 60 + now.getMinutes(); if (t >= 240 && t < 630) return 1; if (t >= 630 && t < 840) return 2; if (t >= 840 && t < 1050) return 3; if (t >= 1050 && t < 1320) return 4; return 1; }
-  function parseVisionResult(result: any) { if (!result?.analysis?.total) return null; const total = result.analysis.total; const firstItem = result.analysis.items?.[0]; return { name: firstItem?.name ?? 'Erkanntes Gericht', kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0 }; }
+  function parseVisionResult(result: any) { if (!result?.analysis?.total) return null; const total = result.analysis.total; const firstItem = result.analysis.items?.[0]; return { name: firstItem?.name ?? 'Erkanntes Gericht', kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0, fiber_g: Number(total.fiber_g) || 0, sugar_g: Number(total.sugar_g) || 0, free_sugar_g: Number(total.free_sugar_g) || 0 }; }
   function triggerPhoto() { photoInput?.click(); }
   async function onPhotoSelected(e: Event) {
     const input = e.target as HTMLInputElement;
@@ -186,10 +190,10 @@
     const meal = meals.find((m) => m.meal_slot === slot);
     if (!meal?.id) { confirmData = null; choosingSlot = false; return; }
     try {
-      await api.updateMeal(meal.id, { name: data.name, kcal: data.kcal, protein_g: data.protein_g, carbs_g: data.carbs_g, fat_g: data.fat_g });
+      await api.updateMeal(meal.id, { name: data.name, kcal: data.kcal, protein_g: data.protein_g, carbs_g: data.carbs_g, fat_g: data.fat_g, fiber_g: data.fiber_g, sugar_g: data.sugar_g, free_sugar_g: data.free_sugar_g });
       await api.markMealDone(meal.id);
-      meals = meals.map((m) => m.id === meal.id ? { ...m, name: data.name, kcal: String(data.kcal), protein_g: String(data.protein_g), carbs_g: String(data.carbs_g), fat_g: String(data.fat_g), is_done: true } : m);
-      dispatch('mealtoggle', { id: meal.id, is_done: true });
+      meals = meals.map((m) => m.id === meal.id ? { ...m, name: data.name, kcal: String(data.kcal), protein_g: String(data.protein_g), carbs_g: String(data.carbs_g), fat_g: String(data.fat_g), fiber_g: String(data.fiber_g), sugar_g: String(data.sugar_g), free_sugar_g: String(data.free_sugar_g), is_done: true } : m);
+      dispatch('mealtoggle', { id: meal.id, is_done: true, data: { name: data.name, kcal: data.kcal, protein_g: data.protein_g, carbs_g: data.carbs_g, fat_g: data.fat_g, fiber_g: data.fiber_g, sugar_g: data.sugar_g, free_sugar_g: data.free_sugar_g } });
     } catch {}
     confirmData = null;
     choosingSlot = false;
@@ -235,6 +239,9 @@
   $: scaledProtein = selectedDish ? Math.round((Number(selectedDish.protein_g) || 0) * portionFactor) : 0;
   $: scaledCarbs = selectedDish ? Math.round((Number(selectedDish.carbs_g) || 0) * portionFactor) : 0;
   $: scaledFat = selectedDish ? Math.round((Number(selectedDish.fat_g) || 0) * portionFactor) : 0;
+  $: scaledFiber = selectedDish ? Math.round((Number(selectedDish.fiber_g) || 0) * portionFactor) : 0;
+  $: scaledSugar = selectedDish ? Math.round((Number(selectedDish.sugar_g) || 0) * portionFactor) : 0;
+  $: scaledFreeSugar = selectedDish ? Math.round((Number(selectedDish.free_sugar_g) || 0) * portionFactor) : 0;
   $: portionDisplay = selectedDish?.is_scalable && selectedDish?.portion_grams
     ? `${Math.round(Number(selectedDish.portion_grams) * portionFactor)}g`
     : selectedDish?.portion_label || '1 Portion';
@@ -256,12 +263,12 @@
     try {
       await api.updateMeal(meal.id, {
         name: selectedDish.name,
-        kcal: scaledKcal, protein_g: scaledProtein, carbs_g: scaledCarbs, fat_g: scaledFat,
+        kcal: scaledKcal, protein_g: scaledProtein, carbs_g: scaledCarbs, fat_g: scaledFat, fiber_g: scaledFiber, sugar_g: scaledSugar, free_sugar_g: scaledFreeSugar,
         portion_factor: portionFactor,
         dish_id: selectedDish.id,
       });
-      meals = meals.map((m) => m.id === meal.id ? { ...m, name: selectedDish.name, kcal: String(scaledKcal), protein_g: String(scaledProtein), carbs_g: String(scaledCarbs), fat_g: String(scaledFat) } : m);
-      dispatch('mealtoggle', { id: meal.id, is_done: meal.is_done });
+      meals = meals.map((m) => m.id === meal.id ? { ...m, name: selectedDish.name, kcal: String(scaledKcal), protein_g: String(scaledProtein), carbs_g: String(scaledCarbs), fat_g: String(scaledFat), fiber_g: String(scaledFiber), sugar_g: String(scaledSugar), free_sugar_g: String(scaledFreeSugar) } : m);
+      dispatch('mealtoggle', { id: meal.id, is_done: meal.is_done, data: { name: selectedDish.name, kcal: scaledKcal, protein_g: scaledProtein, carbs_g: scaledCarbs, fat_g: scaledFat, fiber_g: scaledFiber, sugar_g: scaledSugar, free_sugar_g: scaledFreeSugar, dish_id: selectedDish.id, portion_factor: portionFactor } });
       try { await api.incrementDishUsage(selectedDish.id); } catch {}
     } catch {}
     mealEditItem = null; selectedDish = null; portionFactor = 1.0;
@@ -285,9 +292,9 @@
       if (result?.analysis?.total) {
         const total = result.analysis.total;
         const firstName = result.analysis.items?.[0]?.name ?? 'Erkanntes Gericht';
-        await api.updateMeal(meal.id, { name: firstName, kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0 });
-        meals = meals.map((m) => m.id === meal.id ? { ...m, name: firstName, kcal: String(total.kcal), protein_g: String(total.protein_g), carbs_g: String(total.carbs_g), fat_g: String(total.fat_g) } : m);
-        dispatch('mealtoggle', { id: meal.id, is_done: meal.is_done });
+        await api.updateMeal(meal.id, { name: firstName, kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0, fiber_g: Number(total.fiber_g) || 0, sugar_g: Number(total.sugar_g) || 0, free_sugar_g: Number(total.free_sugar_g) || 0 });
+        meals = meals.map((m) => m.id === meal.id ? { ...m, name: firstName, kcal: String(total.kcal), protein_g: String(total.protein_g), carbs_g: String(total.carbs_g), fat_g: String(total.fat_g), fiber_g: String(total.fiber_g), sugar_g: String(total.sugar_g), free_sugar_g: String(total.free_sugar_g) } : m);
+        dispatch('mealtoggle', { id: meal.id, is_done: meal.is_done, data: { name: firstName, kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0, fiber_g: Number(total.fiber_g) || 0, sugar_g: Number(total.sugar_g) || 0, free_sugar_g: Number(total.free_sugar_g) || 0 } });
         editPhotoStatus = 'done';
         if (result.dish_match?.matched && result.dish_match.dish) {
           try { await api.incrementDishUsage(result.dish_match.dish.id); } catch {}
@@ -296,7 +303,7 @@
           try { await api.createDish({
             name: firstName, kcal: Number(total.kcal) || 0,
             protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0,
-            fat_g: Number(total.fat_g) || 0, source: 'photo',
+            fat_g: Number(total.fat_g) || 0, fiber_g: Number(total.fiber_g) || 0, sugar_g: Number(total.sugar_g) || 0, free_sugar_g: Number(total.free_sugar_g) || 0, source: 'photo',
             portion_label: item.portion_label || null,
             portion_grams: item.portion_grams || null,
             is_scalable: item.is_scalable || false,
@@ -428,13 +435,25 @@
   }
 </script>
 
-<!-- Macro stats -->
-<div class="macros">
-  <div class="macro"><span class="macro-l" style="color:var(--amber)">kcal</span><span class="macro-v">{totalKcal}/{goals.kcal}</span><ProgressBar current={totalKcal} target={goals.kcal} color="var(--amber)" /></div>
-  <div class="macro"><span class="macro-l" style="color:var(--blue)">P</span><span class="macro-v">{totalP}/{goals.protein}g</span><ProgressBar current={totalP} target={goals.protein} color="var(--blue)" /></div>
-  <div class="macro"><span class="macro-l" style="color:var(--purple)">KH</span><span class="macro-v">{totalKH}/{goals.carbs}g</span><ProgressBar current={totalKH} target={goals.carbs} color="var(--purple)" /></div>
-  <div class="macro"><span class="macro-l" style="color:var(--pink)">F</span><span class="macro-v">{totalF}/{goals.fat}g</span><ProgressBar current={totalF} target={goals.fat} color="var(--pink)" /></div>
-</div>
+<!-- Nutrition: core macros first; health details are opt-in. -->
+<section class="nutrition-card">
+  <div class="nutrition-core">
+    <div class="macro"><span class="macro-l" style="color:var(--amber)">kcal</span><span class="macro-v">{totalKcal}/{goals.kcal}</span><ProgressBar current={totalKcal} target={goals.kcal} color="var(--amber)" /></div>
+    <div class="macro"><span class="macro-l" style="color:var(--blue)">Protein</span><span class="macro-v">{totalP}/{goals.protein}g</span><ProgressBar current={totalP} target={goals.protein} color="var(--blue)" /></div>
+    <div class="macro"><span class="macro-l" style="color:var(--purple)">KH</span><span class="macro-v">{totalKH}/{goals.carbs}g</span><ProgressBar current={totalKH} target={goals.carbs} color="var(--purple)" /></div>
+    <div class="macro"><span class="macro-l" style="color:var(--pink)">Fett</span><span class="macro-v">{totalF}/{goals.fat}g</span><ProgressBar current={totalF} target={goals.fat} color="var(--pink)" /></div>
+  </div>
+  <button class="nutrition-toggle" type="button" onclick={() => (expandedNutrition = !expandedNutrition)} aria-expanded={expandedNutrition}>
+    <span>{expandedNutrition ? 'Nährwert-Details ausblenden' : 'Nährwert-Details'}</span><span aria-hidden="true">{expandedNutrition ? '⌃' : '⌄'}</span>
+  </button>
+  {#if expandedNutrition}
+    <div class="nutrition-details">
+      <div class="macro"><span class="macro-l" style="color:var(--green)">Ballaststoffe</span><span class="macro-v">{totalFiber}/{goals.fiber}g</span><ProgressBar current={totalFiber} target={goals.fiber} color="var(--green)" /></div>
+      <div class="macro"><span class="macro-l" style="color:var(--amber)">Freie Zucker</span><span class="macro-v">{totalFreeSugar}/{goals.freeSugar}g</span><ProgressBar current={Math.min(totalFreeSugar, goals.freeSugar)} target={goals.freeSugar} color={totalFreeSugar > goals.freeSugar ? "var(--pink)" : "var(--amber)"} /></div>
+      <div class="macro"><span class="macro-l" style="color:var(--amber)">Zucker gesamt</span><span class="macro-v">{totalSugar}g</span></div>
+    </div>
+  {/if}
+</section>
 
 <!-- Biometrics: Schritte + Schlaf nebeneinander -->
 {#if biometricItems.length > 0}
@@ -671,6 +690,8 @@
           <PillBadge value={Math.round(d.protein_g)} unit="g P" color="var(--blue)" />
           <PillBadge value={Math.round(d.carbs_g)} unit="g KH" color="var(--purple)" />
           <PillBadge value={Math.round(d.fat_g)} unit="g F" color="var(--pink)" />
+          <PillBadge value={Math.round(d.fiber_g)} unit="g Ballaststoffe" color="var(--green)" />
+          <PillBadge value={Math.round(d.sugar_g)} unit="g Zucker" color="var(--amber)" />
         </div>
         <div class="modal-actions">
           <button class="modal-primary" onclick={() => assignToSlot(d.slot)}>Akzeptieren</button>
@@ -748,6 +769,8 @@
               <div class="dish-macros">
                 <span>{Math.round(Number(recommendResult.default.kcal) || 0)} kcal</span>
                 <span>{Math.round(Number(recommendResult.default.protein_g) || 0)}g P</span>
+                <span>{Math.round(Number(recommendResult.default.fiber_g) || 0)}g Ballaststoffe</span>
+                <span>{Math.round(Number(recommendResult.default.sugar_g) || 0)}g Zucker</span>
                 {#if recommendResult.default.portion_label}<span class="dish-portion">{recommendResult.default.portion_label}</span>{/if}
               </div>
             </button>
@@ -766,6 +789,8 @@
                   <div class="dish-macros">
                     <span>{Math.round(Number(dish.kcal) || 0)} kcal</span>
                     <span>{Math.round(Number(dish.protein_g) || 0)}g P</span>
+                    <span>{Math.round(Number(dish.fiber_g) || 0)}g Ballaststoffe</span>
+                    <span>{Math.round(Number(dish.sugar_g) || 0)}g Zucker</span>
                   </div>
                 </button>
               {/each}
@@ -786,6 +811,8 @@
                   <div class="dish-macros">
                     <span>{Math.round(Number(dish.kcal) || 0)} kcal</span>
                     <span>{Math.round(Number(dish.protein_g) || 0)}g P</span>
+                    <span>{Math.round(Number(dish.fiber_g) || 0)}g Ballaststoffe</span>
+                    <span>{Math.round(Number(dish.sugar_g) || 0)}g Zucker</span>
                     {#if dish.portion_label}<span class="dish-portion">{dish.portion_label}</span>{/if}
                   </div>
                 </button>
@@ -843,6 +870,8 @@
             <div class="macro"><span class="macro-l">Protein</span><span class="macro-v">{scaledProtein}g</span></div>
             <div class="macro"><span class="macro-l">Carbs</span><span class="macro-v">{scaledCarbs}g</span></div>
             <div class="macro"><span class="macro-l">Fat</span><span class="macro-v">{scaledFat}g</span></div>
+            <div class="macro"><span class="macro-l">Ballaststoffe</span><span class="macro-v">{scaledFiber}g</span></div>
+            <div class="macro"><span class="macro-l">Zucker</span><span class="macro-v">{scaledSugar}g</span></div>
           </div>
         </div>
 
@@ -856,7 +885,11 @@
 {/if}
 
 <style>
-  .macros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+  .nutrition-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .nutrition-core, .nutrition-details { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px 14px; }
+  .nutrition-details { grid-template-columns: repeat(3, 1fr); padding-top: 10px; border-top: 1px solid var(--border); }
+  .nutrition-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; border: 0; border-top: 1px solid var(--border); background: transparent; color: var(--text-dim); font-size: 12px; font-weight: 600; cursor: pointer; }
+  .nutrition-toggle:active { background: var(--card-2); }
   .macro { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .macro-l { font-size: 11px; text-transform: uppercase; font-weight: 600; }
   .macro-v { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; }

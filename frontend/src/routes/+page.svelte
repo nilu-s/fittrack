@@ -7,7 +7,7 @@
 
   function formatLastSync(ts: number | null): string { if (!ts) return ''; const d = new Date(ts); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
   function onUnifiedUpdate(e: CustomEvent) { if (!data) return; const { field, value } = e.detail; dayData.set({ ...data, dayEntry: { ...(data.dayEntry ?? { date: $currentDate }), [field]: value } }); }
-  function onMealToggle(e: CustomEvent) { if (!data) return; const { id, is_done } = e.detail; dayData.set({ ...data, meals: data.meals.map((m) => m.id === id ? { ...m, is_done } : m) }); }
+  function onMealToggle(e: CustomEvent) { if (!data) return; const { id, is_done, data: mealData } = e.detail; dayData.set({ ...data, meals: data.meals.map((m) => m.id === id ? { ...m, ...(mealData ?? {}), is_done } : m) }); }
   function onTodoToggle(e: CustomEvent) { if (!data) return; const { id } = e.detail; dayData.set({ ...data, todos: (data.todos ?? []).map((t) => String(t.id) === String(id) ? { ...t, status: t.status === 'open' ? 'done' : 'open' } : t) }); }
   function onTodoAdd(e: CustomEvent) { if (!data) return; dayData.set({ ...data, todos: [...(data.todos ?? []), e.detail] }); }
 

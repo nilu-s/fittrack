@@ -24,6 +24,9 @@ export const dailyGoals = writable({
   protein: 194,
   carbs: 258,
   fat: 78,
+  fiber: 36,
+  freeSugar: 31,
+  freeSugarLimit: 62,
   steps: 10000,
   sleepHours: 8,
 });

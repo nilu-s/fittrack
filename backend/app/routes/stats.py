@@ -76,7 +76,8 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
         # Meals — daily totals (skip soft-deleted)
         meal_result = await session.execute(
             select(Meal.date, func.sum(Meal.kcal), func.sum(Meal.protein_g),
-                   func.sum(Meal.carbs_g), func.sum(Meal.fat_g))
+                   func.sum(Meal.carbs_g), func.sum(Meal.fat_g),
+                   func.sum(Meal.fiber_g), func.sum(Meal.sugar_g), func.sum(Meal.free_sugar_g))
             .where(
                 Meal.user_id == USER_ID,
                 Meal.date >= week_start,
@@ -89,6 +90,9 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
         daily_protein: list[Decimal] = []
         daily_carbs: list[Decimal] = []
         daily_fat: list[Decimal] = []
+        daily_fiber: list[Decimal] = []
+        daily_sugar: list[Decimal] = []
+        daily_free_sugar: list[Decimal] = []
         for row in meal_result:
             if row[1] is not None:
                 daily_kcal.append(Decimal(row[1]))
@@ -98,6 +102,12 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
                 daily_carbs.append(Decimal(row[3]))
             if row[4] is not None:
                 daily_fat.append(Decimal(row[4]))
+            if row[5] is not None:
+                daily_fiber.append(Decimal(row[5]))
+            if row[6] is not None:
+                daily_sugar.append(Decimal(row[6]))
+            if row[7] is not None:
+                daily_free_sugar.append(Decimal(row[7]))
 
         # Todos (skip soft-deleted)
         todo_result = await session.execute(
@@ -127,6 +137,9 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
         avg_protein = _mean(daily_protein)
         avg_carbs = _mean(daily_carbs)
         avg_fat = _mean(daily_fat)
+        avg_fiber = _mean(daily_fiber)
+        avg_sugar = _mean(daily_sugar)
+        avg_free_sugar = _mean(daily_free_sugar)
         avg_steps = _mean([Decimal(s) for s in steps_list]) if steps_list else None
         avg_sleep_hours = _mean(sleep_hours_list)
         sleep_quality_list = [e.sleep_quality for e in entries if e.sleep_quality is not None and e.sleep_quality > 0]
@@ -163,6 +176,9 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
             avg_protein=avg_protein,
             avg_carbs=avg_carbs,
             avg_fat=avg_fat,
+            avg_fiber=avg_fiber,
+            avg_sugar=avg_sugar,
+            avg_free_sugar=avg_free_sugar,
             avg_steps=avg_steps,
             avg_sleep_hours=avg_sleep_hours,
             avg_sleep_quality=avg_sleep_quality,

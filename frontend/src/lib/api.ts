@@ -1,6 +1,6 @@
 import type {
-  DayEntry, Meal, Todo, Exercise, TrainingSet, TrainingRotation,
-  TrainingSuggestion, TrainingCompleteRequest,
+  DayEntry, Meal, Todo, Exercise, TrainingSet, TrainingRotation, TrainingUnit,
+  TrainingSuggestion, TrainingCompleteRequest, ExerciseProgress,
   MealTemplate, WeekStats, TrendData, SyncPayload, SyncResponse, Goals,
   Dish, DishMatchResult, DishRecommendResult, PhotoAnalysisResponse,
 } from './types';
@@ -330,8 +330,14 @@ class ApiClient {
     return this.request<TrainingSuggestion>(`/training?date=${date}`);
   }
 
-  async getNextTraining(trainingType: string): Promise<TrainingRotation | null> {
-    return this.request<TrainingRotation>(`/training/next?training_type=${encodeURIComponent(trainingType)}`);
+  async getNextTraining(trainingType: string, date?: string): Promise<TrainingSuggestion | null> {
+    const params = new URLSearchParams({ training_type: trainingType });
+    if (date) params.set('date', date);
+    return this.request<TrainingSuggestion>(`/training/next?${params}`);
+  }
+
+  async getExerciseProgress(exerciseName: string): Promise<ExerciseProgress[]> {
+    return (await this.request<ExerciseProgress[]>(`/training/progress?exercise_name=${encodeURIComponent(exerciseName)}&limit=5`)) ?? [];
   }
 
   async completeTraining(data: TrainingCompleteRequest): Promise<any> {
@@ -354,8 +360,58 @@ class ApiClient {
     return (await this.request<Exercise[]>(`/exercises?training_type=${encodeURIComponent(trainingType)}`)) ?? [];
   }
 
+  async createExercise(data: Partial<Exercise>): Promise<Exercise | null> {
+    return this.request<Exercise>('/exercises', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateExercise(id: string, data: Partial<Exercise>): Promise<Exercise | null> {
+    return this.request<Exercise>(`/exercises/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async deleteExercise(id: string): Promise<boolean> {
+    const response = await fetch(`${this.baseUrl}/exercises/${id}`, { method: 'DELETE', credentials: 'include' });
+    return response.ok;
+  }
+
+  async reorderExercises(trainingType: string, ids: string[]): Promise<Exercise[]> {
+    return (await this.request<Exercise[]>(`/exercises/reorder/all?training_type=${encodeURIComponent(trainingType)}`, { method: 'PUT', body: JSON.stringify(ids) })) ?? [];
+  }
+
+  async getTrainingUnits(): Promise<TrainingUnit[]> {
+    return (await this.request<TrainingUnit[]>('/training-units')) ?? [];
+  }
+
+  async createTrainingUnit(data: Partial<TrainingUnit>): Promise<TrainingUnit | null> {
+    return this.request<TrainingUnit>('/training-units', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateTrainingUnit(id: string, data: Partial<TrainingUnit>): Promise<TrainingUnit | null> {
+    return this.request<TrainingUnit>(`/training-units/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async deleteTrainingUnit(id: string): Promise<boolean> {
+    const response = await fetch(`${this.baseUrl}/training-units/${id}`, { method: 'DELETE', credentials: 'include' });
+    return response.ok;
+  }
+
   async getRotation(): Promise<TrainingRotation[]> {
     return (await this.request<TrainingRotation[]>(`/templates/rotation`)) ?? [];
+  }
+
+  async createRotation(data: Partial<TrainingRotation>): Promise<TrainingRotation | null> {
+    return this.request<TrainingRotation>('/templates/rotation', { method: 'POST', body: JSON.stringify({ slot: 0, training_type: 'Cardio', ...data }) });
+  }
+
+  async updateRotation(slot: number, data: Partial<TrainingRotation>): Promise<TrainingRotation | null> {
+    return this.request<TrainingRotation>(`/templates/rotation/${slot}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteRotation(slot: number): Promise<boolean> {
+    const response = await fetch(`${this.baseUrl}/templates/rotation/${slot}`, { method: 'DELETE', credentials: 'include' });
+    return response.ok;
   }
 
   // Stats

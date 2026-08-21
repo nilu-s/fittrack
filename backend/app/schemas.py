@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -142,6 +142,9 @@ class MealBase(_Base):
     protein_g: Optional[Decimal] = None
     carbs_g: Optional[Decimal] = None
     fat_g: Optional[Decimal] = None
+    fiber_g: Optional[Decimal] = None
+    sugar_g: Optional[Decimal] = None
+    free_sugar_g: Optional[Decimal] = None
     is_standard: bool = False
     is_done: bool = False
     replaced_by: Optional[str] = None
@@ -164,6 +167,9 @@ class MealUpdate(_Base):
     protein_g: Optional[Decimal] = None
     carbs_g: Optional[Decimal] = None
     fat_g: Optional[Decimal] = None
+    fiber_g: Optional[Decimal] = None
+    sugar_g: Optional[Decimal] = None
+    free_sugar_g: Optional[Decimal] = None
     is_standard: Optional[bool] = None
     is_done: Optional[bool] = None
     replaced_by: Optional[str] = None
@@ -191,6 +197,9 @@ class MealTemplateBase(_Base):
     protein_g: Optional[Decimal] = None
     carbs_g: Optional[Decimal] = None
     fat_g: Optional[Decimal] = None
+    fiber_g: Optional[Decimal] = None
+    sugar_g: Optional[Decimal] = None
+    free_sugar_g: Optional[Decimal] = None
 
 
 class MealTemplateCreate(MealTemplateBase):
@@ -203,6 +212,9 @@ class MealTemplateUpdate(_Base):
     protein_g: Optional[Decimal] = None
     carbs_g: Optional[Decimal] = None
     fat_g: Optional[Decimal] = None
+    fiber_g: Optional[Decimal] = None
+    sugar_g: Optional[Decimal] = None
+    free_sugar_g: Optional[Decimal] = None
 
 
 class MealTemplateResponse(MealTemplateBase):
@@ -220,6 +232,9 @@ class DishBase(_Base):
     protein_g: Optional[Decimal] = None
     carbs_g: Optional[Decimal] = None
     fat_g: Optional[Decimal] = None
+    fiber_g: Optional[Decimal] = None
+    sugar_g: Optional[Decimal] = None
+    free_sugar_g: Optional[Decimal] = None
     photo_url: Optional[str] = None
     is_default: bool = False
     usage_count: int = 0
@@ -239,6 +254,9 @@ class DishUpdate(_Base):
     protein_g: Optional[Decimal] = None
     carbs_g: Optional[Decimal] = None
     fat_g: Optional[Decimal] = None
+    fiber_g: Optional[Decimal] = None
+    sugar_g: Optional[Decimal] = None
+    free_sugar_g: Optional[Decimal] = None
     photo_url: Optional[str] = None
     is_default: Optional[bool] = None
     slot: Optional[int] = None
@@ -314,11 +332,39 @@ class TodoResponse(TodoBase):
 # ---------------------------------------------------------------------------
 # TrainingRotation
 # ---------------------------------------------------------------------------
+class TrainingUnitBase(_Base):
+    user_id: str = "luis"
+    name: str
+    description: Optional[str] = None
+    unit_type: str = "gym"
+    cardio_minutes: Optional[int] = None
+    is_active: bool = True
+
+
+class TrainingUnitCreate(TrainingUnitBase):
+    pass
+
+
+class TrainingUnitUpdate(_Base):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    unit_type: Optional[str] = None
+    cardio_minutes: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class TrainingUnitResponse(TrainingUnitBase):
+    id: uuid.UUID
+
+
 class TrainingRotationBase(_Base):
     user_id: str = "luis"
     slot: int
     training_type: str
-    cardio_minutes: Optional[int] = None
+    weekday: Optional[int] = None
+    frequency_weeks: int = 1
+    week_offset: int = 0
+    start_date: Optional[date] = None
 
 
 class TrainingRotationCreate(TrainingRotationBase):
@@ -327,7 +373,10 @@ class TrainingRotationCreate(TrainingRotationBase):
 
 class TrainingRotationUpdate(_Base):
     training_type: Optional[str] = None
-    cardio_minutes: Optional[int] = None
+    weekday: Optional[int] = None
+    frequency_weeks: Optional[int] = None
+    week_offset: Optional[int] = None
+    start_date: Optional[date] = None
 
 
 class TrainingRotationResponse(TrainingRotationBase):
@@ -341,16 +390,21 @@ class ExerciseBase(_Base):
     user_id: str = "luis"
     training_type: str
     exercise_name: str
-    target_sets: str
-    target_reps_low: Optional[int] = None
-    target_reps_high: Optional[int] = None
-    base_reps_low: Optional[int] = None
-    base_reps_high: Optional[int] = None
-    target_weight_kg: Optional[Decimal] = None
-    progression_strategy: str = "double_progression"
-    progression_increment_weight: Decimal = Decimal("2.5")
+    target_sets: str = Field(pattern=r"^[1-9][0-9]?$")
+    target_reps_low: Optional[int] = Field(default=None, ge=1, le=999)
+    target_reps_high: Optional[int] = Field(default=None, ge=1, le=999)
+    base_reps_low: Optional[int] = Field(default=None, ge=1, le=999)
+    base_reps_high: Optional[int] = Field(default=None, ge=1, le=999)
+    target_weight_kg: Optional[Decimal] = Field(default=None, ge=0, le=999.99)
+    progression_strategy: Literal["double_progression", "weight_increase", "reps_only"] = "double_progression"
+    progression_increment_weight: Decimal = Field(default=Decimal("2.5"), ge=0, le=100)
     is_topset: bool = False
-    target_rir: Optional[int] = 2
+    top_set_count: int = Field(default=0, ge=0, le=1)
+    backoff_set_count: int = Field(default=0, ge=0, le=5)
+    backoff_reps_low: Optional[int] = Field(default=None, ge=1, le=999)
+    backoff_reps_high: Optional[int] = Field(default=None, ge=1, le=999)
+    backoff_weight_percent: Optional[Decimal] = Field(default=None, ge=1, le=100)
+    target_rir: Optional[int] = Field(default=2, ge=0, le=5)
     sort_order: int = 0
 
 
@@ -359,16 +413,22 @@ class ExerciseCreate(ExerciseBase):
 
 
 class ExerciseUpdate(_Base):
-    target_sets: Optional[str] = None
-    target_reps_low: Optional[int] = None
-    target_reps_high: Optional[int] = None
-    base_reps_low: Optional[int] = None
-    base_reps_high: Optional[int] = None
-    target_weight_kg: Optional[Decimal] = None
-    progression_strategy: Optional[str] = None
-    progression_increment_weight: Optional[Decimal] = None
+    exercise_name: Optional[str] = None
+    target_sets: Optional[str] = Field(default=None, pattern=r"^[1-9][0-9]?$")
+    target_reps_low: Optional[int] = Field(default=None, ge=1, le=999)
+    target_reps_high: Optional[int] = Field(default=None, ge=1, le=999)
+    base_reps_low: Optional[int] = Field(default=None, ge=1, le=999)
+    base_reps_high: Optional[int] = Field(default=None, ge=1, le=999)
+    target_weight_kg: Optional[Decimal] = Field(default=None, ge=0, le=999.99)
+    progression_strategy: Optional[Literal["double_progression", "weight_increase", "reps_only"]] = None
+    progression_increment_weight: Optional[Decimal] = Field(default=None, ge=0, le=100)
     is_topset: Optional[bool] = None
-    target_rir: Optional[int] = None
+    top_set_count: Optional[int] = Field(default=None, ge=0, le=1)
+    backoff_set_count: Optional[int] = Field(default=None, ge=0, le=5)
+    backoff_reps_low: Optional[int] = Field(default=None, ge=1, le=999)
+    backoff_reps_high: Optional[int] = Field(default=None, ge=1, le=999)
+    backoff_weight_percent: Optional[Decimal] = Field(default=None, ge=1, le=100)
+    target_rir: Optional[int] = Field(default=None, ge=0, le=5)
     sort_order: Optional[int] = None
 
 
@@ -402,18 +462,19 @@ class TrainingSetResponse(TrainingSetBase):
 
 
 class TrainingCompleteSetItem(_Base):
-    exercise_name: str
-    set_number: int
-    set_type: Optional[str] = "work"
-    reps: Optional[int] = None
-    weight_kg: Optional[Decimal] = None
-    rir: Optional[int] = None
+    exercise_name: str = Field(min_length=1, max_length=200)
+    set_number: int = Field(ge=1, le=99)
+    set_type: Literal["warmup", "work", "top", "backoff", "drop"] = "work"
+    reps: Optional[int] = Field(default=None, ge=0, le=999)
+    weight_kg: Optional[Decimal] = Field(default=None, ge=0, le=999.99)
+    rir: Optional[int] = Field(default=None, ge=0, le=10)
 
 
 class TrainingCompleteRequest(_Base):
     date: date
     training_type: str
-    sets: list[TrainingCompleteSetItem]
+    sets: list[TrainingCompleteSetItem] = []
+    cardio_minutes: Optional[int] = Field(default=None, ge=0, le=1_440)
 
 
 class TrainingCompleteResponse(_Base):
@@ -432,6 +493,11 @@ class TrainingSuggestionExercise(_Base):
     target_reps_high: Optional[int] = None
     target_weight_kg: Optional[Decimal] = None
     is_topset: bool = False
+    top_set_count: int = 0
+    backoff_set_count: int = 0
+    backoff_reps_low: Optional[int] = None
+    backoff_reps_high: Optional[int] = None
+    backoff_weight_percent: Optional[Decimal] = None
     target_rir: Optional[int] = None
     sort_order: int = 0
 
@@ -498,6 +564,9 @@ class WeekSummary(_Base):
     avg_protein: Optional[Decimal] = None
     avg_carbs: Optional[Decimal] = None
     avg_fat: Optional[Decimal] = None
+    avg_fiber: Optional[Decimal] = None
+    avg_sugar: Optional[Decimal] = None
+    avg_free_sugar: Optional[Decimal] = None
     avg_steps: Optional[Decimal] = None
     avg_sleep_hours: Optional[Decimal] = None
     avg_sleep_quality: Optional[Decimal] = None
