@@ -106,8 +106,16 @@ async def _do_analysis(b64: str) -> JSONResponse:
         'You are a nutrition expert. Analyze this food photo. '
         'If this is NOT a food photo (e.g. clothes, furniture, scenery), respond: {"not_food": true}. '
         'If it IS food, respond ONLY with valid JSON:\n'
-        '{"not_food": false, "items": [{"name": "German dish name", "kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}], '
-        '"total": {"kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}}'
+        '{"not_food": false, "items": [{"name": "German dish name", "kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0, '
+        '"portion_label": "100g", "portion_grams": 100, "is_scalable": true}], '
+        '"total": {"kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}}\n\n'
+        'Portion rules:\n'
+        '- For packaged/weighted foods (chips, yogurt, pasta, etc.): set portion_label to the package size '
+        '(e.g. "100g", "200g"), portion_grams to the numeric value, is_scalable=true. '
+        'Nutritional values are PER the full package/serving shown.\n'
+        '- For single-serving foods (Döner, pizza slice, apple, bowl): set portion_label to "1 Portion", '
+        'portion_grams to null, is_scalable=false. Nutritional values are for one serving.\n'
+        '- Always research realistic nutritional values for the identified dish.'
     )
 
     try:

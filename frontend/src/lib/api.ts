@@ -2,7 +2,7 @@ import type {
   DayEntry, Meal, Todo, Exercise, TrainingSet, TrainingRotation,
   TrainingSuggestion, TrainingCompleteRequest,
   MealTemplate, WeekStats, TrendData, SyncPayload, SyncResponse, Goals,
-  Dish, DishMatchResult, PhotoAnalysisResponse,
+  Dish, DishMatchResult, DishRecommendResult, PhotoAnalysisResponse,
 } from './types';
 import { db, queueSync, type DayEntryRecord, type MealRecord, type TodoRecord } from './db';
 
@@ -443,12 +443,19 @@ class ApiClient {
   }
 
   // Dishes
-  async getDishes(slot?: number): Promise<Dish[]> {
-    const query = slot !== undefined ? `?slot=${slot}` : '';
+  async getDishes(slot?: number, q?: string): Promise<Dish[]> {
+    const params = new URLSearchParams();
+    if (slot !== undefined) params.set('slot', String(slot));
+    if (q) params.set('q', q);
+    const query = params.toString() ? `?${params}` : '';
     return (await this.request<Dish[]>(`/dishes${query}`)) ?? [];
   }
 
-  async createDish(data: Partial<Dish> & { slot: number; name: string }): Promise<Dish | null> {
+  async getDishRecommend(slot: number): Promise<DishRecommendResult | null> {
+    return this.request<DishRecommendResult>(`/dishes/recommend?slot=${slot}`);
+  }
+
+  async createDish(data: Partial<Dish> & { name: string }): Promise<Dish | null> {
     return this.request<Dish>(`/dishes`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -469,9 +476,8 @@ class ApiClient {
     } catch { return false; }
   }
 
-  async matchDish(name: string, slot?: number): Promise<DishMatchResult | null> {
-    const params = `?name=${encodeURIComponent(name)}${slot !== undefined ? `&slot=${slot}` : ''}`;
-    return this.request<DishMatchResult>(`/dishes/match${params}`);
+  async matchDish(name: string): Promise<DishMatchResult | null> {
+    return this.request<DishMatchResult>(`/dishes/match?name=${encodeURIComponent(name)}`);
   }
 
   async incrementDishUsage(id: string): Promise<Dish | null> {

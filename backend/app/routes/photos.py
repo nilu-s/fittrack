@@ -114,16 +114,16 @@ async def analyze_photo(
                 await session.commit()
                 logger.info("Photo analysis persisted to meal %s", parsed_meal_id)
 
-                # --- Dish duplicate check ---
+                # --- Dish duplicate check (slot-independent) ---
                 dish_name = analysis.get("items", [{}])[0].get("name", "Erkanntes Gericht")
-                dish_match = await _match_dish(session, "luis", meal.meal_slot, dish_name)
+                dish_match = await _match_dish(session, "luis", dish_name)
             else:
                 logger.warning("Meal %s not found for photo analysis", parsed_meal_id)
     elif analysis is not None:
         # No meal_id — still do dish match for standalone photos
         dish_name = analysis.get("items", [{}])[0].get("name", "Erkanntes Gericht")
         async with async_session() as session:
-            dish_match = await _match_dish(session, "luis", None, dish_name)
+            dish_match = await _match_dish(session, "luis", dish_name)
 
     return PhotoAnalysisResponse(
         photo_id=photo_id,
@@ -134,8 +134,9 @@ async def analyze_photo(
     )
 
 
-async def _match_dish(session, user_id: str, slot: Optional[int], name: str) -> DishMatchResult:
-    """Fuzzy-match a dish name against existing dishes. Returns best match if similarity >= 0.75."""
+async def _match_dish(session, user_id: str, name: str) -> DishMatchResult:
+    """Fuzzy-match a dish name against ALL existing dishes (slot-independent).
+    Returns best match if similarity >= 0.75."""
     from difflib import SequenceMatcher
     import sqlalchemy as sa
 
@@ -143,8 +144,6 @@ async def _match_dish(session, user_id: str, slot: Optional[int], name: str) -> 
         return " ".join(n.strip().lower().split())
 
     stmt = sa.select(Dish).where(Dish.user_id == user_id)
-    if slot is not None:
-        stmt = stmt.where(Dish.slot == slot)
     result = await session.execute(stmt)
     dishes = list(result.scalars().all())
 

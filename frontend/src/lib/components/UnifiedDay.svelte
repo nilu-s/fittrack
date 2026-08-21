@@ -85,6 +85,13 @@
   let editPhotoInput: HTMLInputElement;
   let editPhotoLoading = false;
   let editPhotoStatus = '';
+  // New: recommend + search + portion
+  let recommendResult: any = null;
+  let dishSearchQuery = '';
+  let dishSearchResults: any[] = [];
+  let dishSearching = false;
+  let selectedDish: any = null;
+  let portionFactor = 1.0;
 
   function handleTouchStart(item: UnifiedItem, e: TouchEvent) {
     longPressTriggered = false;
@@ -195,11 +202,21 @@
     const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id);
     if (!meal) return;
     mealEditItem = item;
+    selectedDish = null;
+    portionFactor = 1.0;
+    dishSearchQuery = '';
+    dishSearchResults = [];
+    recommendResult = null;
     editDishesLoading = true;
-    try { editDishes = await api.getDishes(meal.meal_slot); } catch { editDishes = []; }
+    const slot = meal.meal_slot;
+    try {
+      recommendResult = await api.getDishRecommend(slot);
+      // Also load all dishes for initial search display
+      editDishes = await api.getDishes();
+    } catch { editDishes = []; recommendResult = null; }
     editDishesLoading = false;
   }
-  function closeMealEdit() { mealEditItem = null; }
+  function closeMealEdit() { mealEditItem = null; selectedDish = null; portionFactor = 1.0; }
 
   function getMealSlotFromItem(item: UnifiedItem): number {
     const id = String(item.id).replace('meal-', '');
@@ -207,19 +224,47 @@
     return m?.meal_slot ?? 0;
   }
 
-  async function selectEditDish(dish: any) {
-    if (!mealEditItem || !dish.id) return;
+  function selectDishForEdit(dish: any) {
+    selectedDish = dish;
+    portionFactor = 1.0;
+  }
+
+  function backToDishList() { selectedDish = null; portionFactor = 1.0; }
+
+  $: scaledKcal = selectedDish ? Math.round((Number(selectedDish.kcal) || 0) * portionFactor) : 0;
+  $: scaledProtein = selectedDish ? Math.round((Number(selectedDish.protein_g) || 0) * portionFactor) : 0;
+  $: scaledCarbs = selectedDish ? Math.round((Number(selectedDish.carbs_g) || 0) * portionFactor) : 0;
+  $: scaledFat = selectedDish ? Math.round((Number(selectedDish.fat_g) || 0) * portionFactor) : 0;
+  $: portionDisplay = selectedDish?.is_scalable && selectedDish?.portion_grams
+    ? `${Math.round(Number(selectedDish.portion_grams) * portionFactor)}g`
+    : selectedDish?.portion_label || '1 Portion';
+
+  function onDishSearch(e: Event) {
+    const input = e.target as HTMLInputElement;
+    dishSearchQuery = input.value;
+    if (dishSearchQuery.trim().length < 2) { dishSearchResults = []; return; }
+    const q = dishSearchQuery.trim().toLowerCase();
+    dishSearchResults = editDishes.filter((d: any) => d.name.toLowerCase().includes(q)).slice(0, 8);
+  }
+
+  async function confirmDishSelection() {
+    if (!mealEditItem || !selectedDish) return;
     const item = mealEditItem;
     const mealId = String(item.id).replace('meal-', '');
     const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id);
     if (!meal?.id) return;
     try {
-      await api.updateMeal(meal.id, { name: dish.name, kcal: Number(dish.kcal) || 0, protein_g: Number(dish.protein_g) || 0, carbs_g: Number(dish.carbs_g) || 0, fat_g: Number(dish.fat_g) || 0 });
-      meals = meals.map((m) => m.id === meal.id ? { ...m, name: dish.name, kcal: String(dish.kcal), protein_g: String(dish.protein_g), carbs_g: String(dish.carbs_g), fat_g: String(dish.fat_g) } : m);
+      await api.updateMeal(meal.id, {
+        name: selectedDish.name,
+        kcal: scaledKcal, protein_g: scaledProtein, carbs_g: scaledCarbs, fat_g: scaledFat,
+        portion_factor: portionFactor,
+        dish_id: selectedDish.id,
+      });
+      meals = meals.map((m) => m.id === meal.id ? { ...m, name: selectedDish.name, kcal: String(scaledKcal), protein_g: String(scaledProtein), carbs_g: String(scaledCarbs), fat_g: String(scaledFat) } : m);
       dispatch('mealtoggle', { id: meal.id, is_done: meal.is_done });
-      try { await api.incrementDishUsage(dish.id); } catch {}
+      try { await api.incrementDishUsage(selectedDish.id); } catch {}
     } catch {}
-    mealEditItem = null;
+    mealEditItem = null; selectedDish = null; portionFactor = 1.0;
   }
 
   function triggerEditPhoto() { editPhotoInput?.click(); }
@@ -247,7 +292,15 @@
         if (result.dish_match?.matched && result.dish_match.dish) {
           try { await api.incrementDishUsage(result.dish_match.dish.id); } catch {}
         } else {
-          try { await api.createDish({ slot: meal.meal_slot, name: firstName, kcal: Number(total.kcal) || 0, protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0, fat_g: Number(total.fat_g) || 0, source: 'photo' }); } catch {}
+          const item = result.analysis.items?.[0] ?? {};
+          try { await api.createDish({
+            name: firstName, kcal: Number(total.kcal) || 0,
+            protein_g: Number(total.protein_g) || 0, carbs_g: Number(total.carbs_g) || 0,
+            fat_g: Number(total.fat_g) || 0, source: 'photo',
+            portion_label: item.portion_label || null,
+            portion_grams: item.portion_grams || null,
+            is_scalable: item.is_scalable || false,
+          }); } catch {}
         }
       }
     } catch {} finally { setTimeout(() => { editPhotoLoading = false; editPhotoStatus = ''; }, 500); input.value = ''; mealEditItem = null; }
@@ -676,48 +729,128 @@
 {#if mealEditItem}
   <div class="modal-overlay" onclick={closeMealEdit}>
     <div class="modal-card" onclick={(e) => e.stopPropagation()}>
-      <div class="modal-title">{SLOT_NAMES[getMealSlotFromItem(mealEditItem)] || `Slot ${getMealSlotFromItem(mealEditItem)}`} bearbeiten</div>
-      <div class="modal-section-label">Presets</div>
-      {#if editDishesLoading}
-        <div class="modal-loading">Lade Presets…</div>
-      {:else if editDishes.length === 0}
-        <div class="modal-empty">Keine Presets vorhanden</div>
-      {:else}
-        <div class="dish-list">
-          {#each editDishes as dish (dish.id)}
-            <button class="dish-btn" class:default={dish.is_default} onclick={() => selectEditDish(dish)}>
+      {#if !selectedDish}
+        <!-- Dish selection view -->
+        <div class="modal-title">{SLOT_NAMES[getMealSlotFromItem(mealEditItem)] || `Slot ${getMealSlotFromItem(mealEditItem)}`} bearbeiten</div>
+
+        {#if editDishesLoading}
+          <div class="modal-loading">Lade Empfehlungen…</div>
+        {:else}
+          <!-- Default dish (highlighted) -->
+          {#if recommendResult?.default}
+            <div class="modal-section-label">Empfohlen</div>
+            <button class="dish-btn dish-default-highlight" onclick={() => selectDishForEdit(recommendResult.default)}>
               <div class="dish-info">
-                <span class="dish-name">{dish.name}</span>
-                {#if dish.is_default}<span class="dish-badge">Standard</span>{/if}
-                {#if (dish.usage_count ?? 0) > 0}<span class="dish-uses">{dish.usage_count}×</span>{/if}
+                <span class="dish-name">{recommendResult.default.name}</span>
+                {#if recommendResult.default.is_default}<span class="dish-badge">Standard</span>{/if}
+                <span class="dish-uses">{recommendResult.default.usage_count ?? 0}× genutzt</span>
               </div>
               <div class="dish-macros">
-                <span>{Math.round(Number(dish.kcal) || 0)} kcal</span>
-                <span>{Math.round(Number(dish.protein_g) || 0)}g P</span>
+                <span>{Math.round(Number(recommendResult.default.kcal) || 0)} kcal</span>
+                <span>{Math.round(Number(recommendResult.default.protein_g) || 0)}g P</span>
+                {#if recommendResult.default.portion_label}<span class="dish-portion">{recommendResult.default.portion_label}</span>{/if}
               </div>
             </button>
-          {/each}
+          {/if}
+
+          <!-- Alternatives with similar macros -->
+          {#if recommendResult?.alternatives?.length > 0}
+            <div class="modal-section-label">Ähnliche Alternativen</div>
+            <div class="dish-list">
+              {#each recommendResult.alternatives as dish (dish.id)}
+                <button class="dish-btn" onclick={() => selectDishForEdit(dish)}>
+                  <div class="dish-info">
+                    <span class="dish-name">{dish.name}</span>
+                    {#if (dish.usage_count ?? 0) > 0}<span class="dish-uses">{dish.usage_count}×</span>{/if}
+                  </div>
+                  <div class="dish-macros">
+                    <span>{Math.round(Number(dish.kcal) || 0)} kcal</span>
+                    <span>{Math.round(Number(dish.protein_g) || 0)}g P</span>
+                  </div>
+                </button>
+              {/each}
+            </div>
+          {/if}
+
+          <!-- Search input -->
+          <div class="modal-section-label">Anderes Gericht suchen</div>
+          <input class="dish-search-input" type="text" placeholder="Gericht eingeben…" oninput={onDishSearch} value={dishSearchQuery} />
+          {#if dishSearchResults.length > 0}
+            <div class="dish-list">
+              {#each dishSearchResults as dish (dish.id)}
+                <button class="dish-btn" onclick={() => selectDishForEdit(dish)}>
+                  <div class="dish-info">
+                    <span class="dish-name">{dish.name}</span>
+                    {#if dish.is_default}<span class="dish-badge">Standard</span>{/if}
+                  </div>
+                  <div class="dish-macros">
+                    <span>{Math.round(Number(dish.kcal) || 0)} kcal</span>
+                    <span>{Math.round(Number(dish.protein_g) || 0)}g P</span>
+                    {#if dish.portion_label}<span class="dish-portion">{dish.portion_label}</span>{/if}
+                  </div>
+                </button>
+              {/each}
+            </div>
+          {:else if dishSearchQuery.trim().length >= 2}
+            <div class="modal-empty">Keine Treffer</div>
+          {/if}
+        {/if}
+
+        <div class="modal-actions">
+          {#if editPhotoLoading}
+            <div class="photo-progress modal-progress">
+              <div class="photo-progress-bar">
+                <div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div>
+              </div>
+              <span class="photo-progress-label">
+                {editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' :
+                 editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' :
+                 editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}
+              </span>
+            </div>
+          {/if}
+          <button class="modal-primary cam-action" onclick={triggerEditPhoto} disabled={editPhotoLoading}>
+            {#if editPhotoLoading}<Icon name="refresh" size={18} />{:else}<Icon name="camera" size={18} />{/if}
+            <span>{editPhotoLoading ? 'Analysiere…' : 'Foto analysieren'}</span>
+          </button>
+          <button class="modal-secondary" onclick={closeMealEdit}>Abbrechen</button>
+        </div>
+      {:else}
+        <!-- Dish detail view with portion slider -->
+        <div class="modal-title">{selectedDish.name}</div>
+        <button class="modal-back" onclick={backToDishList}>← Zurück</button>
+
+        <div class="portion-section">
+          <div class="portion-label-row">
+            <span class="portion-current">{portionDisplay}</span>
+            {#if selectedDish.is_scalable}
+              <span class="portion-hint">Skaliere mit dem Slider</span>
+            {:else}
+              <span class="portion-hint">Feste Portion</span>
+            {/if}
+          </div>
+
+          {#if selectedDish.is_scalable}
+            <div class="portion-slider-row">
+              <span class="slider-end">0.5×</span>
+              <input class="portion-slider" type="range" min="0.5" max="3" step="0.1" bind:value={portionFactor} />
+              <span class="slider-end">3×</span>
+            </div>
+          {/if}
+
+          <div class="portion-macros">
+            <div class="macro"><span class="macro-l">Kcal</span><span class="macro-v">{scaledKcal}</span></div>
+            <div class="macro"><span class="macro-l">Protein</span><span class="macro-v">{scaledProtein}g</span></div>
+            <div class="macro"><span class="macro-l">Carbs</span><span class="macro-v">{scaledCarbs}g</span></div>
+            <div class="macro"><span class="macro-l">Fat</span><span class="macro-v">{scaledFat}g</span></div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="modal-primary" onclick={confirmDishSelection}>Bestätigen</button>
+          <button class="modal-secondary" onclick={backToDishList}>Zurück</button>
         </div>
       {/if}
-      <div class="modal-actions">
-        {#if editPhotoLoading}
-          <div class="photo-progress modal-progress">
-            <div class="photo-progress-bar">
-              <div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div>
-            </div>
-            <span class="photo-progress-label">
-              {editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' :
-               editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' :
-               editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}
-            </span>
-          </div>
-        {/if}
-        <button class="modal-primary cam-action" onclick={triggerEditPhoto} disabled={editPhotoLoading}>
-          {#if editPhotoLoading}<Icon name="refresh" size={18} />{:else}<Icon name="camera" size={18} />{/if}
-          <span>{editPhotoLoading ? 'Analysiere…' : 'Foto analysieren'}</span>
-        </button>
-        <button class="modal-secondary" onclick={closeMealEdit}>Abbrechen</button>
-      </div>
     </div>
   </div>
 {/if}
@@ -881,4 +1014,25 @@
   .photo-progress-label { font-size: 12px; color: var(--text-dim); display: block; text-align: center; }
   @keyframes photoLoad { 0% { width: 0; } 50% { width: 65%; } 100% { width: 90%; } }
   @keyframes photoDone { from { width: 90%; } to { width: 100%; } }
+
+  /* Dish selection modal — new styles */
+  .dish-default-highlight { background: var(--card-2); border: 2px solid var(--green); margin-bottom: 8px; }
+  .dish-default-highlight .dish-name { font-weight: 700; color: var(--green); }
+  .dish-portion { font-size: 11px; color: var(--text-dim); padding: 2px 6px; background: var(--card-2); border-radius: 4px; }
+  .dish-search-input { width: 100%; padding: 10px 12px; border-radius: 8px; background: var(--card-2); border: 1px solid var(--border-2); color: var(--text); font-size: 14px; margin-bottom: 8px; outline: none; }
+  .dish-search-input:focus { border-color: var(--green); }
+  .modal-back { background: none; border: none; color: var(--text-dim); font-size: 13px; cursor: pointer; margin-bottom: 12px; padding: 0; }
+  .portion-section { padding: 16px 0; }
+  .portion-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .portion-current { font-size: 24px; font-weight: 700; color: var(--green); }
+  .portion-hint { font-size: 12px; color: var(--text-dim); }
+  .portion-slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+  .slider-end { font-size: 11px; color: var(--text-dim); min-width: 28px; text-align: center; }
+  .portion-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; background: var(--border-2); outline: none; }
+  .portion-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: var(--green); cursor: pointer; border: none; }
+  .portion-slider::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: var(--green); cursor: pointer; border: none; }
+  .portion-macros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px; background: var(--card-2); border: 1px solid var(--border-2); border-radius: 8px; }
+  .portion-macros .macro { display: flex; flex-direction: column; gap: 3px; text-align: center; }
+  .portion-macros .macro-l { font-size: 11px; text-transform: uppercase; font-weight: 600; color: var(--text-dim); }
+  .portion-macros .macro-v { font-size: 16px; font-weight: 700; color: var(--text); }
 </style>

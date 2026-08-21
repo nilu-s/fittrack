@@ -149,6 +149,8 @@ class MealBase(_Base):
     photo_analysis: Optional[dict[str, Any]] = None
     assigned_via_photo: bool = False
     deleted: bool = False
+    portion_factor: Optional[Decimal] = Decimal("1.00")
+    dish_id: Optional[uuid.UUID] = None
 
 
 class MealCreate(MealBase):
@@ -169,6 +171,8 @@ class MealUpdate(_Base):
     photo_analysis: Optional[dict[str, Any]] = None
     assigned_via_photo: Optional[bool] = None
     deleted: Optional[bool] = None
+    portion_factor: Optional[Decimal] = None
+    dish_id: Optional[uuid.UUID] = None
 
 
 class MealResponse(MealBase):
@@ -210,7 +214,7 @@ class MealTemplateResponse(MealTemplateBase):
 # ---------------------------------------------------------------------------#
 class DishBase(_Base):
     user_id: str = "luis"
-    slot: int
+    slot: Optional[int] = None  # preferred slot, not mandatory
     name: str
     kcal: Optional[Decimal] = None
     protein_g: Optional[Decimal] = None
@@ -220,6 +224,9 @@ class DishBase(_Base):
     is_default: bool = False
     usage_count: int = 0
     source: str = "manual"
+    portion_label: Optional[str] = None
+    portion_grams: Optional[Decimal] = None
+    is_scalable: bool = False
 
 
 class DishCreate(DishBase):
@@ -234,6 +241,10 @@ class DishUpdate(_Base):
     fat_g: Optional[Decimal] = None
     photo_url: Optional[str] = None
     is_default: Optional[bool] = None
+    slot: Optional[int] = None
+    portion_label: Optional[str] = None
+    portion_grams: Optional[Decimal] = None
+    is_scalable: Optional[bool] = None
 
 
 class DishResponse(DishBase):
@@ -246,6 +257,12 @@ class DishMatchResult(_Base):
     matched: bool
     dish: Optional[DishResponse] = None
     similarity: float = 0.0
+
+
+class DishRecommendResult(_Base):
+    """Result for GET /dishes/recommend — default + alternatives for a slot."""
+    default: Optional[DishResponse] = None
+    alternatives: list[DishResponse] = []
 
 
 # ---------------------------------------------------------------------------#

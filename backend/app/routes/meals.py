@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date as date_type, time
+from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -60,6 +61,8 @@ async def _auto_create_from_templates(session, user_id: str, day: date_type) -> 
                 fat_g=dish.fat_g,
                 is_standard=True,
                 is_done=False,
+                dish_id=dish.id,
+                portion_factor=Decimal("1.00"),
             )
             session.add(meal)
     else:

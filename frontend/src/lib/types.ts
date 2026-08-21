@@ -56,6 +56,8 @@ export interface Meal {
   photo_analysis?: any;
   assigned_via_photo?: boolean;
   deleted?: boolean;
+  portion_factor?: number;
+  dish_id?: string | null;
   updated_at?: string;
 }
 
@@ -171,7 +173,7 @@ export interface MealTemplate {
 export interface Dish {
   id?: string;
   user_id?: string;
-  slot: number;
+  slot?: number | null;
   name: string;
   kcal?: number | null;
   protein_g?: number | null;
@@ -181,6 +183,9 @@ export interface Dish {
   is_default?: boolean;
   usage_count?: number;
   source?: string;
+  portion_label?: string | null;
+  portion_grams?: number | null;
+  is_scalable?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -191,12 +196,20 @@ export interface DishMatchResult {
   similarity: number;
 }
 
+export interface DishRecommendResult {
+  default: Dish | null;
+  alternatives: Dish[];
+}
+
 export interface PhotoAnalysisItem {
   name: string;
   kcal: number;
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  portion_label?: string | null;
+  portion_grams?: number | null;
+  is_scalable?: boolean;
 }
 
 export interface PhotoAnalysis {

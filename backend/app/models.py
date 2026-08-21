@@ -86,6 +86,8 @@ class Meal(Base):
     photo_analysis: Mapped[dict | None] = mapped_column(JSONB)
     assigned_via_photo: Mapped[bool] = mapped_column(Boolean, default=False)
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    portion_factor: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal("1.00"))
+    dish_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
@@ -252,17 +254,24 @@ class ExerciseProgress(Base):
 class Dish(Base):
     """Reusable dish/preset — grows over time from templates + photo analyses.
 
-    is_default=True marks the dish that auto-creates as the meal for a slot each day.
-    Multiple dishes per slot exist; user picks via long-press or photo creates new ones.
+    Dishes are slot-independent: any dish can be assigned to any meal slot.
+    `preferred_slot` is a hint for the recommend endpoint (which dish to show first for a slot).
+    `is_default=True` marks the dish that auto-creates as the meal for a slot each day.
+
+    Portion fields:
+    - portion_label: human-readable portion ("100g", "1 Portion", "1 Döner")
+    - portion_grams: numeric grams for scalable dishes (null for "1 Portion")
+    - is_scalable: True → show slider; False → single serving, no slider
+    Nutritional values are per the default portion; portion_factor on Meal scales them.
     """
     __tablename__ = "dishes"
     __table_args__ = (
-        UniqueConstraint("user_id", "slot", "name", name="uq_dishes_user_slot_name"),
+        UniqueConstraint("user_id", "name", name="uq_dishes_user_name"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
-    slot: Mapped[int] = mapped_column(Integer, nullable=False)
+    slot: Mapped[int | None] = mapped_column(Integer, nullable=True)  # preferred slot, not mandatory
     name: Mapped[str] = mapped_column(Text, nullable=False)
     kcal: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
     protein_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
@@ -272,6 +281,9 @@ class Dish(Base):
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     usage_count: Mapped[int] = mapped_column(Integer, default=0)
     source: Mapped[str] = mapped_column(Text, default="seed")  # 'seed' | 'photo' | 'manual'
+    portion_label: Mapped[str | None] = mapped_column(Text)
+    portion_grams: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
+    is_scalable: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
