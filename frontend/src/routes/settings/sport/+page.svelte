@@ -27,7 +27,7 @@
   let error = '';
   let selectedSlot: TrainingRotation | null = null;
   let modalDraft: RotationDraft | null = null;
-  let addingPlanner = false;
+  let isNewPlanner = false;
   let activeView: 'week' | 'units' = 'week';
   let showUnitCreator = false;
 
@@ -149,17 +149,14 @@
     finally { loading = false; }
   }
   function entriesForDay(day: number): TrainingRotation[] { return rotation.filter((entry) => entry.weekday === day); }
-  function openPlanner(entry: TrainingRotation, day?: number) { selectedSlot = entry; modalDraft = { ...makeDraft(entry), weekday: day == null ? makeDraft(entry).weekday : String(day) }; }
-  async function openNewPlanner(day: number) {
-    if (addingPlanner) return;
-    addingPlanner = true; error = '';
-    const created = await api.createRotation({ training_type: units[0]?.name ?? 'Cardio', weekday: day, frequency_weeks: 1, start_date: null });
-    if (created) {
-      await loadRotation();
-      const fresh = rotation.find((item) => item.slot === created.slot) ?? created;
-      openPlanner(fresh, day);
-    } else error = 'Neue Einheit konnte nicht angelegt werden.';
-    addingPlanner = false;
+  function openPlanner(entry: TrainingRotation, day?: number) { isNewPlanner = false; selectedSlot = entry; modalDraft = { ...makeDraft(entry), weekday: day == null ? makeDraft(entry).weekday : String(day) }; }
+  function openNewPlanner(day: number) {
+    const firstUnit = units.find((unit) => unit.is_active !== false);
+    if (!firstUnit) { error = 'Lege zuerst eine Trainingseinheit an.'; activeView = 'units'; return; }
+    error = '';
+    isNewPlanner = true;
+    selectedSlot = { slot: 0, training_type: firstUnit.name, weekday: day, frequency_weeks: 1, week_offset: 0, start_date: null };
+    modalDraft = makeDraft(selectedSlot);
   }
   function firstPlannedDate(draft: RotationDraft): string {
     if (!draft.start_date || draft.weekday === '') return 'Wochentag und Datum auswählen';
@@ -175,16 +172,16 @@
     saving = selectedSlot.slot; error = '';
     const frequency_weeks = Math.max(1, Math.min(52, Number(modalDraft.frequency_weeks) || 1));
     const week_offset = Math.max(0, Math.min(51, Number(modalDraft.week_offset) || 0));
-    const result = await api.updateRotation(selectedSlot.slot, { training_type: modalDraft.training_type.trim() || selectedSlot.training_type, weekday: modalDraft.weekday === '' ? null : Number(modalDraft.weekday), frequency_weeks, week_offset, start_date: modalDraft.start_date || null });
+    const payload = { training_type: modalDraft.training_type.trim() || selectedSlot.training_type, weekday: modalDraft.weekday === '' ? null : Number(modalDraft.weekday), frequency_weeks, week_offset, start_date: modalDraft.start_date || null };
+    const result = isNewPlanner ? await api.createRotation(payload) : await api.updateRotation(selectedSlot.slot, payload);
     if (result) {
       await loadRotation();
-      selectedSlot = null;
-      modalDraft = null;
-    } else error = `Slot ${selectedSlot.slot} konnte nicht gespeichert werden.`;
+      closePlanner();
+    } else error = isNewPlanner ? 'Der Termin konnte nicht gespeichert werden. Prüfe, ob diese Planung bereits existiert.' : `Slot ${selectedSlot.slot} konnte nicht gespeichert werden.`;
     saving = null;
   }
-  async function removePlanner() { if (!selectedSlot || !confirm('Geplante Einheit wirklich entfernen?')) return; if (await api.deleteRotation(selectedSlot.slot)) { await loadRotation(); closePlanner(); } }
-  function closePlanner() { selectedSlot = null; modalDraft = null; }
+  async function removePlanner() { if (!selectedSlot) return; if (isNewPlanner) { closePlanner(); return; } if (!confirm('Geplante Einheit wirklich entfernen?')) return; if (await api.deleteRotation(selectedSlot.slot)) { await loadRotation(); closePlanner(); } }
+  function closePlanner() { selectedSlot = null; modalDraft = null; isNewPlanner = false; }
   onMount(() => { loadUnits(); loadRotation(); });
 </script>
 
@@ -218,7 +215,7 @@
                   <span class="chevron">›</span>
                 </button>
               {/each}
-              <button class="add-entry" onclick={() => openNewPlanner(index)} disabled={addingPlanner}><span>+</span>{addingPlanner ? 'Wird angelegt…' : 'Training planen'}</button>
+              <button class="add-entry" onclick={() => openNewPlanner(index)}><span>+</span>Training planen</button>
             </div>
           </div>
         {/each}{/if}
@@ -313,7 +310,7 @@
         <div class="two-fields"><label>Wochentag<select bind:value={modalDraft.weekday}><option value="">Nicht geplant</option>{#each WEEKDAYS as day, index}<option value={String(index)}>{day}</option>{/each}</select></label><label>Gültig ab<input type="date" bind:value={modalDraft.start_date} /></label></div>
         <div class="plan-hint"><span>Nächster Termin</span><strong>{firstPlannedDate(modalDraft)}</strong></div>
         <div class="two-fields"><label>Alle<input type="number" min="1" max="52" bind:value={modalDraft.frequency_weeks} /><small class="field-help">Wochen</small></label><label>Startversatz<input type="number" min="0" max="51" bind:value={modalDraft.week_offset} /><small class="field-help">Wochen</small></label></div>
-        <div class="modal-actions split"><button class="secondary danger" onclick={removePlanner}>Termin entfernen</button><span></span><button class="secondary" onclick={closePlanner}>Abbrechen</button><button class="primary" onclick={savePlanner} disabled={saving === selectedSlot.slot}>{saving === selectedSlot.slot ? 'Speichern…' : 'Speichern'}</button></div>
+        <div class="modal-actions split"><button class="secondary danger" onclick={removePlanner}>{isNewPlanner ? 'Verwerfen' : 'Termin entfernen'}</button><span></span><button class="secondary" onclick={closePlanner}>Abbrechen</button><button class="primary" onclick={savePlanner} disabled={saving === selectedSlot.slot}>{saving === selectedSlot.slot ? 'Speichern…' : 'Speichern'}</button></div>
       </div>
     </div>
   {/if}

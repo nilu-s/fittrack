@@ -231,22 +231,6 @@ async def _require_active_training_unit(session, training_type: str) -> None:
         raise HTTPException(status_code=422, detail="training_type must reference an active training unit")
 
 
-async def _reject_duplicate_rotation(session, *, slot: int | None, training_type: str, weekday: int | None, frequency_weeks: int, week_offset: int, start_date: date_type | None) -> None:
-    if weekday is None:
-        return
-    stmt = select(TrainingRotation).where(
-        TrainingRotation.user_id == USER_ID,
-        TrainingRotation.weekday == weekday,
-        TrainingRotation.frequency_weeks == frequency_weeks,
-        TrainingRotation.week_offset == week_offset,
-        TrainingRotation.start_date == start_date,
-    )
-    if slot is not None:
-        stmt = stmt.where(TrainingRotation.slot != slot)
-    if (await session.execute(stmt)).scalars().first() is not None:
-        raise HTTPException(status_code=409, detail="Another rotation entry already occupies this schedule")
-
-
 # ---------------------------------------------------------------------------
 # GET /api/training?date=  — training for date (auto-suggest from rotation)
 # ---------------------------------------------------------------------------
@@ -628,15 +612,6 @@ async def create_rotation(body: TrainingRotationCreate, user: str = Depends(get_
         raise HTTPException(status_code=422, detail="frequency_weeks must be between 1 and 52")
     async with async_session() as session:
         await _require_active_training_unit(session, body.training_type)
-        await _reject_duplicate_rotation(
-            session,
-            slot=None,
-            training_type=body.training_type,
-            weekday=body.weekday,
-            frequency_weeks=body.frequency_weeks,
-            week_offset=body.week_offset,
-            start_date=body.start_date,
-        )
         max_slot = await session.scalar(select(func.max(TrainingRotation.slot)).where(TrainingRotation.user_id == USER_ID))
         rotation = TrainingRotation(user_id=USER_ID, slot=(max_slot or 0) + 1, **body.model_dump(exclude={"user_id", "slot"}))
         session.add(rotation)
@@ -662,20 +637,7 @@ async def update_rotation(slot: int, body: TrainingRotationUpdate, user: str = D
             raise HTTPException(status_code=404, detail="Rotation slot not found")
         values = body.model_dump(exclude_unset=True)
         next_training_type = values.get("training_type", rot.training_type)
-        next_weekday = values.get("weekday", rot.weekday)
-        next_frequency = values.get("frequency_weeks", rot.frequency_weeks)
-        next_offset = values.get("week_offset", rot.week_offset)
-        next_start_date = values.get("start_date", rot.start_date)
         await _require_active_training_unit(session, next_training_type)
-        await _reject_duplicate_rotation(
-            session,
-            slot=slot,
-            training_type=next_training_type,
-            weekday=next_weekday,
-            frequency_weeks=next_frequency,
-            week_offset=next_offset,
-            start_date=next_start_date,
-        )
         for field, value in values.items():
             setattr(rot, field, value)
         await session.commit()
