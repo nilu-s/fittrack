@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import SettingsHeader from '$lib/components/SettingsHeader.svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import ProgressionHelp from '$lib/components/ProgressionHelp.svelte';
   import { api } from '$lib/api';
   import type { Exercise, TrainingRotation, TrainingUnit } from '$lib/types';
 
@@ -45,11 +46,7 @@
   function updateSetCount(exercise: Exercise, value: string): void {
     exercise.target_sets = String(Math.max(1, Math.min(99, Number(value) || 1)));
   }
-  function progressionSummary(strategy?: string, increment?: number | string | null): string {
-    if (strategy === 'weight_increase') return `Bei Ziel: +${increment ?? 2.5} kg`;
-    if (strategy === 'reps_only') return 'Erst Wiederholungen steigern';
-    return `Erst Wiederholungen, dann +${increment ?? 2.5} kg`;
-  }
+
   async function loadUnits() {
     unitLoading = true;
     units = await api.getTrainingUnits();
@@ -269,7 +266,7 @@
                       </div>
                       <div class="exercise-toolbar"><button class="text-button" onclick={() => toggleAdvanced(exercise)}>{showAdvanced[exercise.id!] ? 'Details schließen' : 'Progression & Details'}</button><div class="exercise-actions"><button class="icon-button" onclick={() => moveExercise(unit.name, exerciseIndex, -1)} aria-label="Übung nach oben">↑</button><button class="icon-button" onclick={() => moveExercise(unit.name, exerciseIndex, 1)} aria-label="Übung nach unten">↓</button><button class="icon-button success" onclick={() => saveExercise(exercise)} disabled={savingExercise === exercise.id} aria-label="Übung speichern">{savingExercise === exercise.id ? '…' : '✓'}</button><button class="icon-button danger" onclick={() => removeExercise(unit.name, exercise)} aria-label="Übung entfernen">×</button></div></div>
                       {#if showAdvanced[exercise.id!]}
-                        <div class="advanced-fields"><label>Progression<select bind:value={exercise.progression_strategy}><option value="double_progression">Erst Wiederholungen, dann Gewicht</option><option value="weight_increase">Gewicht direkt steigern</option><option value="reps_only">Nur Wiederholungen steigern</option></select></label><label>Gewichtsschritt<input type="number" step="0.25" min="0" bind:value={exercise.progression_increment_weight} /></label><span class="progression-explanation">{progressionSummary(exercise.progression_strategy, exercise.progression_increment_weight)}</span><label class="topset-toggle"><input type="checkbox" checked={exercise.is_topset} onchange={(event) => toggleTopset(exercise, (event.target as HTMLInputElement).checked)} /> Top-Satz mit Back-off-Sätzen</label>{#if exercise.is_topset}<div class="backoff-fields"><div class="locked-field"><strong>1 Top-Satz</strong><small>steuert die Progression</small></div><label>Back-off-Sätze<select bind:value={exercise.backoff_set_count}>{#each [0, 1, 2, 3, 4, 5] as count}<option value={count}>{count}</option>{/each}</select></label><label>Wdh. ab<input type="number" min="1" bind:value={exercise.backoff_reps_low} /></label><label>Wdh. bis<input type="number" min="1" bind:value={exercise.backoff_reps_high} /></label><label>Gewicht %<input type="number" min="50" max="99" bind:value={exercise.backoff_weight_percent} /></label></div>{/if}</div>
+                        <div class="advanced-fields"><label>Progression<select bind:value={exercise.progression_strategy}><option value="double_progression">Erst Wiederholungen, dann Gewicht</option><option value="weight_increase">Gewicht direkt steigern</option><option value="reps_only">Nur Wiederholungen steigern</option></select></label><label>Gewichtsschritt<input type="number" step="0.25" min="0" bind:value={exercise.progression_increment_weight} /></label><ProgressionHelp strategy={exercise.progression_strategy} repsLow={exercise.target_reps_low} repsHigh={exercise.target_reps_high} increment={exercise.progression_increment_weight} targetRir={exercise.target_rir} /><label class="topset-toggle"><input type="checkbox" checked={exercise.is_topset} onchange={(event) => toggleTopset(exercise, (event.target as HTMLInputElement).checked)} /> Top-Satz mit Back-off-Sätzen</label>{#if exercise.is_topset}<div class="backoff-fields"><div class="locked-field"><strong>1 Top-Satz</strong><small>steuert die Progression</small></div><label>Back-off-Sätze<select bind:value={exercise.backoff_set_count}>{#each [0, 1, 2, 3, 4, 5] as count}<option value={count}>{count}</option>{/each}</select></label><label>Wdh. ab<input type="number" min="1" bind:value={exercise.backoff_reps_low} /></label><label>Wdh. bis<input type="number" min="1" bind:value={exercise.backoff_reps_high} /></label><label>Gewicht %<input type="number" min="50" max="99" bind:value={exercise.backoff_weight_percent} /></label></div>{/if}</div>
                       {/if}
                     </article>
                   {/each}
@@ -277,7 +274,7 @@
               </section>
               <section class="editor-section add-exercise-section">
                 <div class="editor-section-title"><div><span class="eyebrow">Erweitern</span><h3>Übung hinzufügen</h3></div></div>
-                <div class="exercise-add"><label class="exercise-title">Name<input class="exercise-name" placeholder="z. B. Bankdrücken" bind:value={newExercises[unit.name].exercise_name} /></label><div class="compact-grid"><label>Sätze<input type="number" min="1" max="20" bind:value={newExercises[unit.name].target_sets} /></label><label>Wdh. von<input type="number" min="1" bind:value={newExercises[unit.name].target_reps_low} /></label><label>Wdh. bis<input type="number" min="1" bind:value={newExercises[unit.name].target_reps_high} /></label><label>RIR<input type="number" min="0" max="5" bind:value={newExercises[unit.name].target_rir} /></label></div><label>Progression<select bind:value={newExercises[unit.name].progression_strategy}><option value="double_progression">Wiederholungen, dann Gewicht</option><option value="weight_increase">Gewicht direkt steigern</option><option value="reps_only">Nur Wiederholungen steigern</option></select></label><button class="primary wide" onclick={() => addExercise(unit.name)} disabled={savingExercise === `${unit.name}:new`}>{savingExercise === `${unit.name}:new` ? 'Wird hinzugefügt…' : '+ Übung hinzufügen'}</button></div>
+                <div class="exercise-add"><label class="exercise-title">Name<input class="exercise-name" placeholder="z. B. Bankdrücken" bind:value={newExercises[unit.name].exercise_name} /></label><div class="compact-grid"><label>Sätze<input type="number" min="1" max="20" bind:value={newExercises[unit.name].target_sets} /></label><label>Wdh. von<input type="number" min="1" bind:value={newExercises[unit.name].target_reps_low} /></label><label>Wdh. bis<input type="number" min="1" bind:value={newExercises[unit.name].target_reps_high} /></label><label>RIR<input type="number" min="0" max="5" bind:value={newExercises[unit.name].target_rir} /></label></div><label>Progression<select bind:value={newExercises[unit.name].progression_strategy}><option value="double_progression">Wiederholungen, dann Gewicht</option><option value="weight_increase">Gewicht direkt steigern</option><option value="reps_only">Nur Wiederholungen steigern</option></select></label><ProgressionHelp strategy={newExercises[unit.name].progression_strategy} repsLow={newExercises[unit.name].target_reps_low} repsHigh={newExercises[unit.name].target_reps_high} increment={newExercises[unit.name].progression_increment_weight} targetRir={newExercises[unit.name].target_rir} /><button class="primary wide" onclick={() => addExercise(unit.name)} disabled={savingExercise === `${unit.name}:new`}>{savingExercise === `${unit.name}:new` ? 'Wird hinzugefügt…' : '+ Übung hinzufügen'}</button></div>
               </section>
             {:else}
               <section class="editor-section cardio-panel"><div class="cardio-visual"><Icon name="cardio" size={26} /></div><div><h3>Flexibles Cardio</h3><p>Die Dauer ist dein Mindestziel. Aktivität und tatsächliche Zeit wählst du am Trainingstag.</p></div></section>
@@ -400,7 +397,6 @@
   .icon-button.success { color: var(--green); }
   .icon-button.danger, .danger { color: var(--red); }
   .advanced-fields { display: grid; grid-template-columns: 1.5fr .8fr; gap: 8px; margin-top: 10px; padding-top: 11px; border-top: 1px solid var(--border); }
-  .progression-explanation { grid-column: 1 / -1; color: var(--text-faint); font-size: 10px; }
   .topset-toggle { grid-column: 1 / -1; min-height: 42px; display: flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: 11px; text-transform: none; letter-spacing: normal; }
   .topset-toggle input { width: 20px; height: 20px; margin: 0; }
   .backoff-fields { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 7px; }
@@ -453,7 +449,7 @@
     .exercise-toolbar { align-items: flex-start; flex-direction: column; }
     .exercise-actions { width: 100%; justify-content: flex-end; }
     .advanced-fields, .two-fields { grid-template-columns: 1fr; }
-    .advanced-fields > *, .progression-explanation { grid-column: 1; }
+    .advanced-fields > * { grid-column: 1; }
     .modal-actions.split { grid-template-columns: 1fr 1fr; }
     .modal-actions.split span { display: none; }
     .modal-actions.split .danger { grid-column: 1 / -1; }
