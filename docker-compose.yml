@@ -39,7 +39,6 @@ services:
       - fittrack-db
     networks:
       - fittrack-net
-      - worldweave_default
       - agent_net
     restart: unless-stopped
 
@@ -49,7 +48,6 @@ services:
       - fittrack-api
     networks:
       - fittrack-net
-      - worldweave_default
     restart: unless-stopped
 
   vision-proxy:
@@ -63,13 +61,34 @@ services:
       - fittrack-net
     restart: unless-stopped
 
+  caddy:
+    image: caddy:2.9.1-alpine
+    environment:
+      FITTRACK_CADDY_SITE: ${FITTRACK_CADDY_SITE:-https://fittrack.49.12.225.84.sslip.io}
+      FITTRACK_CADDY_AUTH_USER: ${FITTRACK_CADDY_AUTH_USER:?set in .env}
+      FITTRACK_CADDY_AUTH_HASH: ${FITTRACK_CADDY_AUTH_HASH:?set in .env}
+    ports:
+      - "${FITTRACK_BIND_ADDRESS:-49.12.225.84}:${FITTRACK_HTTP_PORT:-80}:80"
+      - "${FITTRACK_BIND_ADDRESS:-49.12.225.84}:${FITTRACK_HTTPS_PORT:-443}:443"
+      - "${FITTRACK_BIND_ADDRESS:-49.12.225.84}:${FITTRACK_HTTPS_PORT:-443}:443/udp"
+    depends_on:
+      - fittrack-api
+      - fittrack-web
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - fittrack_caddy_data:/data
+      - fittrack_caddy_config:/config
+    networks:
+      - fittrack-net
+    restart: unless-stopped
+
 volumes:
   fittrack_pgdata:
+  fittrack_caddy_data:
+  fittrack_caddy_config:
 
 networks:
   fittrack-net:
     driver: bridge
-  worldweave_default:
-    external: true
   agent_net:
     external: true

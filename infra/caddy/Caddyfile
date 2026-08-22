@@ -1,0 +1,23 @@
+{$FITTRACK_CADDY_SITE} {
+  encode gzip zstd
+
+  @google_public path /api/google/callback /api/auth/google/login
+  handle @google_public {
+    reverse_proxy fittrack-api:8000
+  }
+
+  @api path /api/*
+  handle @api {
+    basic_auth {
+      {$FITTRACK_CADDY_AUTH_USER} {$FITTRACK_CADDY_AUTH_HASH}
+    }
+    reverse_proxy fittrack-api:8000
+  }
+
+  handle {
+    basic_auth {
+      {$FITTRACK_CADDY_AUTH_USER} {$FITTRACK_CADDY_AUTH_HASH}
+    }
+    reverse_proxy fittrack-web:3000
+  }
+}
