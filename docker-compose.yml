@@ -67,6 +67,7 @@ services:
       FITTRACK_CADDY_SITE: ${FITTRACK_CADDY_SITE:-https://fittrack.49.12.225.84.sslip.io}
       FITTRACK_CADDY_AUTH_USER: ${FITTRACK_CADDY_AUTH_USER:?set in .env}
       FITTRACK_CADDY_AUTH_HASH: ${FITTRACK_CADDY_AUTH_HASH:?set in .env}
+      HERMES_PREVIEW_DOMAIN: ${HERMES_PREVIEW_DOMAIN:-preview.49.12.225.84.sslip.io}
     ports:
       - "${FITTRACK_BIND_ADDRESS:-49.12.225.84}:${FITTRACK_HTTP_PORT:-80}:80"
       - "${FITTRACK_BIND_ADDRESS:-49.12.225.84}:${FITTRACK_HTTPS_PORT:-443}:443"
@@ -76,6 +77,7 @@ services:
       - fittrack-web
     volumes:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /srv/hermes/previews:/srv/hermes/previews:ro
       - fittrack_caddy_data:/data
       - fittrack_caddy_config:/config
     networks:

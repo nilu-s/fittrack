@@ -21,3 +21,27 @@
     reverse_proxy fittrack-web:3000
   }
 }
+
+buzz.49.12.225.84.sslip.io {
+  encode gzip zstd
+  reverse_proxy buzz-relay:3000
+}
+
+{$HERMES_PREVIEW_DOMAIN} {
+  encode gzip zstd
+
+  @hidden path_regexp hidden (^|/)[.]
+  @secret path_regexp secret (?i)(^|/)([^/]+[.](env|pem|key|crt|p12|pfx|sqlite|sqlite3|db|log))$
+  respond @hidden 404
+  respond @secret 404
+
+  root * /srv/hermes/previews
+  header {
+    Cache-Control "no-store"
+    Referrer-Policy "no-referrer"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "SAMEORIGIN"
+  }
+  try_files {path} {path}/index.html
+  file_server
+}
