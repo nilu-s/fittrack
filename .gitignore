@@ -4,6 +4,7 @@ build/
 dist/
 .env
 .env.local
+esp32-scale-bridge/src/config.h
 *.pyc
 __pycache__/
 *.egg-info/

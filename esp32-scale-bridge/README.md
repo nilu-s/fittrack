@@ -39,6 +39,27 @@ pio run -t upload
 pio run -t monitor
 ```
 
+## First: identify the exact ES-CS20M protocol
+
+The Amazon model is **RENPHO ES-CS20M**. Do this before using the production
+bridge: BLE protocol variants differ between Renpho models.
+
+```bash
+# Upload the non-invasive BLE diagnostic (no WiFi/API configuration required)
+pio run -e diagnostic -t upload
+pio device monitor -b 115200
+```
+
+Then wake the scale by stepping on it, perform one complete bare-foot
+measurement, and save the serial output from
+`FITTRACK_SCALE_DIAGNOSTIC_START` through the last `FRAME` line. The diagnostic
+prints advertisement data, every discovered GATT service/characteristic and
+all notification/indication frames; it never sends a measurement to FitTrack.
+
+Send that log back before flashing the normal `esp32dev` environment. We use it
+to implement and test the ES-CS20M-specific decoder rather than guessing a
+generic Renpho packet format.
+
 ## Config (config.h)
 
 | Setting | Description |

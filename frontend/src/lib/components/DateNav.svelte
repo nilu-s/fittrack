@@ -41,7 +41,7 @@
 </nav>
 
 <style>
-  .dnav { position: fixed; z-index: 40; left: 50%; bottom: 8px; transform: translateX(-50%); width: min(calc(100% - 20px), 460px); min-height: 52px; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px 44px; align-items: center; gap: 2px; padding: 4px; padding-bottom: max(4px, env(safe-area-inset-bottom, 0px)); background: #1a1b1e; border: 1px solid var(--border-2); border-radius: 14px; box-shadow: 0 8px 28px rgba(0,0,0,.42); touch-action: pan-y; }
+  .dnav { position: fixed; z-index: 40; left: 50%; bottom: 8px; transform: translateX(-50%); width: min(calc(100% - 20px), 460px); min-height: 52px; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px 44px; align-items: center; gap: 2px; padding: 4px; padding-bottom: max(4px, env(safe-area-inset-bottom, 0px)); background: var(--surface-navigation); border: 1px solid var(--border-default); border-radius: var(--radius-surface); touch-action: pan-y; }
   .dnav-btn { width: 44px; height: 44px; border-radius: 10px; background: transparent; border: 0; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s; }
   .dnav-btn:active, .dnav-btn:focus-visible { background: var(--card-2); color: var(--text); }
   .dnav-mid { min-width: 0; height: 44px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; background: transparent; cursor: pointer; padding: 4px 10px; border-radius: 10px; }

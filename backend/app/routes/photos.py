@@ -26,7 +26,7 @@ async def analyze_photo(
     meal_id: Optional[str] = Form(None),
     user: str = Depends(get_current_user),
 ):
-    """Upload a food photo → save → call Ollama Vision → return analysis.
+    """Upload a food photo → save → call the vision service → return analysis.
 
     If meal_id is provided, the analysis result is also persisted to the meal:
     - meal.photo_analysis = analysis

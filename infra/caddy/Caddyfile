@@ -24,7 +24,15 @@
 
 buzz.49.12.225.84.sslip.io {
   encode gzip zstd
-  reverse_proxy buzz-relay:3000
+
+  @buzz_pair path /pair /pair/*
+  handle @buzz_pair {
+    reverse_proxy buzz-pairing:5000
+  }
+
+  handle {
+    reverse_proxy buzz-relay:3000
+  }
 }
 
 {$HERMES_PREVIEW_DOMAIN} {

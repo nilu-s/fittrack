@@ -8,9 +8,6 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "postgresql+asyncpg://fittrack:fittrack@localhost:5432/fittrack"
     FITTRACK_JWT_SECRET: str = "fittrack_jwt_secret_2026"
-    OLLAMA_URL: str = "http://127.0.0.1:11434"
-    OLLAMA_VISION_MODEL: str = "moondream:1.8b"
-    OLLAMA_TEXT_MODEL: str = "kimi-k3:cloud"
     VISION_PROXY_URL: str = "http://host.docker.internal:8100"
     PHOTO_DIR: str = "/app/photos"
     GOOGLE_CLIENT_ID: str = ""

@@ -5,7 +5,7 @@ Offline-first PWA für Fitness-, Ernährungs- und To-Do-Tracking.
 ## Stack
 - **Frontend:** SvelteKit PWA + Dexie.js (IndexedDB)
 - **Backend:** FastAPI + PostgreSQL 16
-- **Vision:** Ollama (kimi-k3)
+- **Vision:** vision-proxy
 - **Infra:** Docker Compose + Caddy reverse proxy
 
 ## Development

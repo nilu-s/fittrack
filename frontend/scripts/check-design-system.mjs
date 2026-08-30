@@ -11,6 +11,7 @@ const tokens = read('src/lib/styles/tokens.css');
 const primitives = read('src/lib/styles/primitives.css');
 const app = read('src/app.css');
 const settings = read('src/routes/settings/+page.svelte');
+const settingsTile = read('src/lib/components/SettingsTile.svelte');
 const sportSettings = read('src/routes/settings/sport/+page.svelte');
 const layout = read('src/routes/+layout.svelte');
 const manifest = read('static/manifest.json');
@@ -25,6 +26,9 @@ for (const primitive of ['.ui-surface', '.ui-button', '.ui-icon-button', '.ui-fi
 expect(app.includes("@import './lib/styles/tokens.css'"), 'app does not import tokens');
 expect(app.includes("@import './lib/styles/primitives.css'"), 'app does not import primitives');
 expect(!settings.includes('linear-gradient'), 'settings uses a forbidden gradient');
+expect(settings.includes('class="settings-list"'), 'settings does not use the calm list composition');
+expect(!settings.includes('class="intro"'), 'settings retains decorative configuration copy');
+expect(settingsTile.includes('class="settings-row"'), 'settings item does not use a calm list row');
 expect(!sportSettings.includes('gradient'), 'sport settings retains a competing gradient visual language');
 expect(!sportSettings.includes('backdrop-filter'), 'sport settings retains a competing glass visual language');
 expect(manifest.includes('"theme_color": "#0b0c0e"'), 'manifest does not use the canonical background');
