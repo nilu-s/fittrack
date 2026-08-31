@@ -99,8 +99,9 @@ verified Google OIDC `sub`, never an email address.
    validation, idempotent retry and response without account data.
 3. Implement a server-side assignment service and deterministic day-entry
    projection for assigned events only.
-4. Implement account-scoped measurement read, claim and reject APIs and the
-   corresponding frontend view.
+4. Implement account-scoped measurement read and owner-only removal APIs, with
+   the corresponding frontend view; discard unmatched visitor measurements
+   before persistence.
 5. Remove device profile fields from firmware config and payload; retain
    protocol fixtures without credentials or personal data.
 

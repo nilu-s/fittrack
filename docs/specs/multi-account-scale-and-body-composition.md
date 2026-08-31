@@ -25,8 +25,8 @@ available only if the scale protocol supplies genuine BIA impedance data.
   configuration.
 - Strict data ownership for all existing account-owned models and integrations.
 - Migration of existing `luis` data to the owner’s newly created account.
-- Shared-scale ingestion, automatic weight-range assignment and a small
-  correction workflow for unassigned/misassigned events.
+- Shared-scale ingestion with automatic, privacy-preserving weight-range
+  assignment and an owner-only removal workflow for wrongly assigned events.
 - Per-account body-profile settings and BMI.
 - A future-safe data model for BIA results, including reproducibility metadata.
 
@@ -80,8 +80,11 @@ state that the result is reference-only, not medical advice.
 ### Shared scale
 
 1. The ESP authenticates with a device credential and sends raw data only.
-2. An incoming event gets exactly one status: `assigned`, `unassigned`, or
-   `rejected`.
+2. The server validates and attempts assignment before persistence. An event
+   matching no active range (including a visitor's measurement) is discarded:
+   its raw payload and weight are not persisted, projected or shown to either
+   account. Accepted events are either `assigned` or later `rejected` by their
+   assigned account; accepted raw events remain immutable and auditable.
 3. The initial household configuration is:
 
    | Account | Auto-assignment range |
@@ -89,16 +92,23 @@ state that the result is reference-only, not medical advice.
    | Friend | 45.0–85.0 kg |
    | Owner | 90.0–145.0 kg |
 
-   Ranges must not overlap.  The 85.0–90.0 kg gap and all values outside active
-   ranges are `unassigned`.
+   Ranges must not overlap. The 85.0–90.0 kg gap and all values outside active
+   ranges are discarded before persistence.
 4. Auto-assignment is a server decision with `assignment_method = 'weight_range'`
    and a confidence value of `1.0` only when exactly one active range matches.
-5. A user may correct only events currently assigned to their own account, or
-   claim an unassigned event.  Moving an event between accounts requires an
-   explicit household-admin action or a later dedicated recovery flow; do not
-   silently expose another person’s history in the ordinary UI.
+5. A user may remove only an event currently assigned to their own account.
+   Removal changes its status to `rejected` and records an audit reason; it
+   never deletes or transfers the raw event. There is no claim, reassignment,
+   household-admin or cross-account recovery flow in this cutover.
 6. A duplicate device event must be idempotent and must not create another
    daily measurement or overwrite a later correction.
+7. Each account's range follows its accepted-weight baseline slowly: once per
+   UTC day, calculate the target as the rolling median of the last 28 accepted,
+   non-rejected measurements and move the stored baseline toward it by at most
+   2.0 kg in any rolling seven-day period. Translate that account's configured
+   lower and upper offsets by the same amount; never permit active ranges to
+   overlap. This accommodates sustained weight change without treating ordinary
+   daily fluctuation as a new identity.
 
 ### Body profile and health language
 
@@ -174,9 +184,9 @@ Create immutable scale events before updating daily summaries.
 | `weight_kg` | Raw stable scale weight |
 | `impedance_ohm` | Nullable raw impedance; absent means weight-only |
 | `raw_payload` JSONB | Original accepted payload, excluding credentials |
-| `status` | assigned / unassigned / rejected |
+| `status` | assigned / rejected (unmatched events are not persisted) |
 | `assigned_account_id` | Nullable account FK |
-| `assignment_method` | weight_range / manual_claim / admin_correction / none |
+| `assignment_method` | weight_range / none |
 | `assignment_confidence` | 0..1; auditable decision signal |
 | `assignment_reason` | Human-readable audit context |
 
@@ -221,7 +231,8 @@ APIs.
 
 - Authentication: a dedicated device credential in a header; rate-limit by
   device.  Reject unknown device IDs and payloads outside 0.5–300 kg.
-- Response: event ID, status and no account identity or health profile data.
+- Response: event ID and status for an accepted event, or `discarded` for an
+  unmatched event; never include account identity or health profile data.
 - The bridge must retry the exact same event ID after a network failure.
 - Legacy `/api/scale-sync` may be kept only during migration, with a deprecation
   date.  It must stop accepting profile fields and stop writing directly to
@@ -230,13 +241,13 @@ APIs.
 Browser endpoints:
 
 - `GET /api/scale-measurements?from=&to=` — current account only.
-- `POST /api/scale-measurements/{id}/claim` — claim an unassigned event.
 - `POST /api/scale-measurements/{id}/reject` — hide a wrongly assigned event
-  from the current account while preserving the audit record.
+  from the current account while preserving the audit record. It is allowed
+  only for the account currently assigned to the event.
 - `GET/PUT /api/account/body-profile` — current account only.
 
-Do not return unassigned events to normal account feeds; a restricted
-household-admin flow can be designed separately if needed.
+Discarded events have no normal or administrative feed. Rejected events are
+hidden from the ordinary account feed and retained only as an audit record.
 
 ## 6. Phased implementation plan
 
@@ -257,11 +268,12 @@ records through any API route or integration.
 ### Phase B — shared-scale ingestion and assignment
 
 1. Introduce device registration and `scale_measurements` migration.
-2. Implement v2 ingestion and idempotency; preserve the raw payload.
-3. Implement non-overlapping range validation and the automatic assignment
-   service.
+2. Implement v2 ingestion and idempotency; persist the raw payload only after
+   a unique automatic assignment succeeds.
+3. Implement non-overlapping, baseline-adaptive range validation and the
+   automatic assignment service.
 4. Project only assigned events into the matching account’s daily view.
-5. Add the correction/claim UX and event audit information.
+5. Add the owner-only removal UX and event audit information.
 6. Remove personal fields from ESP firmware configuration and payload.
 
 **Exit criterion:** a 63 kg event appears only for the friend account, a 115 kg
@@ -316,10 +328,10 @@ historical BMI calculation inputs are traceable.
 - Valid 63.0 kg and 115.0 kg events receive the intended account IDs.
 - Boundary values, gaps, overlap attempts, unknown devices, malformed times,
   out-of-range weights and duplicate event IDs have deterministic responses.
-- A manual correction is retained after ESP retry and after later profile-range
+- An owner removal is retained after ESP retry and after later range-baseline
   changes.
-- An unassigned event cannot leak account names or measurements in its device
-  response.
+- An unmatched event is discarded without persisting its health payload and
+  cannot leak account names or measurements in its device response.
 
 ### Body metrics
 
@@ -345,4 +357,3 @@ cd frontend && npm run check && npm run lint:design && npm run build
   measurement transfers.
 - Whether the Renpho hardware actually exposes usable impedance in the current
   broadcast protocol, and which documented BIA algorithm to adopt if it does.
-
