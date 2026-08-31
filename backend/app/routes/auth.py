@@ -16,7 +16,6 @@ from sqlalchemy import delete, select
 from app.config import allowed_google_emails, settings
 from app.database import async_session
 from app.models import Account, AccountWeightRange, GoogleToken
-from app.seed import seed_default_data
 from app.services.ownership import reset_current_account, set_current_account
 
 logger = logging.getLogger(__name__)
@@ -267,7 +266,7 @@ async def google_callback(request: Request):
     refresh_token = token_data.get("refresh_token")
     expires_in = token_data.get("expires_in", 3600)
     token_type = token_data.get("token_type", "Bearer")
-    scope = token_data.get("scope", " ".join(SCOPES))
+    oauth_scope = token_data.get("scope", " ".join(SCOPES))
 
     if not access_token:
         return JSONResponse(
@@ -321,11 +320,6 @@ async def google_callback(request: Request):
             )
             session.add(range_row)
         await _migrate_legacy_owner_rows(session, account)
-        scope = set_current_account(account.id)
-        try:
-            await seed_default_data(session)
-        finally:
-            reset_current_account(scope)
         result = await session.execute(select(GoogleToken).where(GoogleToken.account_id == account.id))
         existing = result.scalar_one_or_none()
 
@@ -336,7 +330,7 @@ async def google_callback(request: Request):
                 existing.refresh_token = refresh_token
             existing.token_type = token_type
             existing.expires_at = expires_at
-            existing.scope = scope
+            existing.scope = oauth_scope
         else:
             new_token = GoogleToken(
                 account_id=account.id,
@@ -345,7 +339,7 @@ async def google_callback(request: Request):
                 refresh_token=refresh_token,
                 token_type=token_type,
                 expires_at=expires_at,
-                scope=scope,
+                scope=oauth_scope,
             )
             session.add(new_token)
 
