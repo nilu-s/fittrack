@@ -52,6 +52,10 @@ export interface Meal {
   portion_factor?: number;
   dish_id?: string | null;
   updated_at?: string;
+  /** True when this row is backed by the account-scoped MealEntry API. */
+  meal_entry?: boolean;
+  meal_entry_status?: 'planned' | 'consumed' | 'skipped';
+  category_name?: string;
 }
 
 export interface Todo {

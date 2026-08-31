@@ -60,7 +60,7 @@
     // Mahlzeiten gehören in denselben Tagesfluss wie Training und freie To-dos.
     const sortedMeals = [...mealList].sort((a, b) => (a.meal_slot ?? 99) - (b.meal_slot ?? 99));
     for (const m of sortedMeals) {
-      const slotLabel = SLOT_NAMES[m.meal_slot] || `Slot ${m.meal_slot}`;
+      const slotLabel = m.category_name || SLOT_NAMES[m.meal_slot] || `Slot ${m.meal_slot}`;
       const dishName = m.name || '— Mahlzeit wählen —';
       items.push({ id: `meal-${m.id ?? m.meal_slot}`, type: 'meal', icon: 'meal', title: `${slotLabel}: ${dishName}`, done: m.is_done ?? false, sortKey: `01-${String(m.meal_slot).padStart(2, '0')}`, kcal: Number(m.kcal) || null, protein: Number(m.protein_g) || null, fiber: Number(m.fiber_g) || null, sugar: Number(m.sugar_g) || null, mealTime: m.default_time ? m.default_time.slice(0, 5) : null });
     }
@@ -184,7 +184,25 @@
 
   async function toggleDone(item: UnifiedItem) {
     if (item.type === 'metric' && item.metricDoneField) { const newVal = !(entry as any)[item.metricDoneField]; try { await api.upsertDayEntry({ ...entry, [item.metricDoneField]: newVal, date: currentDate }); entry = { ...entry, [item.metricDoneField]: newVal }; dispatch('update', { field: item.metricDoneField, value: newVal }); } catch {} return; }
-    if (item.type === 'meal') { const mealId = item.id.replace('meal-', ''); const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id); if (!meal?.id) return; try { await api.markMealDone(meal.id); meals = meals.map((m) => m.id === meal.id ? { ...m, is_done: !m.is_done } : m); dispatch('mealtoggle', { id: meal.id, is_done: !meal.is_done }); } catch {} return; }
+    if (item.type === 'meal') {
+      const mealId = item.id.replace('meal-', '');
+      const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id);
+      if (!meal?.id) return;
+      try {
+        if (meal.meal_entry) {
+          const nextStatus = meal.is_done ? 'skipped' : 'consumed';
+          const updated = await api.setMealEntryStatus(meal.id, nextStatus, meal.updated_at);
+          if (!updated) return;
+          meals = meals.map((m) => m.id === meal.id ? { ...m, is_done: updated.status === 'consumed', meal_entry_status: updated.status, updated_at: updated.updated_at } : m);
+          dispatch('mealtoggle', { id: meal.id, is_done: updated.status === 'consumed' });
+        } else {
+          await api.markMealDone(meal.id);
+          meals = meals.map((m) => m.id === meal.id ? { ...m, is_done: !m.is_done } : m);
+          dispatch('mealtoggle', { id: meal.id, is_done: !meal.is_done });
+        }
+      } catch {}
+      return;
+    }
     if (item.type === 'training' && entry) { const newVal = !entry.training_done; try { await api.upsertDayEntry({ ...entry, training_done: newVal, date: currentDate }); entry = { ...entry, training_done: newVal }; dispatch('trainingtoggle', newVal); } catch {} return; }
     if (item.type === 'cardio' && entry) { const newVal = !entry.cardio_done; try { await api.upsertDayEntry({ ...entry, cardio_done: newVal, date: currentDate }); entry = { ...entry, cardio_done: newVal }; dispatch('cardiotoggle', newVal); } catch {} return; }
     if (item.type === 'todo') { const todoId = item.id.replace('todo-', ''); try { await api.markTodoDone(todoId); todos = todos.map((t) => String(t.id) === todoId ? { ...t, status: t.status === 'open' ? 'done' : 'open' } : t); dispatch('todotoggle', { id: todoId }); } catch {} return; }
@@ -670,7 +688,7 @@
           {#if item.type === 'meal'}<span class="recipe-marker" title="Doppelklick öffnet die Mahlzeitendetails">Rezeptdetails</span>{/if}
         </div>
       </div>
-      {#if item.type === 'meal' && !item.done}
+      {#if item.type === 'meal' && !item.done && !getMealFromItem(item)?.meal_entry}
         <div class="meal-row-actions">
           <button class="meal-action-icon" onclick={(e) => { e.stopPropagation(); toggleMealEdit(item); }} aria-label="Gericht manuell ändern" title="Gericht ändern"><Icon name="edit" size={16} /></button>
           <button class="meal-action-icon" onclick={(e) => { e.stopPropagation(); photoForMeal(item); }} aria-label="Mahlzeit fotografieren" title="Foto analysieren"><Icon name="camera" size={16} /></button>
@@ -763,7 +781,7 @@
 {#if mealDetails}
   <div class="modal-overlay" role="presentation" onclick={closeMealDetails} onkeydown={(event) => { if (event.key === 'Escape') closeMealDetails(); }}>
     <section class="modal-card meal-details" role="dialog" aria-modal="true" aria-labelledby="meal-details-title" tabindex="-1" onclick={(event) => event.stopPropagation()}>
-      <div class="modal-title" id="meal-details-title">{mealDetails.name || SLOT_NAMES[mealDetails.meal_slot] || 'Mahlzeit'}</div>
+      <div class="modal-title" id="meal-details-title">{mealDetails.name || mealDetails.category_name || SLOT_NAMES[mealDetails.meal_slot] || 'Mahlzeit'}</div>
       <p class="meal-details-hint">Nährwerte dieser geplanten Mahlzeit</p>
       <div class="modal-pills">
         {#if mealDetails.kcal != null}<PillBadge value={Math.round(Number(mealDetails.kcal))} unit="kcal" color="var(--amber)" />{/if}
@@ -771,7 +789,7 @@
         {#if mealDetails.carbs_g != null}<PillBadge value={Math.round(Number(mealDetails.carbs_g))} unit="g KH" color="var(--purple)" />{/if}
         {#if mealDetails.fat_g != null}<PillBadge value={Math.round(Number(mealDetails.fat_g))} unit="g Fett" color="var(--pink)" />{/if}
       </div>
-      <p class="meal-details-note">Diese Legacy-Mahlzeit ist noch keinem Rezept zugeordnet. Eine Kochanleitung erscheint hier, sobald ein verknüpftes Rezept hinterlegt ist.</p>
+      <p class="meal-details-note">{mealDetails.meal_entry ? 'Diese geplante Mahlzeit stammt aus deinem aktiven Wochenplan.' : 'Diese Mahlzeit ist noch keinem Rezept zugeordnet.'}</p>
       <button class="modal-secondary" autofocus onclick={closeMealDetails}>Schließen</button>
     </section>
   </div>

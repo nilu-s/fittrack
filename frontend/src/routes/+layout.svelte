@@ -10,7 +10,7 @@
   import { isAuthenticated, authEmail, checkAuth, logout } from '$lib/auth';
   import Icon from '$lib/components/Icon.svelte';
   import UiIconButton from '$lib/components/ui/UiIconButton.svelte';
-  import type { DayData, DayEntry, Meal, Todo, TrainingSuggestion } from '$lib/types';
+  import type { DayData, DayEntry, Meal, MealCategory, MealEntry, Todo, TrainingSuggestion } from '$lib/types';
 
   let syncIcon = '✓';
   let syncClass = 'synced';
@@ -27,10 +27,35 @@
   async function loadDayData(date: string) {
     const fitSyncPromise = api.syncGoogleFit(date).catch(() => null);
     try {
-      const [dayEntry, meals, todos, trainingSuggestion] = await Promise.all([api.getDayEntry(date), api.getMeals(date), api.getTodos(date), api.getTraining(date)]);
+      const [dayEntry, mealEntries, categories, todos, trainingSuggestion] = await Promise.all([
+        api.getDayEntry(date),
+        // Project the active plan before reading it.  This is idempotent and
+        // keeps the dashboard independent of the removed legacy meals table.
+        api.instantiateMealEntries(date).catch(() => [] as MealEntry[]),
+        api.getMealCategories().catch(() => [] as MealCategory[]),
+        api.getTodos(date), api.getTraining(date)
+      ]);
+      const categoryById = new Map(categories.map((category) => [category.id, category]));
+      const meals: Meal[] = mealEntries.map((entry, index) => {
+        const category = categoryById.get(entry.category_id);
+        const nutrition = entry.nutrition ?? {};
+        return {
+          id: entry.id, date: entry.date, name: entry.name ?? undefined,
+          // The old component uses slots only for ordering. Category order is
+          // stable and account-scoped, so it is the correct replacement.
+          meal_slot: (category?.sort_order ?? index) + 1,
+          default_time: category?.default_time ?? undefined,
+          kcal: nutrition.kcal, protein_g: nutrition.protein_g, carbs_g: nutrition.carbs_g,
+          fat_g: nutrition.fat_g, fiber_g: nutrition.fiber_g, sugar_g: nutrition.sugar_g,
+          free_sugar_g: nutrition.free_sugar_g,
+          is_done: entry.status === 'consumed', meal_entry: true,
+          meal_entry_status: entry.status, category_name: category?.name,
+          updated_at: entry.updated_at,
+        };
+      });
       let nextTraining: TrainingSuggestion | null = null;
       if (dayEntry?.training_type) nextTraining = await api.getNextTraining(dayEntry.training_type);
-      const data: DayData = { dayEntry: dayEntry ?? { date }, meals: meals ?? [], todos: todos ?? [], trainingSuggestion: trainingSuggestion as TrainingSuggestion | null, nextTraining, weekStats: null };
+      const data: DayData = { dayEntry: dayEntry ?? { date }, meals, todos: todos ?? [], trainingSuggestion: trainingSuggestion as TrainingSuggestion | null, nextTraining, weekStats: null };
       dayData.set(data);
       if (dayEntry) await db.dayEntries.put({ ...dayEntry, date, updated_at: dayEntry.updated_at } as any);
       const fitResult = await fitSyncPromise;
