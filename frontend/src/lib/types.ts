@@ -5,15 +5,7 @@ export interface DayEntry {
   date: string; // YYYY-MM-DD
   weight_kg?: number | null;
   weight_source?: string | null; // 'scale_esp' | 'manual' | 'google_fit' | null
-  body_fat_pct?: number | null;
-  muscle_mass_kg?: number | null;
-  water_pct?: number | null;
-  bone_mass_kg?: number | null;
   bmi?: number | null;
-  basal_metabolism?: number | null;
-  impedance?: number | null;
-  visceral_fat?: number | null;
-  metabolic_age?: number | null;
   steps?: number | null;
   steps_done?: boolean;
   steps_confirmed?: boolean;

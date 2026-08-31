@@ -22,15 +22,7 @@ class DayEntryBase(_Base):
     date: date
     weight_kg: Optional[Decimal] = None
     weight_source: Optional[str] = None
-    body_fat_pct: Optional[Decimal] = None
-    muscle_mass_kg: Optional[Decimal] = None
-    water_pct: Optional[Decimal] = None
-    bone_mass_kg: Optional[Decimal] = None
     bmi: Optional[Decimal] = None
-    basal_metabolism: Optional[int] = None
-    impedance: Optional[int] = None
-    visceral_fat: Optional[int] = None
-    metabolic_age: Optional[int] = None
     steps: Optional[int] = None
     sleep_hours: Optional[Decimal] = None
     sleep_deep_hours: Optional[Decimal] = None
@@ -60,15 +52,7 @@ class DayEntryCreate(DayEntryBase):
 class DayEntryUpdate(_Base):
     weight_kg: Optional[Decimal] = None
     weight_source: Optional[str] = None
-    body_fat_pct: Optional[Decimal] = None
-    muscle_mass_kg: Optional[Decimal] = None
-    water_pct: Optional[Decimal] = None
-    bone_mass_kg: Optional[Decimal] = None
     bmi: Optional[Decimal] = None
-    basal_metabolism: Optional[int] = None
-    impedance: Optional[int] = None
-    visceral_fat: Optional[int] = None
-    metabolic_age: Optional[int] = None
     steps: Optional[int] = None
     sleep_hours: Optional[Decimal] = None
     sleep_deep_hours: Optional[Decimal] = None
@@ -140,6 +124,16 @@ class ScaleSyncV2Request(_Base):
     impedance_ohm: Optional[int] = Field(default=None, ge=1, le=5000)
     protocol: str = Field(min_length=1, max_length=64)
     protocol_version: int = Field(ge=1, le=1000)
+
+
+class BodyProfileUpdate(_Base):
+    height_cm: Optional[Decimal] = Field(default=None, ge=50, le=300)
+    birth_date: Optional[date] = None
+    calculation_sex: Optional[Literal["male", "female"]] = None
+
+
+class BodyProfileResponse(BodyProfileUpdate):
+    id: uuid.UUID
 
 
 # ---------------------------------------------------------------------------

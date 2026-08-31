@@ -57,6 +57,17 @@ class RegisteredDevice(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class BodyProfile(AccountOwned, Base):
+    __tablename__ = "body_profiles"
+    __table_args__ = (UniqueConstraint("account_id", name="uq_body_profiles_account"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    height_cm: Mapped[Decimal | None] = mapped_column(Numeric(5, 1))
+    birth_date: Mapped[date | None] = mapped_column(Date)
+    calculation_sex: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class ScaleMeasurement(AccountOwned, Base):
     __tablename__ = "scale_measurements"
     __table_args__ = (UniqueConstraint("device_id", "device_event_id", name="uq_scale_measurements_device_event"),)
@@ -74,6 +85,8 @@ class ScaleMeasurement(AccountOwned, Base):
     assignment_confidence: Mapped[Decimal] = mapped_column(Numeric(3, 2), nullable=False, default=Decimal("1.0"))
     assignment_reason: Mapped[str | None] = mapped_column(Text)
     rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    bmi: Mapped[Decimal | None] = mapped_column(Numeric(4, 1))
+    profile_snapshot: Mapped[dict | None] = mapped_column(JSONB)
 
 
 class DayEntry(AccountOwned, Base):

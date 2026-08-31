@@ -58,8 +58,8 @@
     const items: UnifiedItem[] = [];
     if (!entry) return items;
     // Weight: biometric — automated from ESP32 scale, but manually editable too
-    const hasBodyComp = entry.body_fat_pct != null || entry.muscle_mass_kg != null || entry.bmi != null;
-    items.push({ id: 'metric-weight', type: 'metric', icon: 'weight', title: 'Gewicht', done: false, sortKey: '00-00', metricField: 'weight_kg', metricValue: entry.weight_kg ?? null, metricUnit: 'kg', metricEditable: true, biometric: true, weightSource: entry.weight_source ?? null, weightDetails: hasBodyComp ? { bodyFat: entry.body_fat_pct != null ? Number(entry.body_fat_pct) : null, muscle: entry.muscle_mass_kg != null ? Number(entry.muscle_mass_kg) : null, water: entry.water_pct != null ? Number(entry.water_pct) : null, bone: entry.bone_mass_kg != null ? Number(entry.bone_mass_kg) : null, bmi: entry.bmi != null ? Number(entry.bmi) : null, bmr: entry.basal_metabolism ?? null, visceralFat: entry.visceral_fat ?? null, metabolicAge: entry.metabolic_age ?? null } : undefined });
+    const hasBmi = entry.bmi != null;
+    items.push({ id: 'metric-weight', type: 'metric', icon: 'weight', title: 'Gewicht', done: false, sortKey: '00-00', metricField: 'weight_kg', metricValue: entry.weight_kg ?? null, metricUnit: 'kg', metricEditable: true, biometric: true, weightSource: entry.weight_source ?? null, weightDetails: hasBmi ? { bodyFat: null, muscle: null, water: null, bone: null, bmi: Number(entry.bmi), bmr: null, visceralFat: null, metabolicAge: null } : undefined });
     // Steps: biometric — automated from Google Fit, not manually checkable
     items.push({ id: 'metric-steps', type: 'metric', icon: 'steps', title: 'Schritte', done: false, sortKey: '00-01', metricField: 'steps', metricValue: entry.steps ?? null, hasProgress: true, progressCurrent: entry.steps ?? 0, progressTarget: goals.steps, stepsConfirmed: entry.steps_confirmed ?? false, biometric: true });
     // Sleep: biometric — automated from Google Fit, shows quality score and details instead

@@ -45,7 +45,7 @@ from app.routes.photos import router as photos_router
 from app.routes.stats import router as stats_router
 from app.routes.google_calendar import router as google_calendar_router
 from app.routes.google_fit import router as google_fit_router
-from app.routes.scale_v2 import browser_router as scale_browser_router, device_router as scale_v2_router
+from app.routes.scale_v2 import browser_router as scale_browser_router, device_router as scale_v2_router, profile_router
 from app.routes.sync import router as sync_router
 from app.routes.todos import router as todos_router
 from app.routes.training import router as training_router
@@ -69,4 +69,5 @@ app.include_router(dishes_router, prefix="/api")
 app.include_router(google_fit_router, prefix="/api")
 app.include_router(scale_v2_router, prefix="/api")
 app.include_router(scale_browser_router, prefix="/api")
+app.include_router(profile_router, prefix="/api")
 app.include_router(google_calendar_router, prefix="/api")

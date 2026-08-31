@@ -12,9 +12,9 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.database import async_session
-from app.models import AccountWeightRange, DayEntry, RegisteredDevice, ScaleMeasurement
+from app.models import AccountWeightRange, BodyProfile, DayEntry, RegisteredDevice, ScaleMeasurement
 from app.routes.auth import get_current_user
-from app.schemas import ScaleSyncV2Request
+from app.schemas import BodyProfileResponse, BodyProfileUpdate, ScaleSyncV2Request
 from app.services.scale_assignment import AssignmentRange, choose_assignment
 
 device_router = APIRouter(prefix="/scale-sync/v2", tags=["scale-sync"])
@@ -63,8 +63,17 @@ async def ingest_scale_measurement(body: ScaleSyncV2Request, x_fittrack_device_k
         if assignment is None:
             return {"status": "discarded"}
 
+        assigned_account_id = uuid.UUID(assignment.account_id)
+        profile = (await session.execute(select(BodyProfile).where(BodyProfile.account_id == assigned_account_id))).scalar_one_or_none()
+        bmi = None
+        profile_snapshot = None
+        if profile and profile.height_cm:
+            height_m = Decimal(profile.height_cm) / Decimal("100")
+            bmi = (Decimal(str(body.weight_kg)) / (height_m * height_m)).quantize(Decimal("0.1"))
+            profile_snapshot = {"height_cm": float(profile.height_cm)}
+
         measurement = ScaleMeasurement(
-            account_id=uuid.UUID(assignment.account_id),
+            account_id=assigned_account_id,
             device_id=body.device_id,
             device_event_id=body.device_event_id,
             measured_at=body.measured_at,
@@ -75,6 +84,8 @@ async def ingest_scale_measurement(body: ScaleSyncV2Request, x_fittrack_device_k
             assignment_method="weight_range",
             assignment_confidence=Decimal("1.0"),
             assignment_reason="unique active weight range",
+            bmi=bmi,
+            profile_snapshot=profile_snapshot,
         )
         session.add(measurement)
         await session.flush()
@@ -87,6 +98,7 @@ async def ingest_scale_measurement(body: ScaleSyncV2Request, x_fittrack_device_k
         if entry.weight_source != "manual":
             entry.weight_kg = measurement.weight_kg
             entry.weight_source = "scale_esp"
+            entry.bmi = bmi
         await session.commit()
         return {"event_id": str(measurement.id), "status": "assigned"}
 
@@ -105,7 +117,7 @@ async def list_measurements(
             statement = statement.where(ScaleMeasurement.measured_at <= to)
         rows = (await session.execute(statement.order_by(ScaleMeasurement.measured_at.desc()))).scalars().all()
     return [
-        {"id": str(item.id), "measured_at": item.measured_at, "weight_kg": item.weight_kg, "status": item.status}
+        {"id": str(item.id), "measured_at": item.measured_at, "weight_kg": item.weight_kg, "bmi": item.bmi, "status": item.status}
         for item in rows
     ]
 
@@ -121,3 +133,28 @@ async def reject_measurement(measurement_id: uuid.UUID, account_id=Depends(get_c
         item.assignment_reason = "removed by assigned account"
         await session.commit()
     return {"id": str(measurement_id), "status": "rejected"}
+
+
+profile_router = APIRouter(prefix="/account/body-profile", tags=["account"])
+
+
+@profile_router.get("", response_model=BodyProfileResponse | None)
+async def get_body_profile(account_id=Depends(get_current_user)):
+    async with async_session() as session:
+        profile = (await session.execute(select(BodyProfile))).scalar_one_or_none()
+    return profile
+
+
+@profile_router.put("", response_model=BodyProfileResponse)
+async def update_body_profile(body: BodyProfileUpdate, account_id=Depends(get_current_user)):
+    async with async_session() as session:
+        profile = (await session.execute(select(BodyProfile))).scalar_one_or_none()
+        if profile is None:
+            profile = BodyProfile(account_id=account_id, **body.model_dump())
+            session.add(profile)
+        else:
+            for field, value in body.model_dump(exclude_unset=True).items():
+                setattr(profile, field, value)
+        await session.commit()
+        await session.refresh(profile)
+    return profile
