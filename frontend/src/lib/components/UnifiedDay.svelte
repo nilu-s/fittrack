@@ -90,6 +90,7 @@
   let dishSearchResults: any[] = [];
   let dishSearching = false;
   let selectedDish: any = null;
+  let mealPickerOpen = false;
   let portionFactor = 1.0;
   let swipedMealId = '';
   let swipeStartX: number | null = null;
@@ -259,6 +260,7 @@
     if (!meal) return;
     mealEditItem = item;
     selectedDish = null;
+    mealPickerOpen = false;
     portionFactor = 1.0;
     dishSearchQuery = '';
     dishSearchResults = [];
@@ -272,11 +274,15 @@
     } catch { editDishes = []; recommendResult = null; }
     editDishesLoading = false;
   }
-  function closeMealEdit() { mealEditItem = null; selectedDish = null; portionFactor = 1.0; }
+  function closeMealEdit() { mealEditItem = null; selectedDish = null; mealPickerOpen = false; portionFactor = 1.0; }
+
+  function getMealFromItem(item: UnifiedItem): Meal | undefined {
+    const id = String(item.id).replace('meal-', '');
+    return meals.find((m) => String(m.id) === id || `meal-${m.meal_slot}` === item.id);
+  }
 
   function getMealSlotFromItem(item: UnifiedItem): number {
-    const id = String(item.id).replace('meal-', '');
-    const m = meals.find((x) => String(x.id) === id || `meal-${x.meal_slot}` === item.id);
+    const m = getMealFromItem(item);
     return m?.meal_slot ?? 0;
   }
 
@@ -285,7 +291,7 @@
     portionFactor = 1.0;
   }
 
-  function backToDishList() { selectedDish = null; portionFactor = 1.0; }
+  function backToDishList() { selectedDish = null; mealPickerOpen = true; portionFactor = 1.0; }
 
   $: scaledKcal = selectedDish ? Math.round((Number(selectedDish.kcal) || 0) * portionFactor) : 0;
   $: scaledProtein = selectedDish ? Math.round((Number(selectedDish.protein_g) || 0) * portionFactor) : 0;
@@ -700,35 +706,55 @@
         {#if !selectedDish}
           <div class="meal-inline-heading"><div class="meal-inline-title">{SLOT_NAMES[getMealSlotFromItem(mealEditItem)] || `Slot ${getMealSlotFromItem(mealEditItem)}`} bearbeiten</div><button class="meal-collapse" onclick={closeMealEdit}>Einklappen</button></div>
 
-          {#if editDishesLoading}
+          {#if !mealPickerOpen}
+            {@const currentMeal = getMealFromItem(mealEditItem)}
+            <div class="meal-current">
+              <span class="meal-current-label">Aktuelles Gericht</span>
+              <span class="meal-current-name">{currentMeal?.name || 'Noch kein Gericht ausgewählt'}</span>
+              {#if currentMeal?.kcal || currentMeal?.protein_g}
+                <span class="meal-current-meta">{#if currentMeal?.kcal}{Math.round(Number(currentMeal.kcal))} kcal{/if}{#if currentMeal?.kcal && currentMeal?.protein_g} · {/if}{#if currentMeal?.protein_g}{Math.round(Number(currentMeal.protein_g))} g Protein{/if}</span>
+              {/if}
+            </div>
+            <div class="meal-editor-actions">
+              <button class="modal-primary" onclick={() => (mealPickerOpen = true)}>Gericht ändern</button>
+              <button class="meal-photo-button" onclick={triggerEditPhoto} disabled={editPhotoLoading}>
+                {#if editPhotoLoading}<Icon name="refresh" size={17} />{:else}<Icon name="camera" size={17} />{/if}
+                <span>{editPhotoLoading ? 'Analysiere…' : 'Foto analysieren'}</span>
+              </button>
+            </div>
+            {#if editPhotoLoading}<div class="photo-progress modal-progress"><div class="photo-progress-bar"><div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div></div><span class="photo-progress-label">{editPhotoStatus === 'analyze' ? 'Foto wird analysiert…' : 'Gericht wird zugeordnet…'}</span></div>{/if}
+          {:else if editDishesLoading}
             <div class="modal-loading">Lade Empfehlungen…</div>
           {:else}
             {#if recommendResult?.default}
               <div class="modal-section-label">Empfohlen</div>
               <button class="dish-btn dish-default-highlight" onclick={() => selectDishForEdit(recommendResult.default)}>
-                <div class="dish-info"><span class="dish-name">{recommendResult.default.name}</span>{#if recommendResult.default.is_default}<span class="dish-badge">Standard</span>{/if}<span class="dish-uses">{recommendResult.default.usage_count ?? 0}× genutzt</span></div>
-                <div class="dish-macros"><span>{Math.round(Number(recommendResult.default.kcal) || 0)} kcal</span><span>{Math.round(Number(recommendResult.default.protein_g) || 0)}g P</span><span>{Math.round(Number(recommendResult.default.fiber_g) || 0)}g Ballaststoffe</span><span>{Math.round(Number(recommendResult.default.sugar_g) || 0)}g Zucker</span>{#if recommendResult.default.portion_label}<span class="dish-portion">{recommendResult.default.portion_label}</span>{/if}</div>
+                <div class="dish-info"><span class="dish-name">{recommendResult.default.name}</span>{#if recommendResult.default.is_default}<span class="dish-badge">Standard</span>{/if}</div>
+                <span class="dish-summary">{Math.round(Number(recommendResult.default.kcal) || 0)} kcal · {Math.round(Number(recommendResult.default.protein_g) || 0)} g Protein</span>
               </button>
             {/if}
             {#if recommendResult?.alternatives?.length > 0}
               <div class="modal-section-label">Ähnliche Alternativen</div>
-              <div class="dish-list">{#each recommendResult.alternatives as dish (dish.id)}<button class="dish-btn" onclick={() => selectDishForEdit(dish)}><div class="dish-info"><span class="dish-name">{dish.name}</span>{#if (dish.usage_count ?? 0) > 0}<span class="dish-uses">{dish.usage_count}×</span>{/if}</div><div class="dish-macros"><span>{Math.round(Number(dish.kcal) || 0)} kcal</span><span>{Math.round(Number(dish.protein_g) || 0)}g P</span><span>{Math.round(Number(dish.fiber_g) || 0)}g Ballaststoffe</span><span>{Math.round(Number(dish.sugar_g) || 0)}g Zucker</span></div></button>{/each}</div>
+              <div class="dish-list">{#each recommendResult.alternatives as dish (dish.id)}<button class="dish-btn" onclick={() => selectDishForEdit(dish)}><div class="dish-info"><span class="dish-name">{dish.name}</span></div><span class="dish-summary">{Math.round(Number(dish.kcal) || 0)} kcal · {Math.round(Number(dish.protein_g) || 0)} g Protein</span></button>{/each}</div>
             {/if}
             <div class="modal-section-label">Anderes Gericht suchen</div>
             <input class="dish-search-input" type="text" placeholder="Gericht eingeben…" oninput={onDishSearch} value={dishSearchQuery} />
             {#if dishSearchResults.length > 0}
-              <div class="dish-list">{#each dishSearchResults as dish (dish.id)}<button class="dish-btn" onclick={() => selectDishForEdit(dish)}><div class="dish-info"><span class="dish-name">{dish.name}</span>{#if dish.is_default}<span class="dish-badge">Standard</span>{/if}</div><div class="dish-macros"><span>{Math.round(Number(dish.kcal) || 0)} kcal</span><span>{Math.round(Number(dish.protein_g) || 0)}g P</span><span>{Math.round(Number(dish.fiber_g) || 0)}g Ballaststoffe</span><span>{Math.round(Number(dish.sugar_g) || 0)}g Zucker</span>{#if dish.portion_label}<span class="dish-portion">{dish.portion_label}</span>{/if}</div></button>{/each}</div>
+              <div class="dish-list">{#each dishSearchResults as dish (dish.id)}<button class="dish-btn" onclick={() => selectDishForEdit(dish)}><div class="dish-info"><span class="dish-name">{dish.name}</span>{#if dish.is_default}<span class="dish-badge">Standard</span>{/if}</div><span class="dish-summary">{Math.round(Number(dish.kcal) || 0)} kcal · {Math.round(Number(dish.protein_g) || 0)} g Protein</span></button>{/each}</div>
             {:else if dishSearchQuery.trim().length >= 2}<div class="modal-empty">Keine Treffer</div>{/if}
           {/if}
-          <div class="modal-actions">
+          {#if mealPickerOpen}<div class="modal-actions">
             {#if editPhotoLoading}<div class="photo-progress modal-progress"><div class="photo-progress-bar"><div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div></div><span class="photo-progress-label">{editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' : editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' : editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}</span></div>{/if}
-            <button class="modal-primary cam-action" onclick={triggerEditPhoto} disabled={editPhotoLoading}>{#if editPhotoLoading}<Icon name="refresh" size={18} />{:else}<Icon name="camera" size={18} />{/if}<span>{editPhotoLoading ? 'Analysiere…' : 'Foto analysieren'}</span></button>
-          </div>
+            <button class="modal-secondary" onclick={() => (mealPickerOpen = false)}>Zur Übersicht</button>
+          </div>{/if}
         {:else}
           <div class="meal-inline-heading"><div class="meal-inline-title">{selectedDish.name}</div><button class="meal-collapse" onclick={closeMealEdit}>Einklappen</button></div>
-          <button class="modal-back" onclick={backToDishList}>← Zurück</button>
-          <div class="portion-section"><div class="portion-label-row"><span class="portion-current">{portionDisplay}</span><span class="portion-hint">{selectedDish.is_scalable ? 'Skaliere mit dem Slider' : 'Feste Portion'}</span></div>{#if selectedDish.is_scalable}<div class="portion-slider-row"><span class="slider-end">0.5×</span><input class="portion-slider" type="range" min="0.5" max="3" step="0.1" bind:value={portionFactor} /><span class="slider-end">3×</span></div>{/if}<div class="portion-macros"><div class="macro"><span class="macro-l">Kcal</span><span class="macro-v">{scaledKcal}</span></div><div class="macro"><span class="macro-l">Protein</span><span class="macro-v">{scaledProtein}g</span></div><div class="macro"><span class="macro-l">Carbs</span><span class="macro-v">{scaledCarbs}g</span></div><div class="macro"><span class="macro-l">Fat</span><span class="macro-v">{scaledFat}g</span></div><div class="macro"><span class="macro-l">Ballaststoffe</span><span class="macro-v">{scaledFiber}g</span></div><div class="macro"><span class="macro-l">Zucker</span><span class="macro-v">{scaledSugar}g</span></div></div></div>
-          <div class="modal-actions"><button class="modal-primary" onclick={confirmDishSelection}>Bestätigen</button><button class="modal-secondary" onclick={backToDishList}>Zurück</button></div>
+          <div class="portion-section">
+            <div class="portion-label-row"><span class="portion-current">{portionDisplay}</span>{#if selectedDish.is_scalable}<span class="portion-hint">Menge anpassen</span>{/if}</div>
+            {#if selectedDish.is_scalable}<div class="portion-slider-row"><span class="slider-end">0.5×</span><input class="portion-slider" type="range" min="0.5" max="3" step="0.1" bind:value={portionFactor} /><span class="slider-end">3×</span></div>{/if}
+            <div class="portion-summary"><span>{scaledKcal} kcal</span><span>{scaledProtein} g Protein</span></div>
+          </div>
+          <div class="modal-actions"><button class="modal-primary" onclick={confirmDishSelection}>Übernehmen</button><button class="modal-secondary" onclick={backToDishList}>Andere Wahl</button></div>
         {/if}
       </div>
     {/if}
@@ -865,11 +891,18 @@
   .item-prog { flex: 0 0 70px; }
   .spark-row { padding: 0 14px 8px; }
   .train-inline { padding: 0 14px 8px; }
-  .meal-inline { display: flex; flex-direction: column; gap: 8px; margin: 4px 10px 10px 54px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2); animation: inlineExpand 0.18s ease-out; }
+  .meal-inline { display: flex; flex-direction: column; gap: 12px; margin: 4px 10px 10px 54px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2); animation: inlineExpand 0.18s ease-out; }
   .meal-inline-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .meal-inline-title { color: var(--text); font-size: 14px; font-weight: 600; }
-  .meal-collapse { border: 0; background: transparent; color: var(--text-dim); cursor: pointer; font: inherit; font-size: 12px; padding: 4px; }
+  .meal-inline-title { color: var(--text); font-size: 15px; font-weight: 650; }
+  .meal-collapse { border: 0; background: transparent; color: var(--text-dim); cursor: pointer; font: inherit; font-size: 13px; padding: 4px; }
   .meal-collapse:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+  .meal-current { display: flex; flex-direction: column; gap: 4px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
+  .meal-current-label { font-size: 13px; color: var(--text-dim); }
+  .meal-current-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .meal-current-meta, .portion-summary { font-size: 14px; color: var(--text-dim); }
+  .meal-editor-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .meal-photo-button { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 14px; border: 1px solid var(--border-2); border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+  .meal-photo-button:disabled { opacity: 0.6; }
 
   .quality-stars { font-size: 11px; color: var(--amber); letter-spacing: 1px; }
 
@@ -979,18 +1012,17 @@
   @keyframes inlineExpand { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
   /* Meal edit modal — additional classes (modal-overlay/card/title/actions/primary/secondary already defined above) */
-  .meal-inline .modal-section-label { font-size: 10px; color: var(--text-faint); margin: 4px 0 0; text-transform: uppercase; letter-spacing: 0.5px; }
-  .meal-inline .modal-loading, .meal-inline .modal-empty { text-align: center; padding: 10px; color: var(--text-faint); font-size: 12px; }
+  .meal-inline .modal-section-label { font-size: 13px; color: var(--text-dim); margin: 4px 0 0; font-weight: 600; }
+  .meal-inline .modal-loading, .meal-inline .modal-empty { text-align: center; padding: 12px; color: var(--text-dim); font-size: 14px; }
   .cam-action { display: flex; align-items: center; justify-content: center; gap: 8px; }
-  .meal-inline .dish-list { display: flex; flex-direction: column; gap: 4px; max-height: 176px; margin: 0; overflow-y: auto; }
-  .meal-inline .dish-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 9px; border-radius: 7px; background: var(--card); border: 1px solid var(--border); color: var(--text); cursor: pointer; transition: border-color 0.15s, background 0.15s; text-align: left; }
+  .meal-inline .dish-list { display: flex; flex-direction: column; gap: 6px; max-height: 192px; margin: 0; overflow-y: auto; }
+  .meal-inline .dish-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 11px 12px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); color: var(--text); cursor: pointer; transition: border-color 0.15s, background 0.15s; text-align: left; }
   .dish-btn:active { background: #2a2b2e; }
   .dish-btn.default { border-color: var(--green); }
   .dish-info { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
-  .dish-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .dish-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: var(--green); color: #000; font-weight: 600; flex-shrink: 0; }
-  .dish-uses { font-size: 11px; color: var(--text-faint); flex-shrink: 0; }
-  .dish-macros { display: flex; gap: 8px; font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+  .dish-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dish-badge { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: var(--green); color: #000; font-weight: 600; flex-shrink: 0; }
+  .dish-summary { font-size: 13px; color: var(--text-dim); }
 
   /* Photo progress bar */
   .photo-progress { padding: 10px 14px; border-bottom: 1px solid var(--border); }
@@ -1006,28 +1038,21 @@
   /* Dish selection modal — new styles */
   .meal-inline .dish-default-highlight { background: var(--card); border: 1px solid var(--green); margin: 0; }
   .dish-default-highlight .dish-name { font-weight: 700; color: var(--green); }
-  .dish-portion { font-size: 11px; color: var(--text-dim); padding: 2px 6px; background: var(--card-2); border-radius: 4px; }
-  .meal-inline .dish-search-input { width: 100%; padding: 8px 10px; border-radius: 7px; background: var(--card); border: 1px solid var(--border-2); color: var(--text); font-size: 13px; margin: 0; outline: none; }
+  .meal-inline .dish-search-input { width: 100%; padding: 10px 12px; border-radius: 8px; background: var(--card); border: 1px solid var(--border-2); color: var(--text); font-size: 14px; margin: 0; outline: none; }
   .dish-search-input:focus { border-color: var(--green); }
-  .modal-back { background: none; border: none; color: var(--text-dim); font-size: 13px; cursor: pointer; margin-bottom: 12px; padding: 0; }
-  .meal-inline .portion-section { padding: 4px 0; }
-  .meal-inline .portion-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-  .meal-inline .portion-current { font-size: 20px; font-weight: 700; color: var(--green); }
-  .portion-hint { font-size: 12px; color: var(--text-dim); }
-  .meal-inline .portion-slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-  .slider-end { font-size: 11px; color: var(--text-dim); min-width: 28px; text-align: center; }
+  .meal-inline .portion-section { display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
+  .meal-inline .portion-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .meal-inline .portion-current { font-size: 18px; font-weight: 700; color: var(--green); }
+  .portion-hint { font-size: 13px; color: var(--text-dim); }
+  .meal-inline .portion-slider-row { display: flex; align-items: center; gap: 8px; }
+  .slider-end { font-size: 13px; color: var(--text-dim); min-width: 28px; text-align: center; }
   .portion-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; background: var(--border-2); outline: none; }
   .portion-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: var(--green); cursor: pointer; border: none; }
   .portion-slider::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: var(--green); cursor: pointer; border: none; }
-  .meal-inline .portion-macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 7px; }
-  .portion-macros .macro { display: flex; flex-direction: column; gap: 3px; text-align: center; }
-  .portion-macros .macro-l { font-size: 11px; text-transform: uppercase; font-weight: 600; color: var(--text-dim); }
-  .meal-inline .portion-macros .macro-v { font-size: 14px; font-weight: 700; color: var(--text); }
+  .portion-summary { display: flex; gap: 8px; font-weight: 500; }
+  .portion-summary span + span::before { content: '·'; margin-right: 8px; color: var(--text-faint); }
 
   @media (max-width: 520px) {
-    .meal-inline { padding-left: 14px; }
-    .dish-btn { align-items: flex-start; flex-direction: column; gap: 5px; }
-    .dish-macros { flex-wrap: wrap; }
-    .portion-macros { grid-template-columns: repeat(3, 1fr); }
+    .meal-inline { margin-left: 10px; }
   }
 </style>
