@@ -12,8 +12,15 @@ class Settings(BaseSettings):
     PHOTO_DIR: str = "/app/photos"
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
-    ALLOWED_EMAIL: str = "luis@example.com"
+    ALLOWED_GOOGLE_EMAILS: str = ""
+    LEGACY_OWNER_EMAIL: str = ""
+    FITTRACK_DEVICE_KEY: str = ""
+    ENVIRONMENT: str = "development"
     GOOGLE_REDIRECT_URI: str = "https://fittrack.49.12.225.84.sslip.io/api/google/callback"
 
 
 settings = Settings()
+
+
+def allowed_google_emails() -> set[str]:
+    return {email.strip().casefold() for email in settings.ALLOWED_GOOGLE_EMAILS.split(",") if email.strip()}

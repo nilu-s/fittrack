@@ -465,17 +465,15 @@ class ApiClient {
     }
   }
 
-  // Scale sync (ESP32 posts to /api/scale-sync directly; this is for manual trigger/testing)
-  async scaleSync(data: { weight_kg: number; date?: string; impedance?: number; height_cm?: number; age?: number; gender?: string }): Promise<DayEntry | null> {
-    try {
-      return await this.request<DayEntry>(`/scale-sync`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    } catch (err) {
-      if (isNetworkError(err)) return null;
-      return null;
-    }
+  async getScaleMeasurements(from?: string, to?: string): Promise<Array<{ id: string; measured_at: string; weight_kg: number; status: 'assigned' }> | null> {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    return this.request(`/scale-measurements${params.size ? `?${params}` : ''}`);
+  }
+
+  async removeScaleMeasurement(id: string): Promise<{ id: string; status: 'rejected' } | null> {
+    return this.request(`/scale-measurements/${id}/reject`, { method: 'POST' });
   }
 
   // Goals

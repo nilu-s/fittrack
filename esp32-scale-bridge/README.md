@@ -1,6 +1,7 @@
 # FitTrack Scale Bridge — ESP32
 
-ESP32 firmware that reads a Renpho BLE body fat scale and sends weight + impedance to the FitTrack API.
+ESP32 firmware that reads a Renpho AABB broadcast scale and sends a raw,
+weight-only device event to the FitTrack API.
 
 ## Hardware
 
@@ -10,15 +11,11 @@ ESP32 firmware that reads a Renpho BLE body fat scale and sends weight + impedan
 
 ## How it works
 
-1. ESP32 scans for BLE devices with Renpho-scale names
-2. Connects via GATT to service `0xFFE1`
-3. Subscribes to data characteristic notifications
-4. When you step on the scale:
-   - Scale sends weight data → ESP32 parses it
-   - Scale sends impedance data → ESP32 parses it
-5. ESP32 sends JSON POST to `https://fittrack.49.12.225.84.sslip.io/api/scale-sync`, authenticated with `X-FitTrack-CLI-Key`
-6. API calculates body composition (BMI, body fat %, muscle mass, water %, bone mass, BMR, visceral fat, metabolic age) from weight + impedance + user profile
-7. UI shows weight in biometrics card with "Waage ✓" badge and expandable body composition details
+1. ESP32 passively scans the configured AABB broadcast address.
+2. A final weight frame creates one stable device event ID.
+3. ESP32 retries that exact event at `POST /api/scale-sync/v2` with
+   `X-FitTrack-Device-Key`.
+4. The server, never the firmware, assigns an accepted event to an account.
 
 ## Setup
 
@@ -29,7 +26,7 @@ pip install platformio
 # Copy config template
 cp src/config.h.example src/config.h
 
-# Edit config.h with your WiFi, API key, and user profile
+# Edit config.h with WiFi and the dedicated device credential
 nano src/config.h
 
 # Build and upload
@@ -67,11 +64,9 @@ generic Renpho packet format.
 | `WIFI_SSID` | Your home WiFi name |
 | `WIFI_PASSWORD` | Your home WiFi password |
 | `API_HOST` | FitTrack server hostname |
-| `API_KEY` | Must match `FITTRACK_CLI_KEY` env var on server |
-| `USER_HEIGHT_CM` | Your height in cm (for body comp calc) |
-| `USER_AGE` | Your age |
-| `USER_GENDER` | `"male"` or `"female"` |
-| `SCALE_NAME_PREFIX` | BLE name prefix of your scale (try `"QN-Scale"` or scan first) |
+| `DEVICE_ID` | Registered server-side bridge ID |
+| `DEVICE_KEY` | Dedicated device credential; never a user credential |
+| `SCALE_BLE_ADDRESS` | AABB broadcast address emitted by the diagnostic |
 
 ## BLE Protocol
 
@@ -112,7 +107,7 @@ pio run -t monitor
 |---|---|
 | Scale not found in BLE scan | Check scale is in pairing mode (usually automatic when stepping on it) |
 | Wrong weight values | Adjust the weight encoding factor in `parseScaleData()` |
-| API auth failed | Check `API_KEY` matches `FITTRACK_CLI_KEY` on server |
-| `401 Not authenticated` | `API_KEY` is missing or does not match `FITTRACK_CLI_KEY` |
+| API auth failed | Check `DEVICE_KEY` against the registered device credential |
+| `401 Unknown device` | Device ID is unregistered, inactive, or the credential is wrong |
 | HTTPS connection failed | Ensure ESP32 has internet access (not just LAN) |
-| No impedance | Some scales don't send impedance if feet aren't planted correctly — weight-only still works |
+| No body composition | This bridge intentionally sends weight only |

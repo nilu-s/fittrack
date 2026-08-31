@@ -1,0 +1,9 @@
+{
+  "device_id": "esp32-renpho-aabb-bridge",
+  "device_event_id": "fixture-115-0",
+  "measured_at": "2026-08-31T07:15:02Z",
+  "weight_kg": 115.0,
+  "impedance_ohm": null,
+  "protocol": "renpho-aabb",
+  "protocol_version": 1
+}

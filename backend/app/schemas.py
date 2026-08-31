@@ -19,7 +19,6 @@ class _Base(BaseModel):
 # DayEntry
 # ---------------------------------------------------------------------------
 class DayEntryBase(_Base):
-    user_id: str = "luis"
     date: date
     weight_kg: Optional[Decimal] = None
     weight_source: Optional[str] = None
@@ -129,11 +128,24 @@ class ScaleSyncRequest(_Base):
     device_id: Optional[str] = None  # ESP32 identifier
 
 
+class ScaleSyncV2Request(_Base):
+    """Raw device-only payload. Extra fields are rejected deliberately."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    device_id: str = Field(min_length=1, max_length=128)
+    device_event_id: str = Field(min_length=1, max_length=128)
+    measured_at: datetime
+    weight_kg: float = Field(ge=0.5, le=300)
+    impedance_ohm: Optional[int] = Field(default=None, ge=1, le=5000)
+    protocol: str = Field(min_length=1, max_length=64)
+    protocol_version: int = Field(ge=1, le=1000)
+
+
 # ---------------------------------------------------------------------------
 # Meal
 # ---------------------------------------------------------------------------
 class MealBase(_Base):
-    user_id: str = "luis"
     date: date
     meal_slot: int
     name: str
@@ -190,7 +202,6 @@ class MealResponse(MealBase):
 # MealTemplate
 # ---------------------------------------------------------------------------
 class MealTemplateBase(_Base):
-    user_id: str = "luis"
     slot: int
     name: str
     kcal: Optional[Decimal] = None
@@ -225,7 +236,6 @@ class MealTemplateResponse(MealTemplateBase):
 # Dish
 # ---------------------------------------------------------------------------#
 class DishBase(_Base):
-    user_id: str = "luis"
     slot: Optional[int] = None  # preferred slot, not mandatory
     name: str
     kcal: Optional[Decimal] = None
@@ -287,7 +297,6 @@ class DishRecommendResult(_Base):
 # Todo
 # ---------------------------------------------------------------------------
 class TodoBase(_Base):
-    user_id: str = "luis"
     title: str
     category: Optional[str] = None
     priority: int = 2
@@ -333,7 +342,6 @@ class TodoResponse(TodoBase):
 # TrainingRotation
 # ---------------------------------------------------------------------------
 class TrainingUnitBase(_Base):
-    user_id: str = "luis"
     name: str
     description: Optional[str] = None
     unit_type: str = "gym"
@@ -358,7 +366,6 @@ class TrainingUnitResponse(TrainingUnitBase):
 
 
 class TrainingRotationBase(_Base):
-    user_id: str = "luis"
     slot: int
     training_type: str
     weekday: Optional[int] = None
@@ -387,7 +394,6 @@ class TrainingRotationResponse(TrainingRotationBase):
 # Exercise
 # ---------------------------------------------------------------------------
 class ExerciseBase(_Base):
-    user_id: str = "luis"
     training_type: str
     exercise_name: str
     target_sets: str = Field(pattern=r"^[1-9][0-9]?$")
@@ -440,7 +446,6 @@ class ExerciseResponse(ExerciseBase):
 # TrainingSet
 # ---------------------------------------------------------------------------
 class TrainingSetBase(_Base):
-    user_id: str = "luis"
     date: date
     training_type: str
     exercise_name: str

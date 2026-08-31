@@ -47,11 +47,8 @@ API_BASE = os.environ.get("FITTRACK_API_URL", "http://localhost:8000/api")
 COOKIE_FILE = os.path.expanduser("~/.fittrack_cookies")
 
 def _get_client() -> httpx.Client:
-    """Get an httpx client with persisted cookies and CLI auth key."""
+    """Get an httpx client with the browser session cookie only."""
     client = httpx.Client(base_url=API_BASE.rstrip("/api"), timeout=30)
-    # CLI auth key header (bypasses cookie auth for local access)
-    cli_key = os.environ.get("FITTRACK_CLI_KEY", "fittrack_cli_local_2026")
-    client.headers["X-FitTrack-CLI-Key"] = cli_key
     # Load persisted cookies
     if os.path.exists(COOKIE_FILE):
         try:

@@ -13,14 +13,10 @@
 // Use the public URL since networks are separate
 #define API_HOST        "fittrack.49.12.225.84.sslip.io"
 #define API_PORT        443
-#define API_PATH        "/api/scale-sync"
-#define API_KEY         "YOUR_FITTRACK_CLI_KEY"  // must match FITTRACK_CLI_KEY env var on server
-// ESP32 sends this as X-FitTrack-CLI-Key header (same auth as CLI)
-
-// --- User profile (for server-side body composition calculation) ---
-#define USER_HEIGHT_CM  180   // your height in cm
-#define USER_AGE        30    // your age
-#define USER_GENDER     "male"  // "male" or "female"
+#define API_PATH        "/api/scale-sync/v2"
+#define DEVICE_ID       "esp32-renpho-aabb-bridge"
+#define DEVICE_KEY      "YOUR_FITTRACK_DEVICE_KEY"
+// DEVICE_KEY is sent as X-FitTrack-Device-Key and is never a user credential.
 
 // --- RENPHO ES-CS20M AABB broadcast scale ---
 // The AABB variant does not accept GATT connections. Copy the address emitted

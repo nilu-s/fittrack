@@ -12,6 +12,7 @@
 #include <ArduinoJson.h>
 #include <NimBLEDevice.h>
 #include <string>
+#include <time.h>
 #include "config.h"
 
 constexpr uint8_t COMPANY_ID_LOW = 0xFF;
@@ -30,12 +31,25 @@ constexpr unsigned long MEASUREMENT_COOLDOWN_MS = 10000;
 static portMUX_TYPE measurementLock = portMUX_INITIALIZER_UNLOCKED;
 static bool measurementPending = false;
 static float pendingWeightKg = 0.0f;
+static String pendingEventId;
+static String pendingMeasuredAt;
+static uint32_t eventSequence = 0;
 static unsigned long lastMeasurementAt = 0;
 static unsigned long lastWifiAttemptAt = 0;
 static unsigned long lastSendAttemptAt = 0;
 static bool wifiConnectedReported = false;
 
-static bool sendToApi(float weightKg);
+static bool sendToApi(float weightKg, const String& eventId, const String& measuredAt);
+
+static String utcTimestamp() {
+  const time_t now = time(nullptr);
+  if (now < 1700000000) return "";
+  struct tm utc{};
+  gmtime_r(&now, &utc);
+  char buffer[25];
+  strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &utc);
+  return String(buffer);
+}
 
 static bool isTargetScale(const NimBLEAdvertisedDevice* device) {
   const String address(device->getAddress().toString().c_str());
@@ -70,10 +84,14 @@ class ScaleScanCallbacks final : public NimBLEScanCallbacks {
     if (!parseFinalWeight(manufacturer, &weightKg)) return;
 
     const unsigned long now = millis();
+    const String measuredAt = utcTimestamp();
+    if (measuredAt.isEmpty()) return;
     portENTER_CRITICAL(&measurementLock);
     const bool withinCooldown = now - lastMeasurementAt < MEASUREMENT_COOLDOWN_MS;
     if (!measurementPending && !withinCooldown) {
       pendingWeightKg = weightKg;
+      pendingMeasuredAt = measuredAt;
+      pendingEventId = String(ESP.getEfuseMac(), HEX) + "-" + String(++eventSequence) + "-" + String(now);
       measurementPending = true;
       lastMeasurementAt = now;
       Serial.printf("RENPHO AABB final measurement: %.2f kg\n", weightKg);
@@ -101,7 +119,7 @@ static void ensureWifi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 }
 
-static bool sendToApi(float weightKg) {
+static bool sendToApi(float weightKg, const String& eventId, const String& measuredAt) {
   if (WiFi.status() != WL_CONNECTED) return false;
   WiFiClientSecure client;
   client.setInsecure();
@@ -113,16 +131,18 @@ static bool sendToApi(float weightKg) {
 
   StaticJsonDocument<384> doc;
   doc["weight_kg"] = weightKg;
-  doc["height_cm"] = USER_HEIGHT_CM;
-  doc["age"] = USER_AGE;
-  doc["gender"] = USER_GENDER;
-  doc["device_id"] = "esp32-renpho-aabb-bridge";
+  doc["device_id"] = DEVICE_ID;
+  doc["device_event_id"] = eventId;
+  doc["measured_at"] = measuredAt;
+  doc["impedance_ohm"] = nullptr;
+  doc["protocol"] = "renpho-aabb";
+  doc["protocol_version"] = 1;
 
   String json;
   serializeJson(doc, json);
   String request = "POST " + String(API_PATH) + " HTTP/1.1\r\n";
   request += "Host: " + String(API_HOST) + "\r\n";
-  request += "X-FitTrack-CLI-Key: " + String(API_KEY) + "\r\n";
+  request += "X-FitTrack-Device-Key: " + String(DEVICE_KEY) + "\r\n";
   request += "Content-Type: application/json\r\n";
   request += "Content-Length: " + String(json.length()) + "\r\n";
   request += "Connection: close\r\n\r\n";
@@ -148,6 +168,7 @@ void setup() {
   Serial.println("\n=== FitTrack Scale Bridge: RENPHO AABB Broadcast ===\n");
   WiFi.mode(WIFI_STA);
   ensureWifi();
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
   NimBLEDevice::init("FitTrack-Scale-Bridge");
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
   NimBLEScan* scan = NimBLEDevice::getScan();
@@ -162,17 +183,21 @@ void setup() {
 void loop() {
   ensureWifi();
   float weightToSend = 0.0f;
+  String eventToSend;
+  String measuredAtToSend;
   bool shouldSend = false;
   const unsigned long now = millis();
   portENTER_CRITICAL(&measurementLock);
   if (measurementPending && now - lastSendAttemptAt >= SEND_RETRY_MS) {
     weightToSend = pendingWeightKg;
+    eventToSend = pendingEventId;
+    measuredAtToSend = pendingMeasuredAt;
     lastSendAttemptAt = now;
     shouldSend = true;
   }
   portEXIT_CRITICAL(&measurementLock);
 
-  if (shouldSend && sendToApi(weightToSend)) {
+  if (shouldSend && sendToApi(weightToSend, eventToSend, measuredAtToSend)) {
     portENTER_CRITICAL(&measurementLock);
     measurementPending = false;
     portEXIT_CRITICAL(&measurementLock);

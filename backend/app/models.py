@@ -21,9 +21,62 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.services.ownership import AccountOwned
 
 
-class DayEntry(Base):
+class Account(Base):
+    __tablename__ = "accounts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    google_subject: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class AccountWeightRange(Base):
+    __tablename__ = "account_weight_ranges"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False, unique=True)
+    baseline_kg: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    lower_offset_kg: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    upper_offset_kg: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    baseline_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class RegisteredDevice(Base):
+    __tablename__ = "registered_devices"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    device_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    credential_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ScaleMeasurement(AccountOwned, Base):
+    __tablename__ = "scale_measurements"
+    __table_args__ = (UniqueConstraint("device_id", "device_event_id", name="uq_scale_measurements_device_event"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    device_id: Mapped[str] = mapped_column(Text, nullable=False)
+    device_event_id: Mapped[str] = mapped_column(Text, nullable=False)
+    measured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    weight_kg: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    impedance_ohm: Mapped[int | None] = mapped_column(Integer)
+    raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="assigned")
+    assignment_method: Mapped[str] = mapped_column(Text, nullable=False, default="weight_range")
+    assignment_confidence: Mapped[Decimal] = mapped_column(Numeric(3, 2), nullable=False, default=Decimal("1.0"))
+    assignment_reason: Mapped[str | None] = mapped_column(Text)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DayEntry(AccountOwned, Base):
     __tablename__ = "day_entries"
     __table_args__ = (UniqueConstraint("user_id", "date", name="uq_day_entries_user_date"),)
 
@@ -66,7 +119,7 @@ class DayEntry(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-class Meal(Base):
+class Meal(AccountOwned, Base):
     __tablename__ = "meals"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -94,7 +147,7 @@ class Meal(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-class Todo(Base):
+class Todo(AccountOwned, Base):
     __tablename__ = "todos"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -116,7 +169,7 @@ class Todo(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-class MealTemplate(Base):
+class MealTemplate(AccountOwned, Base):
     __tablename__ = "meal_templates"
     __table_args__ = (UniqueConstraint("user_id", "slot", name="uq_meal_templates_user_slot"),)
 
@@ -133,7 +186,7 @@ class MealTemplate(Base):
     free_sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
 
 
-class TrainingUnit(Base):
+class TrainingUnit(AccountOwned, Base):
     __tablename__ = "training_units"
     __table_args__ = (UniqueConstraint("user_id", "name", name="uq_training_units_user_name"),)
 
@@ -146,7 +199,7 @@ class TrainingUnit(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
-class TrainingRotation(Base):
+class TrainingRotation(AccountOwned, Base):
     __tablename__ = "training_rotation"
     __table_args__ = (UniqueConstraint("user_id", "slot", name="uq_training_rotation_user_slot"),)
 
@@ -160,7 +213,7 @@ class TrainingRotation(Base):
     start_date: Mapped[date | None] = mapped_column(Date)
 
 
-class TrainingSet(Base):
+class TrainingSet(AccountOwned, Base):
     __tablename__ = "training_sets"
     __table_args__ = (
         UniqueConstraint("user_id", "date", "exercise_name", "set_number", name="uq_training_set_user_date_ex_set"),
@@ -180,7 +233,7 @@ class TrainingSet(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-class Exercise(Base):
+class Exercise(AccountOwned, Base):
     __tablename__ = "exercises"
     __table_args__ = (
         UniqueConstraint("user_id", "training_type", "exercise_name", name="uq_exercises_user_type_name"),
@@ -208,7 +261,7 @@ class Exercise(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
 
-class SyncLog(Base):
+class SyncLog(AccountOwned, Base):
     __tablename__ = "sync_log"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -222,7 +275,7 @@ class SyncLog(Base):
     synced: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
-class Photo(Base):
+class Photo(AccountOwned, Base):
     __tablename__ = "photos"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -234,7 +287,7 @@ class Photo(Base):
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class GoogleToken(Base):
+class GoogleToken(AccountOwned, Base):
     __tablename__ = "google_tokens"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -249,7 +302,7 @@ class GoogleToken(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-class ExerciseProgress(Base):
+class ExerciseProgress(AccountOwned, Base):
     """Tracks actual performance per exercise per completed session."""
     __tablename__ = "exercise_progress"
     __table_args__ = (UniqueConstraint("user_id", "exercise_id", "date", name="uq_exercise_progress_user_exercise_date"),)
@@ -274,7 +327,7 @@ class ExerciseProgress(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-class Dish(Base):
+class Dish(AccountOwned, Base):
     """Reusable dish/preset — grows over time from templates + photo analyses.
 
     Dishes are slot-independent: any dish can be assigned to any meal slot.
@@ -314,7 +367,7 @@ class Dish(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-class Goal(Base):
+class Goal(AccountOwned, Base):
     """Backend-persisted daily/weekly goals — single source of truth, not frontend-only."""
     __tablename__ = "goals"
     __table_args__ = (UniqueConstraint("user_id", "key", name="uq_goals_user_key"),)

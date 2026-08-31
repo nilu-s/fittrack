@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
@@ -9,14 +8,24 @@ from urllib.parse import urlencode
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from jose import jwt as jose_jwt
 from sqlalchemy import delete, select
 
-from app.config import settings
+from app.config import allowed_google_emails, settings
 from app.database import async_session
-from app.models import GoogleToken
+from app.models import Account, AccountWeightRange, GoogleToken
+from app.seed import seed_default_data
+from app.services.ownership import reset_current_account, set_current_account
 
 logger = logging.getLogger(__name__)
+
+LEGACY_OWNED_TABLES = (
+    "day_entries", "meals", "todos", "meal_templates", "training_units",
+    "training_rotation", "training_sets", "exercises", "sync_log", "photos",
+    "google_tokens", "exercise_progress", "dishes", "goals",
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 # Separate router for /google/* paths (matching Google Console redirect URI)
@@ -71,43 +80,44 @@ SESSION_COOKIE_NAME = "fittrack_session"
 SESSION_TTL_DAYS = 7
 
 
-def _create_session_jwt(email: str) -> str:
-    """Create a JWT session token for the given email."""
+def _create_session_jwt(account: Account) -> str:
+    """Create a session bound to an internal account and immutable Google subject."""
     now = datetime.now(timezone.utc)
     payload = {
-        "email": email,
+        "account_id": str(account.id),
+        "sub": account.google_subject,
         "iat": now,
         "exp": now + timedelta(days=SESSION_TTL_DAYS),
     }
     return jose_jwt.encode(payload, settings.FITTRACK_JWT_SECRET, algorithm="HS256")
 
 
-def _verify_session_jwt(token: str) -> str | None:
-    """Verify a JWT session token and return the email, or None if invalid."""
+def _verify_session_jwt(token: str) -> dict | None:
     try:
         payload = jose_jwt.decode(token, settings.FITTRACK_JWT_SECRET, algorithms=["HS256"])
-        return payload.get("email")
+        return payload if payload.get("account_id") and payload.get("sub") else None
     except Exception:
         return None
 
 
-async def get_current_user(request: Request) -> str:
-    """FastAPI dependency: reads fittrack_session cookie, verifies JWT, returns email.
-
-    Raises HTTPException(401) if not authenticated.
-    Localhost/private network requests without cookie bypass auth (CLI/agent access).
-    """
+async def get_current_user(request: Request):
+    """Yield the account derived from a verified browser session; never a device."""
     token = request.cookies.get(SESSION_COOKIE_NAME)
-    # Auth bypass for CLI/agent: secret key header (not forwarded by Caddy from public)
-    cli_key = os.environ.get("FITTRACK_CLI_KEY")
-    if not token and cli_key and request.headers.get("X-FitTrack-CLI-Key") == cli_key:
-        return "luis"
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    email = _verify_session_jwt(token)
-    if not email:
+    claims = _verify_session_jwt(token)
+    if not claims:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
-    return email
+    import uuid
+    try:
+        account_id = uuid.UUID(claims["account_id"])
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid session account")
+    scope = set_current_account(account_id)
+    try:
+        yield account_id
+    finally:
+        reset_current_account(scope)
 
 
 # --- Token refresh helpers ---
@@ -128,17 +138,17 @@ async def refresh_access_token(refresh_token: str) -> dict | None:
         )
     if resp.status_code == 200:
         return resp.json()
-    logger.error(f"Token refresh failed: {resp.text}")
+    logger.error("Token refresh failed: status=%s", resp.status_code)
     return None
 
 
-async def get_valid_access_token(session) -> str | None:
-    """Get a valid access token for user_id='luis', refreshing if necessary.
+async def get_valid_access_token(session, account_id) -> str | None:
+    """Get a valid access token for a session-derived account.
 
     Returns the access_token string, or None if no token is stored / refresh fails.
     """
     result = await session.execute(
-        select(GoogleToken).where(GoogleToken.user_id == "luis")
+        select(GoogleToken).where(GoogleToken.account_id == account_id)
     )
     token_row = result.scalar_one_or_none()
     if not token_row or not token_row.refresh_token:
@@ -159,6 +169,22 @@ async def get_valid_access_token(session) -> str | None:
     token_row.expires_at = datetime.now(timezone.utc) + timedelta(seconds=new_expires_in)
     await session.commit()
     return new_access
+
+
+async def _migrate_legacy_owner_rows(session, account: Account) -> None:
+    """One-way, fail-safe mapping of pre-account `luis` rows to their owner."""
+    legacy_email = settings.LEGACY_OWNER_EMAIL.casefold()
+    if not legacy_email or account.email.casefold() != legacy_email:
+        return
+    candidates = (await session.execute(select(Account).where(Account.email == legacy_email))).scalars().all()
+    if len(candidates) != 1 or candidates[0].id != account.id:
+        raise HTTPException(status_code=409, detail="Legacy owner account is not uniquely resolved")
+    from sqlalchemy import text
+    for table in LEGACY_OWNED_TABLES:
+        await session.execute(
+            text(f"UPDATE {table} SET account_id = :account_id WHERE account_id IS NULL AND user_id = 'luis'"),
+            {"account_id": account.id},
+        )
 
 
 # --- Routes ---
@@ -231,10 +257,8 @@ async def google_callback(request: Request):
             timeout=30,
         )
 
-    logger.info(f"Token exchange response: status={token_resp.status_code}, body={token_resp.text[:500]}")
-
     if token_resp.status_code != 200:
-        logger.error(f"Token exchange failed: status={token_resp.status_code}, body={token_resp.text[:500]}")
+        logger.error("Token exchange failed: status=%s", token_resp.status_code)
         # Redirect to login with error (instead of JSON, so browser doesn't get stuck)
         return RedirectResponse(url="/login?error=token_exchange_failed", status_code=302)
 
@@ -251,38 +275,58 @@ async def google_callback(request: Request):
             content={"detail": "No access token in response"},
         )
 
-    # Get user info
-    async with httpx.AsyncClient() as client:
-        userinfo_resp = await client.get(
-            GOOGLE_USERINFO_URL,
-            headers={"Authorization": f"Bearer {access_token}"},
-            timeout=30,
+    raw_id_token = token_data.get("id_token")
+    if not raw_id_token:
+        return JSONResponse(status_code=400, content={"detail": "Missing Google ID token"})
+    try:
+        identity = google_id_token.verify_oauth2_token(
+            raw_id_token, google_requests.Request(), settings.GOOGLE_CLIENT_ID
         )
-
-    if userinfo_resp.status_code != 200:
-        logger.error(f"UserInfo fetch failed: {userinfo_resp.text}")
-        return JSONResponse(
-            status_code=400,
-            content={"detail": "Failed to get user info"},
-        )
-
-    user_info = userinfo_resp.json()
-    email = user_info.get("email", "")
-
-    # Check allowed email
-    if settings.ALLOWED_EMAIL and email and settings.ALLOWED_EMAIL != email:
+    except ValueError:
+        logger.warning("Google ID token validation failed")
+        return JSONResponse(status_code=401, content={"detail": "Invalid Google identity"})
+    google_subject = identity.get("sub")
+    email = str(identity.get("email", "")).casefold()
+    if not google_subject or not email:
+        return JSONResponse(status_code=400, content={"detail": "Incomplete Google identity"})
+    allow_list = allowed_google_emails()
+    if not allow_list and settings.ENVIRONMENT.casefold() == "production":
+        raise HTTPException(status_code=500, detail="Google allow-list not configured")
+    if email not in allow_list:
         return JSONResponse(
             status_code=403,
-            content={"detail": f"Email {email} not allowed"},
+            content={"detail": "Google account is not allowed"},
         )
 
-    # Persist tokens to DB (upsert for user_id='luis')
+    # Upsert immutable Google identity, then persist tokens only for that account.
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
     async with async_session() as session:
-        result = await session.execute(
-            select(GoogleToken).where(GoogleToken.user_id == "luis")
-        )
+        account = (await session.execute(select(Account).where(Account.google_subject == google_subject))).scalar_one_or_none()
+        if account is None:
+            account = Account(google_subject=google_subject, email=email, display_name=identity.get("name"))
+            session.add(account)
+            await session.flush()
+        else:
+            account.email = email
+            account.display_name = identity.get("name") or account.display_name
+        range_row = (await session.execute(select(AccountWeightRange).where(AccountWeightRange.account_id == account.id))).scalar_one_or_none()
+        if range_row is None:
+            is_legacy_owner = email == settings.LEGACY_OWNER_EMAIL.casefold()
+            range_row = AccountWeightRange(
+                account_id=account.id,
+                baseline_kg=117.5 if is_legacy_owner else 65.0,
+                lower_offset_kg=-27.5 if is_legacy_owner else -20.0,
+                upper_offset_kg=27.5 if is_legacy_owner else 20.0,
+            )
+            session.add(range_row)
+        await _migrate_legacy_owner_rows(session, account)
+        scope = set_current_account(account.id)
+        try:
+            await seed_default_data(session)
+        finally:
+            reset_current_account(scope)
+        result = await session.execute(select(GoogleToken).where(GoogleToken.account_id == account.id))
         existing = result.scalar_one_or_none()
 
         if existing:
@@ -295,7 +339,7 @@ async def google_callback(request: Request):
             existing.scope = scope
         else:
             new_token = GoogleToken(
-                user_id="luis",
+                account_id=account.id,
                 email=email,
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -307,10 +351,8 @@ async def google_callback(request: Request):
 
         await session.commit()
 
-    logger.info(f"Google OAuth success for {email} — tokens persisted to DB")
-
     # Create JWT session token and set as httpOnly cookie, then redirect to /
-    session_jwt = _create_session_jwt(email)
+    session_jwt = _create_session_jwt(account)
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
@@ -330,18 +372,23 @@ async def auth_me(request: Request):
     token = request.cookies.get(SESSION_COOKIE_NAME)
     if not token:
         return {"authenticated": False, "email": None}
-    email = _verify_session_jwt(token)
-    if not email:
+    claims = _verify_session_jwt(token)
+    if not claims:
         return {"authenticated": False, "email": None}
-    return {"authenticated": True, "email": email}
+    import uuid
+    async with async_session() as session:
+        account = await session.get(Account, uuid.UUID(claims["account_id"]))
+    if not account or account.google_subject != claims["sub"]:
+        return {"authenticated": False, "email": None}
+    return {"authenticated": True, "id": str(account.id), "email": account.email, "display_name": account.display_name}
 
 
 @router.get("/google/status")
-async def google_status():
+async def google_status(user=Depends(get_current_user)):
     """Check if Google is connected (valid token in DB)."""
     async with async_session() as session:
         result = await session.execute(
-            select(GoogleToken).where(GoogleToken.user_id == "luis")
+            select(GoogleToken).where(GoogleToken.account_id == user)
         )
         token_row = result.scalar_one_or_none()
 
@@ -368,11 +415,11 @@ async def logout(request: Request):
 
 
 @router.post("/google/disconnect")
-async def google_disconnect(request: Request):
+async def google_disconnect(request: Request, user=Depends(get_current_user)):
     """Disconnect Google — delete Google tokens from DB, but keep session cookie."""
     async with async_session() as session:
         await session.execute(
-            delete(GoogleToken).where(GoogleToken.user_id == "luis")
+            delete(GoogleToken).where(GoogleToken.account_id == user)
         )
         await session.commit()
     return {"detail": "Google disconnected"}

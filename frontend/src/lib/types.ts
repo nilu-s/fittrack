@@ -2,7 +2,6 @@
 
 export interface DayEntry {
   id?: string;
-  user_id?: string;
   date: string; // YYYY-MM-DD
   weight_kg?: number | null;
   weight_source?: string | null; // 'scale_esp' | 'manual' | 'google_fit' | null
@@ -40,7 +39,6 @@ export interface DayEntry {
 
 export interface Meal {
   id?: string;
-  user_id?: string;
   date: string; // YYYY-MM-DD
   meal_slot: number;
   name?: string;
@@ -66,7 +64,6 @@ export interface Meal {
 
 export interface Todo {
   id?: string;
-  user_id?: string;
   title: string;
   category?: string | null;
   priority: number; // 1=low, 2=medium, 3=high
@@ -86,7 +83,6 @@ export interface Todo {
 
 export interface Exercise {
   id?: string;
-  user_id?: string;
   training_type: string;
   exercise_name: string;
   target_sets: string;
@@ -109,7 +105,6 @@ export interface Exercise {
 
 export interface TrainingSet {
   id?: string;
-  user_id?: string;
   date: string;
   training_type: string;
   exercise_name: string;
@@ -124,7 +119,6 @@ export interface TrainingSet {
 
 export interface TrainingRotation {
   id?: string;
-  user_id?: string;
   slot: number;
   training_type: string;
   weekday?: number | null;
@@ -135,7 +129,6 @@ export interface TrainingRotation {
 
 export interface TrainingUnit {
   id?: string;
-  user_id?: string;
   name: string;
   description?: string | null;
   unit_type?: 'gym' | 'cardio' | string;
@@ -204,7 +197,6 @@ export interface TrainingCompleteResponse {
 
 export interface MealTemplate {
   id?: string;
-  user_id?: string;
   slot: number;
   name: string;
   kcal?: number | null;
@@ -218,7 +210,6 @@ export interface MealTemplate {
 
 export interface Dish {
   id?: string;
-  user_id?: string;
   slot?: number | null;
   name: string;
   kcal?: number | null;

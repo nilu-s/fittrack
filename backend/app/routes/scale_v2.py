@@ -1,0 +1,123 @@
+"""Device-only scale ingestion and account-scoped measurement history."""
+from __future__ import annotations
+
+import hashlib
+import hmac
+import uuid
+from datetime import datetime, timezone
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from sqlalchemy import select
+
+from app.config import settings
+from app.database import async_session
+from app.models import AccountWeightRange, DayEntry, RegisteredDevice, ScaleMeasurement
+from app.routes.auth import get_current_user
+from app.schemas import ScaleSyncV2Request
+from app.services.scale_assignment import AssignmentRange, choose_assignment
+
+device_router = APIRouter(prefix="/scale-sync/v2", tags=["scale-sync"])
+browser_router = APIRouter(prefix="/scale-measurements", tags=["scale-measurements"])
+
+
+def _device_key_hash(key: str) -> str:
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+async def _require_device(body: ScaleSyncV2Request, device_key: str | None) -> None:
+    if not device_key:
+        raise HTTPException(status_code=401, detail="Device authentication required")
+    async with async_session() as session:
+        device = (await session.execute(select(RegisteredDevice).where(RegisteredDevice.device_id == body.device_id))).scalar_one_or_none()
+    if not device or not device.is_active or not hmac.compare_digest(device.credential_hash, _device_key_hash(device_key)):
+        raise HTTPException(status_code=401, detail="Unknown device")
+
+
+@device_router.post("")
+async def ingest_scale_measurement(body: ScaleSyncV2Request, x_fittrack_device_key: str | None = Header(default=None)):
+    await _require_device(body, x_fittrack_device_key)
+    async with async_session() as session:
+        existing = (await session.execute(
+            select(ScaleMeasurement).execution_options(include_all_accounts=True).where(
+                ScaleMeasurement.device_id == body.device_id,
+                ScaleMeasurement.device_event_id == body.device_event_id,
+            )
+        )).scalar_one_or_none()
+        if existing:
+            return {"event_id": str(existing.id), "status": existing.status}
+
+        rows = (await session.execute(select(AccountWeightRange).where(AccountWeightRange.is_active.is_(True)))).scalars().all()
+        ranges = [
+            AssignmentRange(
+                account_id=str(row.account_id),
+                minimum_kg=float(row.baseline_kg + row.lower_offset_kg),
+                maximum_kg=float(row.baseline_kg + row.upper_offset_kg),
+            )
+            for row in rows
+        ]
+        try:
+            assignment = choose_assignment(body.weight_kg, ranges)
+        except ValueError as exc:
+            raise HTTPException(status_code=500, detail="Invalid server range configuration") from exc
+        if assignment is None:
+            return {"status": "discarded"}
+
+        measurement = ScaleMeasurement(
+            account_id=uuid.UUID(assignment.account_id),
+            device_id=body.device_id,
+            device_event_id=body.device_event_id,
+            measured_at=body.measured_at,
+            weight_kg=Decimal(str(body.weight_kg)),
+            impedance_ohm=body.impedance_ohm,
+            raw_payload=body.model_dump(mode="json"),
+            status="assigned",
+            assignment_method="weight_range",
+            assignment_confidence=Decimal("1.0"),
+            assignment_reason="unique active weight range",
+        )
+        session.add(measurement)
+        await session.flush()
+        day = body.measured_at.astimezone(timezone.utc).date()
+        entry = (await session.execute(select(DayEntry).where(DayEntry.account_id == measurement.account_id, DayEntry.date == day))).scalar_one_or_none()
+        if entry is None:
+            entry = DayEntry(account_id=measurement.account_id, user_id="legacy", date=day)
+            session.add(entry)
+        # A scale event is a projection. Do not replace a newer manual weight.
+        if entry.weight_source != "manual":
+            entry.weight_kg = measurement.weight_kg
+            entry.weight_source = "scale_esp"
+        await session.commit()
+        return {"event_id": str(measurement.id), "status": "assigned"}
+
+
+@browser_router.get("")
+async def list_measurements(
+    from_: datetime | None = Query(default=None, alias="from"),
+    to: datetime | None = Query(default=None),
+    account_id=Depends(get_current_user),
+):
+    async with async_session() as session:
+        statement = select(ScaleMeasurement).where(ScaleMeasurement.status == "assigned")
+        if from_:
+            statement = statement.where(ScaleMeasurement.measured_at >= from_)
+        if to:
+            statement = statement.where(ScaleMeasurement.measured_at <= to)
+        rows = (await session.execute(statement.order_by(ScaleMeasurement.measured_at.desc()))).scalars().all()
+    return [
+        {"id": str(item.id), "measured_at": item.measured_at, "weight_kg": item.weight_kg, "status": item.status}
+        for item in rows
+    ]
+
+
+@browser_router.post("/{measurement_id}/reject")
+async def reject_measurement(measurement_id: uuid.UUID, account_id=Depends(get_current_user)):
+    async with async_session() as session:
+        item = await session.get(ScaleMeasurement, measurement_id)
+        if not item or item.status != "assigned":
+            raise HTTPException(status_code=404, detail="Measurement not found")
+        item.status = "rejected"
+        item.rejected_at = datetime.now(timezone.utc)
+        item.assignment_reason = "removed by assigned account"
+        await session.commit()
+    return {"id": str(measurement_id), "status": "rejected"}

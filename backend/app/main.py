@@ -5,23 +5,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select, text
-
-from app.database import Base, async_session, engine
-from app.models import GoogleToken, MealTemplate  # noqa: F401  (ensure models registered)
-from app.models import ExerciseProgress, Goal  # noqa: F401
-from app.seed import seed_default_data
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create tables on startup (if migration hasn't run) and seed defaults."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    async with async_session() as session:
-        await seed_default_data(session)
+    """Schema changes run exclusively through Alembic; accounts seed explicitly."""
     yield
 
 
@@ -55,7 +45,7 @@ from app.routes.photos import router as photos_router
 from app.routes.stats import router as stats_router
 from app.routes.google_calendar import router as google_calendar_router
 from app.routes.google_fit import router as google_fit_router
-from app.routes.scale_sync import router as scale_sync_router
+from app.routes.scale_v2 import browser_router as scale_browser_router, device_router as scale_v2_router
 from app.routes.sync import router as sync_router
 from app.routes.todos import router as todos_router
 from app.routes.training import router as training_router
@@ -77,5 +67,6 @@ app.include_router(stats_router, prefix="/api")
 app.include_router(goals_router, prefix="/api")
 app.include_router(dishes_router, prefix="/api")
 app.include_router(google_fit_router, prefix="/api")
-app.include_router(scale_sync_router, prefix="/api")
+app.include_router(scale_v2_router, prefix="/api")
+app.include_router(scale_browser_router, prefix="/api")
 app.include_router(google_calendar_router, prefix="/api")

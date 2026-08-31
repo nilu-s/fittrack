@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+(cd backend && python -m pytest -q)
+(cd frontend && npm run check && npm run lint:design && npm run build)
+(cd esp32-scale-bridge && pio run)

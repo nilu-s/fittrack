@@ -21,14 +21,13 @@ docker compose up -d
 
 ## ESP32 scale bridge
 
-The ESP32 bridge posts measurements to `POST /api/scale-sync`.  This route is
-intentionally excluded from Caddy's browser basic authentication because the
-ESP32 authenticates with `X-FitTrack-CLI-Key`; the API rejects requests without
-the value configured as `FITTRACK_CLI_KEY`.
+The ESP32 bridge posts raw measurements to `POST /api/scale-sync/v2`. This
+device-only route is excluded from browser authentication and instead requires
+its registered `X-FitTrack-Device-Key`; it cannot select an account.
 
 For the device setup, copy
 [`esp32-scale-bridge/src/config.h.example`](esp32-scale-bridge/src/config.h.example)
-to `config.h`, set `API_KEY` to the server's `FITTRACK_CLI_KEY`, then build and
+to `config.h`, set `DEVICE_KEY` to the registered device credential, then build and
 flash the firmware as described in
 [`esp32-scale-bridge/README.md`](esp32-scale-bridge/README.md).  Do not commit
 the generated `config.h`.

@@ -54,7 +54,7 @@ async def get_day_entry(date: date_type = Query(...), user: str = Depends(get_cu
 async def upsert_day_entry(body: DayEntryCreate, user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(
-            select(DayEntry).where(DayEntry.user_id == body.user_id, DayEntry.date == body.date)
+            select(DayEntry).where(DayEntry.user_id == "luis", DayEntry.date == body.date)
         )
         entry = result.scalars().first()
         if entry is None:

@@ -175,7 +175,7 @@ async def sync_google_fit(
     user: str = Depends(get_current_user),
 ):
     async with async_session() as session:
-        access_token = await get_valid_access_token(session)
+        access_token = await get_valid_access_token(session, user)
         if not access_token:
             raise HTTPException(status_code=400, detail="Google account not connected or token missing")
 
