@@ -83,7 +83,7 @@
 
 <div class="shell">
   <header class="hdr">
-    <span class="hdr-title">FitTrack</span>
+    <a href="/" class="hdr-title">FitTrack</a>
     <div class="hdr-spacer"></div>
     <div class="hdr-actions">
       <a href="/settings" class="hdr-btn ui-icon-button" aria-label="Einstellungen"><Icon name="settings" size={18} /></a>
@@ -105,7 +105,7 @@
 <style>
   .shell { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; max-width: 480px; margin: 0 auto; width: 100%; }
   .hdr { display: flex; align-items: center; padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); gap: 8px; border-bottom: 1px solid var(--border); }
-  .hdr-title { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+  .hdr-title { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); text-decoration: none; }
   .hdr-spacer { flex: 1; }
   .hdr-actions { display: flex; align-items: center; gap: 2px; }
   .hdr-btn { color: var(--text-dim); text-decoration: none; cursor: pointer; background: none; border: none; padding: 6px; display: flex; align-items: center; border-radius: 6px; transition: background 0.15s; }
