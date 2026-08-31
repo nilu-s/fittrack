@@ -89,9 +89,7 @@
   let dishSearchQuery = '';
   let dishSearchResults: any[] = [];
   let dishSearching = false;
-  let selectedDish: any = null;
   let mealPickerOpen = false;
-  let portionFactor = 1.0;
   let swipedMealId = '';
   let swipeStartX: number | null = null;
 
@@ -259,9 +257,7 @@
     const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id);
     if (!meal) return;
     mealEditItem = item;
-    selectedDish = null;
     mealPickerOpen = false;
-    portionFactor = 1.0;
     dishSearchQuery = '';
     dishSearchResults = [];
     recommendResult = null;
@@ -274,7 +270,7 @@
     } catch { editDishes = []; recommendResult = null; }
     editDishesLoading = false;
   }
-  function closeMealEdit() { mealEditItem = null; selectedDish = null; mealPickerOpen = false; portionFactor = 1.0; }
+  function closeMealEdit() { mealEditItem = null; mealPickerOpen = false; }
 
   function getMealFromItem(item: UnifiedItem): Meal | undefined {
     const id = String(item.id).replace('meal-', '');
@@ -287,22 +283,8 @@
   }
 
   function selectDishForEdit(dish: any) {
-    selectedDish = dish;
-    portionFactor = 1.0;
+    void saveDishSelection(dish);
   }
-
-  function backToDishList() { selectedDish = null; mealPickerOpen = true; portionFactor = 1.0; }
-
-  $: scaledKcal = selectedDish ? Math.round((Number(selectedDish.kcal) || 0) * portionFactor) : 0;
-  $: scaledProtein = selectedDish ? Math.round((Number(selectedDish.protein_g) || 0) * portionFactor) : 0;
-  $: scaledCarbs = selectedDish ? Math.round((Number(selectedDish.carbs_g) || 0) * portionFactor) : 0;
-  $: scaledFat = selectedDish ? Math.round((Number(selectedDish.fat_g) || 0) * portionFactor) : 0;
-  $: scaledFiber = selectedDish ? Math.round((Number(selectedDish.fiber_g) || 0) * portionFactor) : 0;
-  $: scaledSugar = selectedDish ? Math.round((Number(selectedDish.sugar_g) || 0) * portionFactor) : 0;
-  $: scaledFreeSugar = selectedDish ? Math.round((Number(selectedDish.free_sugar_g) || 0) * portionFactor) : 0;
-  $: portionDisplay = selectedDish?.is_scalable && selectedDish?.portion_grams
-    ? `${Math.round(Number(selectedDish.portion_grams) * portionFactor)}g`
-    : selectedDish?.portion_label || '1 Portion';
 
   function onDishSearch(e: Event) {
     const input = e.target as HTMLInputElement;
@@ -312,24 +294,31 @@
     dishSearchResults = editDishes.filter((d: any) => d.name.toLowerCase().includes(q)).slice(0, 8);
   }
 
-  async function confirmDishSelection() {
-    if (!mealEditItem || !selectedDish) return;
+  async function saveDishSelection(dish: any) {
+    if (!mealEditItem) return;
     const item = mealEditItem;
     const mealId = String(item.id).replace('meal-', '');
     const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id);
     if (!meal?.id) return;
+    const kcal = Math.round(Number(dish.kcal) || 0);
+    const protein = Math.round(Number(dish.protein_g) || 0);
+    const carbs = Math.round(Number(dish.carbs_g) || 0);
+    const fat = Math.round(Number(dish.fat_g) || 0);
+    const fiber = Math.round(Number(dish.fiber_g) || 0);
+    const sugar = Math.round(Number(dish.sugar_g) || 0);
+    const freeSugar = Math.round(Number(dish.free_sugar_g) || 0);
     try {
       await api.updateMeal(meal.id, {
-        name: selectedDish.name,
-        kcal: scaledKcal, protein_g: scaledProtein, carbs_g: scaledCarbs, fat_g: scaledFat, fiber_g: scaledFiber, sugar_g: scaledSugar, free_sugar_g: scaledFreeSugar,
-        portion_factor: portionFactor,
-        dish_id: selectedDish.id,
+        name: dish.name,
+        kcal, protein_g: protein, carbs_g: carbs, fat_g: fat, fiber_g: fiber, sugar_g: sugar, free_sugar_g: freeSugar,
+        portion_factor: 1,
+        dish_id: dish.id,
       });
-      meals = meals.map((m) => m.id === meal.id ? { ...m, name: selectedDish.name, kcal: String(scaledKcal), protein_g: String(scaledProtein), carbs_g: String(scaledCarbs), fat_g: String(scaledFat), fiber_g: String(scaledFiber), sugar_g: String(scaledSugar), free_sugar_g: String(scaledFreeSugar) } : m);
-      dispatch('mealtoggle', { id: meal.id, is_done: meal.is_done, data: { name: selectedDish.name, kcal: scaledKcal, protein_g: scaledProtein, carbs_g: scaledCarbs, fat_g: scaledFat, fiber_g: scaledFiber, sugar_g: scaledSugar, free_sugar_g: scaledFreeSugar, dish_id: selectedDish.id, portion_factor: portionFactor } });
-      try { await api.incrementDishUsage(selectedDish.id); } catch {}
+      meals = meals.map((m) => m.id === meal.id ? { ...m, name: dish.name, kcal: String(kcal), protein_g: String(protein), carbs_g: String(carbs), fat_g: String(fat), fiber_g: String(fiber), sugar_g: String(sugar), free_sugar_g: String(freeSugar) } : m);
+      dispatch('mealtoggle', { id: meal.id, is_done: meal.is_done, data: { name: dish.name, kcal, protein_g: protein, carbs_g: carbs, fat_g: fat, fiber_g: fiber, sugar_g: sugar, free_sugar_g: freeSugar, dish_id: dish.id, portion_factor: 1 } });
+      try { await api.incrementDishUsage(dish.id); } catch {}
     } catch {}
-    mealEditItem = null; selectedDish = null; portionFactor = 1.0;
+    closeMealEdit();
   }
 
   function triggerEditPhoto() { editPhotoInput?.click(); }
@@ -703,8 +692,7 @@
 
     {#if item.type === 'meal' && mealEditItem?.id === item.id}
       <div class="meal-inline">
-        {#if !selectedDish}
-          <div class="meal-inline-heading"><div class="meal-inline-title">{SLOT_NAMES[getMealSlotFromItem(mealEditItem)] || `Slot ${getMealSlotFromItem(mealEditItem)}`} bearbeiten</div><button class="meal-collapse" onclick={closeMealEdit}>Einklappen</button></div>
+        <div class="meal-inline-heading"><div class="meal-inline-title">{SLOT_NAMES[getMealSlotFromItem(mealEditItem)] || `Slot ${getMealSlotFromItem(mealEditItem)}`} bearbeiten</div><button class="meal-collapse" onclick={closeMealEdit}>Einklappen</button></div>
 
           {#if !mealPickerOpen}
             {@const currentMeal = getMealFromItem(mealEditItem)}
@@ -747,15 +735,6 @@
             {#if editPhotoLoading}<div class="photo-progress modal-progress"><div class="photo-progress-bar"><div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div></div><span class="photo-progress-label">{editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' : editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' : editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}</span></div>{/if}
             <button class="modal-secondary" onclick={() => (mealPickerOpen = false)}>Zur Übersicht</button>
           </div>{/if}
-        {:else}
-          <div class="meal-inline-heading"><div class="meal-inline-title">{selectedDish.name}</div><button class="meal-collapse" onclick={closeMealEdit}>Einklappen</button></div>
-          <div class="portion-section">
-            <div class="portion-label-row"><span class="portion-current">{portionDisplay}</span>{#if selectedDish.is_scalable}<span class="portion-hint">Menge anpassen</span>{/if}</div>
-            {#if selectedDish.is_scalable}<div class="portion-slider-row"><span class="slider-end">0.5×</span><input class="portion-slider" type="range" min="0.5" max="3" step="0.1" bind:value={portionFactor} /><span class="slider-end">3×</span></div>{/if}
-            <div class="portion-summary"><span>{scaledKcal} kcal</span><span>{scaledProtein} g Protein</span></div>
-          </div>
-          <div class="modal-actions"><button class="modal-primary" onclick={confirmDishSelection}>Übernehmen</button><button class="modal-secondary" onclick={backToDishList}>Andere Wahl</button></div>
-        {/if}
       </div>
     {/if}
 
@@ -899,7 +878,7 @@
   .meal-current { display: flex; flex-direction: column; gap: 4px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
   .meal-current-label { font-size: 13px; color: var(--text-dim); }
   .meal-current-name { font-size: 15px; font-weight: 600; color: var(--text); }
-  .meal-current-meta, .portion-summary { font-size: 14px; color: var(--text-dim); }
+  .meal-current-meta { font-size: 14px; color: var(--text-dim); }
   .meal-editor-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
   .meal-photo-button { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 14px; border: 1px solid var(--border-2); border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
   .meal-photo-button:disabled { opacity: 0.6; }
@@ -1040,17 +1019,6 @@
   .dish-default-highlight .dish-name { font-weight: 700; color: var(--green); }
   .meal-inline .dish-search-input { width: 100%; padding: 10px 12px; border-radius: 8px; background: var(--card); border: 1px solid var(--border-2); color: var(--text); font-size: 14px; margin: 0; outline: none; }
   .dish-search-input:focus { border-color: var(--green); }
-  .meal-inline .portion-section { display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
-  .meal-inline .portion-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .meal-inline .portion-current { font-size: 18px; font-weight: 700; color: var(--green); }
-  .portion-hint { font-size: 13px; color: var(--text-dim); }
-  .meal-inline .portion-slider-row { display: flex; align-items: center; gap: 8px; }
-  .slider-end { font-size: 13px; color: var(--text-dim); min-width: 28px; text-align: center; }
-  .portion-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; background: var(--border-2); outline: none; }
-  .portion-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: var(--green); cursor: pointer; border: none; }
-  .portion-slider::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: var(--green); cursor: pointer; border: none; }
-  .portion-summary { display: flex; gap: 8px; font-weight: 500; }
-  .portion-summary span + span::before { content: '·'; margin-right: 8px; color: var(--text-faint); }
 
   @media (max-width: 520px) {
     .meal-inline { margin-left: 10px; }
