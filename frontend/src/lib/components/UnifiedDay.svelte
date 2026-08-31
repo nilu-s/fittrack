@@ -695,9 +695,7 @@
               <div class="dish-list">{#each dishSearchResults as dish (dish.id)}<button class="dish-btn" onclick={() => selectDishForEdit(dish)}><div class="dish-info"><span class="dish-name">{dish.name}</span>{#if dish.is_default}<span class="dish-badge">Standard</span>{/if}</div><span class="dish-summary">{Math.round(Number(dish.kcal) || 0)} kcal · {Math.round(Number(dish.protein_g) || 0)} g Protein</span></button>{/each}</div>
             {:else if dishSearchQuery.trim().length >= 2}<div class="modal-empty">Keine Treffer</div>{/if}
           {/if}
-          <div class="modal-actions">
-            {#if editPhotoLoading}<div class="photo-progress modal-progress"><div class="photo-progress-bar"><div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div></div><span class="photo-progress-label">{editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' : editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' : editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}</span></div>{/if}
-          </div>
+          {#if editPhotoLoading}<div class="photo-progress modal-progress"><div class="photo-progress-bar"><div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div></div><span class="photo-progress-label">{editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' : editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' : editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}</span></div>{/if}
       </div>
     {/if}
 
@@ -832,7 +830,7 @@
   .meal-action-icon:active { background: var(--border); color: var(--text); }
   .spark-row { padding: 0 14px 8px; }
   .train-inline { padding: 0 14px 8px; }
-  .meal-inline { display: flex; flex-direction: column; gap: 12px; margin: 4px 10px 10px 54px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2); animation: inlineExpand 0.18s ease-out; }
+  .meal-inline { display: flex; flex-direction: column; gap: 8px; margin: 3px 10px 8px 54px; padding: 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--card-2); animation: inlineExpand 0.18s ease-out; }
   .meal-inline-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .meal-inline-title { color: var(--text); font-size: 15px; font-weight: 650; }
   .meal-collapse { border: 0; background: transparent; color: var(--text-dim); cursor: pointer; font: inherit; font-size: 13px; padding: 4px; }
@@ -946,17 +944,17 @@
   @keyframes inlineExpand { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
   /* Meal edit modal — additional classes (modal-overlay/card/title/actions/primary/secondary already defined above) */
-  .meal-inline .modal-section-label { font-size: 13px; color: var(--text-dim); margin: 4px 0 0; font-weight: 600; }
-  .meal-inline .modal-loading, .meal-inline .modal-empty { text-align: center; padding: 12px; color: var(--text-dim); font-size: 14px; }
+  .meal-inline .modal-section-label { font-size: 12px; color: var(--text-dim); margin: 2px 0 0; font-weight: 600; }
+  .meal-inline .modal-loading, .meal-inline .modal-empty { text-align: center; padding: 8px; color: var(--text-dim); font-size: 13px; }
   .cam-action { display: flex; align-items: center; justify-content: center; gap: 8px; }
-  .meal-inline .dish-list { display: flex; flex-direction: column; gap: 6px; max-height: 192px; margin: 0; overflow-y: auto; }
-  .meal-inline .dish-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 11px 12px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); color: var(--text); cursor: pointer; transition: border-color 0.15s, background 0.15s; text-align: left; }
+  .meal-inline .dish-list { display: flex; flex-direction: column; gap: 4px; max-height: 144px; margin: 0; overflow-y: auto; }
+  .meal-inline .dish-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border-radius: 7px; background: var(--card); border: 1px solid var(--border); color: var(--text); cursor: pointer; transition: border-color 0.15s, background 0.15s; text-align: left; }
   .dish-btn:active { background: #2a2b2e; }
   .dish-btn.default { border-color: var(--green); }
   .dish-info { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
-  .dish-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dish-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dish-badge { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: var(--green); color: #000; font-weight: 600; flex-shrink: 0; }
-  .dish-summary { font-size: 13px; color: var(--text-dim); }
+  .dish-summary { font-size: 12px; color: var(--text-dim); }
 
   /* Photo progress bar */
   .photo-progress { padding: 10px 14px; border-bottom: 1px solid var(--border); }
@@ -972,7 +970,7 @@
   /* Dish selection modal — new styles */
   .meal-inline .dish-default-highlight { background: var(--card); border: 1px solid var(--green); margin: 0; }
   .dish-default-highlight .dish-name { font-weight: 700; color: var(--green); }
-  .meal-inline .dish-search-input { width: 100%; padding: 10px 12px; border-radius: 8px; background: var(--card); border: 1px solid var(--border-2); color: var(--text); font-size: 14px; margin: 0; outline: none; }
+  .meal-inline .dish-search-input { width: 100%; padding: 8px 10px; border-radius: 7px; background: var(--card); border: 1px solid var(--border-2); color: var(--text); font-size: 13px; margin: 0; outline: none; }
   .dish-search-input:focus { border-color: var(--green); }
 
   @media (max-width: 520px) {
