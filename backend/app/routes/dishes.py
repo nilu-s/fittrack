@@ -155,7 +155,7 @@ async def create_dish(body: DishCreate, user: str = Depends(get_current_user)):
 @router.put("/{dish_id}", response_model=DishResponse)
 async def update_dish(dish_id: uuid.UUID, body: DishUpdate, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        result = await session.execute(select(Dish).where(Dish.id == dish_id))
+        result = await session.execute(select(Dish).where(Dish.id == dish_id, Dish.account_id == user))
         dish = result.scalars().first()
         if dish is None:
             raise HTTPException(status_code=404, detail="Dish not found")
@@ -183,7 +183,7 @@ async def update_dish(dish_id: uuid.UUID, body: DishUpdate, user: str = Depends(
 @router.delete("/{dish_id}", status_code=204)
 async def delete_dish(dish_id: uuid.UUID, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        result = await session.execute(select(Dish).where(Dish.id == dish_id))
+        result = await session.execute(select(Dish).where(Dish.id == dish_id, Dish.account_id == user))
         dish = result.scalars().first()
         if dish is None:
             raise HTTPException(status_code=404, detail="Dish not found")
@@ -224,7 +224,7 @@ async def match_dish(
 async def increment_usage(dish_id: uuid.UUID, user: str = Depends(get_current_user)):
     """Increment usage_count when a dish is selected for a meal."""
     async with async_session() as session:
-        result = await session.execute(select(Dish).where(Dish.id == dish_id))
+        result = await session.execute(select(Dish).where(Dish.id == dish_id, Dish.account_id == user))
         dish = result.scalars().first()
         if dish is None:
             raise HTTPException(status_code=404, detail="Dish not found")

@@ -15,6 +15,8 @@ export async function checkAuth(): Promise<void> {
       credentials: 'include',
     });
     if (!resp.ok) {
+      await clearAccountData();
+      window.localStorage.removeItem('fittrack_account_id');
       isAuthenticated.set(false);
       authEmail.set(null);
       return;
@@ -34,6 +36,8 @@ export async function checkAuth(): Promise<void> {
     }
   } catch {
     // Network/SSL error — assume not authenticated, show login
+    await clearAccountData();
+    window.localStorage.removeItem('fittrack_account_id');
     isAuthenticated.set(false);
     authEmail.set(null);
   }
@@ -50,6 +54,8 @@ export async function logout(): Promise<void> {
   }
   isAuthenticated.set(false);
   authEmail.set(null);
+  await clearAccountData();
+  window.localStorage.removeItem('fittrack_account_id');
 }
 
 export async function disconnectGoogle(): Promise<void> {

@@ -5,7 +5,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -268,6 +268,252 @@ class DishRecommendResult(_Base):
     """Result for GET /dishes/recommend — default + alternatives for a slot."""
     default: Optional[DishResponse] = None
     alternatives: list[DishResponse] = []
+
+
+# ---------------------------------------------------------------------------
+# Configurable meal domain (v1)
+# ---------------------------------------------------------------------------
+NutritionValue = Optional[Decimal]
+
+
+class Nutrition(_Base):
+    kcal: NutritionValue = Field(default=None, ge=0)
+    protein_g: NutritionValue = Field(default=None, ge=0)
+    carbs_g: NutritionValue = Field(default=None, ge=0)
+    fat_g: NutritionValue = Field(default=None, ge=0)
+    fiber_g: NutritionValue = Field(default=None, ge=0)
+    sugar_g: NutritionValue = Field(default=None, ge=0)
+    free_sugar_g: NutritionValue = Field(default=None, ge=0)
+
+
+class MealCategoryCreate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=120)
+    sort_order: int = Field(default=0, ge=0)
+    is_active: bool = True
+
+
+class MealCategoryUpdate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    sort_order: Optional[int] = Field(default=None, ge=0)
+    is_active: Optional[bool] = None
+    expected_updated_at: Optional[datetime] = None
+
+
+class MealCategoryResponse(MealCategoryCreate):
+    id: uuid.UUID
+    updated_at: datetime
+
+
+class MealCategoryReorder(_Base):
+    """An atomic, account-local category order command."""
+    model_config = ConfigDict(extra="forbid")
+    ids: list[uuid.UUID] = Field(min_length=1)
+
+    @field_validator("ids")
+    @classmethod
+    def unique_ids(cls, ids):
+        if len(ids) != len(set(ids)):
+            raise ValueError("ids must be unique")
+        return ids
+
+
+class FoodCreate(Nutrition):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=200)
+    tags: list[str] = Field(default_factory=list)
+    source: Literal["manual", "photo", "import"] = "manual"
+    confidence: Literal["verified", "estimated", "unknown"] = "verified"
+
+
+class FoodUpdate(FoodCreate):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    is_archived: Optional[bool] = None
+    expected_updated_at: Optional[datetime] = None
+
+
+class FoodResponse(FoodCreate):
+    id: uuid.UUID
+    is_archived: bool
+    updated_at: datetime
+
+
+class RecipeIngredientInput(_Base):
+    model_config = ConfigDict(extra="forbid")
+    food_id: Optional[uuid.UUID] = None
+    nested_recipe_id: Optional[uuid.UUID] = None
+    quantity: Decimal = Field(gt=0, max_digits=12, decimal_places=3)
+    unit: Literal["g", "ml", "serving"] = "g"
+    sort_order: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def one_source(self):
+        if (self.food_id is None) == (self.nested_recipe_id is None):
+            raise ValueError("exactly one of food_id or nested_recipe_id is required")
+        return self
+
+
+class RecipeCreate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=200)
+    status: Literal["draft", "active", "archived"] = "draft"
+    servings: Decimal = Field(default=Decimal("1"), gt=0, max_digits=10, decimal_places=3)
+    notes: Optional[str] = Field(default=None, max_length=5000)
+    ingredients: list[RecipeIngredientInput] = Field(default_factory=list)
+
+
+class RecipeUpdate(RecipeCreate):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    ingredients: Optional[list[RecipeIngredientInput]] = None
+    expected_updated_at: Optional[datetime] = None
+
+
+class RecipeIngredientResponse(RecipeIngredientInput):
+    id: uuid.UUID
+
+
+class RecipeResponse(_Base):
+    id: uuid.UUID
+    name: str
+    status: str
+    servings: Decimal
+    notes: Optional[str]
+    ingredients: list[RecipeIngredientResponse]
+    nutrition: Nutrition
+    updated_at: datetime
+
+
+class MealPlanItemInput(_Base):
+    model_config = ConfigDict(extra="forbid")
+    category_id: uuid.UUID
+    recipe_id: Optional[uuid.UUID] = None
+    name: Optional[str] = Field(default=None, max_length=200)
+    planned_time: Optional[time] = None
+    weekdays: Optional[list[int]] = None
+    portion: Decimal = Field(default=Decimal("1"), gt=0, max_digits=10, decimal_places=3)
+    sort_order: int = Field(default=0, ge=0)
+
+    @field_validator("weekdays")
+    @classmethod
+    def valid_weekdays(cls, value):
+        if value is not None and (any(day < 0 or day > 6 for day in value) or len(set(value)) != len(value)):
+            raise ValueError("weekdays must be unique values from 0 to 6")
+        return value
+
+
+class MealPlanCreate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=200)
+    is_active: bool = False
+    items: list[MealPlanItemInput] = Field(default_factory=list)
+
+
+class MealPlanUpdate(MealPlanCreate):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    items: Optional[list[MealPlanItemInput]] = None
+    expected_updated_at: Optional[datetime] = None
+
+
+class MealPlanItemResponse(MealPlanItemInput):
+    id: uuid.UUID
+
+
+class MealPlanResponse(_Base):
+    id: uuid.UUID
+    name: str
+    version: int
+    is_active: bool
+    items: list[MealPlanItemResponse]
+    updated_at: datetime
+
+
+class MealPlanVersionResponse(_Base):
+    version: int
+    name: str
+    items_snapshot: list[dict[str, Any]]
+    created_at: datetime
+
+
+class MealEntryItemInput(_Base):
+    model_config = ConfigDict(extra="forbid")
+    food_id: Optional[uuid.UUID] = None
+    recipe_id: Optional[uuid.UUID] = None
+    quantity: Decimal = Field(gt=0, max_digits=12, decimal_places=3)
+    unit: Literal["g", "ml", "serving"] = "g"
+
+    @model_validator(mode="after")
+    def one_entry_source(self):
+        if (self.food_id is None) == (self.recipe_id is None):
+            raise ValueError("exactly one of food_id or recipe_id is required")
+        return self
+
+
+class MealEntryCreate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    date: date
+    category_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=200)
+    status: Literal["planned", "consumed", "skipped"] = "planned"
+    consumed_at: Optional[datetime] = None
+    source: Literal["manual", "plan", "photo"] = "manual"
+    items: list[MealEntryItemInput] = Field(default_factory=list)
+
+
+class MealEntryUpdate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    category_id: Optional[uuid.UUID] = None
+    status: Optional[Literal["planned", "consumed", "skipped"]] = None
+    consumed_at: Optional[datetime] = None
+    items: Optional[list[MealEntryItemInput]] = None
+    expected_updated_at: Optional[datetime] = None
+
+
+class MealEntryStatusCommand(_Base):
+    """A state transition with optimistic-concurrency protection."""
+    model_config = ConfigDict(extra="forbid")
+    expected_updated_at: Optional[datetime] = None
+
+
+class MealEntryItemResponse(_Base):
+    id: uuid.UUID
+    food_id: Optional[uuid.UUID]
+    recipe_id: Optional[uuid.UUID]
+    quantity: Decimal
+    unit: str
+    nutrition_snapshot: dict[str, NutritionValue]
+    source_snapshot: dict[str, Any]
+
+
+class MealEntryResponse(_Base):
+    id: uuid.UUID
+    date: date
+    category_id: uuid.UUID
+    name: str
+    status: str
+    consumed_at: Optional[datetime]
+    source: str
+    nutrition: Nutrition
+    items: list[MealEntryItemResponse]
+    updated_at: datetime
+
+
+class MealPhotoAnalysisResponse(_Base):
+    id: uuid.UUID
+    meal_entry_id: uuid.UUID
+    state: Literal["pending", "accepted", "rejected", "failed"]
+    analysis: Optional[dict[str, Any]] = None
+    error_code: Optional[str] = None
+    created_at: datetime
+
+
+class MealPhotoAnalysisAccept(_Base):
+    """Explicitly applies user-reviewed food/recipe items to an entry."""
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    items: list[MealEntryItemInput] = Field(min_length=1)
+    status: Optional[Literal["planned", "consumed"]] = None
 
 
 # ---------------------------------------------------------------------------#

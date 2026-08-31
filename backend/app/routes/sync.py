@@ -6,8 +6,8 @@ from datetime import datetime
 from app.tz import BERLIN_TZ
 from typing import Any
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import inspect, select
 
 from app.database import async_session
 from app.models import DayEntry, Exercise, Meal, MealTemplate, Todo, TrainingSet, SyncLog
@@ -29,6 +29,31 @@ ENTITY_MODELS = {
 }
 
 
+async def _validate_owned_references(session, model, payload: dict[str, Any], account_id: str) -> None:
+    """Validate IDs that are logically foreign keys but lack DB constraints."""
+    if model is Meal and payload.get("dish_id") is not None:
+        from app.models import Dish
+
+        dish = await session.scalar(
+            select(Dish).where(Dish.id == payload["dish_id"], Dish.account_id == account_id)
+        )
+        if dish is None:
+            raise HTTPException(status_code=404, detail="Dish not found")
+
+
+def _safe_payload(model, payload: dict[str, Any] | None) -> dict[str, Any]:
+    """Keep only writable table columns; ownership/identity are server-owned."""
+    column_names = {column.key for column in inspect(model).columns}
+    server_managed = {"id", "account_id", "user_id", "deleted", "updated_at"}
+    if model is Meal:
+        server_managed.update({"photo_url", "photo_analysis", "assigned_via_photo"})
+    return {
+        key: value
+        for key, value in (payload or {}).items()
+        if key in column_names and key not in server_managed
+    }
+
+
 @router.post("", response_model=SyncResponse)
 async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user)):
     async with async_session() as session:
@@ -41,33 +66,47 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                 logger.warning("Unknown entity_type: %s", change.entity_type)
                 continue
 
-            # Look up existing record by entity_id
-            result = await session.execute(select(model).where(model.id == change.entity_id))
+            if change.action not in {"create", "update", "delete"}:
+                raise HTTPException(status_code=422, detail="Invalid sync action")
+
+            # Never select a resource outside the authenticated account,
+            # including when the request context is absent in tests/workers.
+            result = await session.execute(
+                select(model).where(model.id == change.entity_id, model.account_id == user)
+            )
             existing = result.scalars().first()
 
             if change.action == "delete":
                 if existing is not None:
+                    if not hasattr(existing, "deleted"):
+                        raise HTTPException(status_code=422, detail="Entity does not support deletion")
                     existing.deleted = True
                     if hasattr(existing, "updated_at"):
                         existing.updated_at = datetime.now(BERLIN_TZ)
-                applied.append({"entity_type": change.entity_type, "entity_id": str(change.entity_id), "action": "delete"})
+                    applied.append({"entity_type": change.entity_type, "entity_id": str(change.entity_id), "action": "delete"})
                 continue
 
             # Offline records are untrusted input. In particular, an IndexedDB
             # replay must never be able to carry either legacy or new owner
             # fields across the account boundary.
-            payload = {
-                key: value
-                for key, value in (change.payload or {}).items()
-                if key not in {"id", "account_id", "user_id"}
-            }
+            payload = _safe_payload(model, change.payload)
+            await _validate_owned_references(session, model, payload, user)
 
             if existing is None:
+                # Treat update as an assertion that the record is already
+                # owned by this account.  Falling through to create here would
+                # turn an attempted cross-account update into a confusing
+                # primary-key conflict (or, on a future non-global key, data
+                # creation under the wrong operation).
+                if change.action == "update":
+                    raise HTTPException(status_code=404, detail="Sync entity not found")
                 # Create new record
                 obj = model(**payload, id=change.entity_id, account_id=user)
                 session.add(obj)
                 applied.append({"entity_type": change.entity_type, "entity_id": str(change.entity_id), "action": "create"})
             else:
+                if change.action == "create":
+                    raise HTTPException(status_code=409, detail="Sync entity already exists")
                 # Update — last-write-wins by client_timestamp vs updated_at
                 server_updated = getattr(existing, "updated_at", None)
                 if server_updated is not None and change.client_timestamp < server_updated:
@@ -106,6 +145,7 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                 if hasattr(model, "updated_at"):
                     result = await session.execute(
                         select(model).where(
+                            model.account_id == user,
                             model.updated_at > body.last_sync,
                         )
                     )

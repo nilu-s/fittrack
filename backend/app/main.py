@@ -53,6 +53,7 @@ from app.routes.training import router as training_router
 from app.routes.vision import router as vision_router
 from app.routes.goals import router as goals_router
 from app.routes.dishes import router as dishes_router
+from app.routes.configurable_meals import router as configurable_meals_router
 
 
 # Device ingestion and OAuth are deliberately outside the browser-session
@@ -107,6 +108,7 @@ app.include_router(vision_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
 app.include_router(goals_router, prefix="/api")
 app.include_router(dishes_router, prefix="/api")
+app.include_router(configurable_meals_router, prefix="/api")
 app.include_router(google_fit_router, prefix="/api")
 app.include_router(scale_v2_router, prefix="/api")
 app.include_router(scale_browser_router, prefix="/api")

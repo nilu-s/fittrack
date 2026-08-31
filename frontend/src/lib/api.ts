@@ -3,6 +3,7 @@ import type {
   TrainingSuggestion, TrainingCompleteRequest, ExerciseProgress,
   MealTemplate, WeekStats, TrendData, SyncPayload, SyncResponse, Goals,
   Dish, DishMatchResult, DishRecommendResult, PhotoAnalysisResponse,
+  MealCategory, Food, Recipe, MealPlan, MealEntry, MealPhotoAnalysis,
 } from './types';
 import { db, queueSync, type DayEntryRecord, type MealRecord, type TodoRecord } from './db';
 
@@ -33,6 +34,33 @@ function looksLikeServerId(id?: string | number | null): boolean {
   if (!id) return false;
   const str = String(id);
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
+/** Translate the UI's explicit per-100g names to the compact API command. */
+function foodPayload(data: Partial<Food>): Record<string, unknown> {
+  return { ...data };
+}
+
+function recipePayload(data: Partial<Recipe>): Record<string, unknown> {
+  return {
+    ...data,
+    ingredients: data.ingredients?.map(({ nested_recipe_id, unit, ...ingredient }) => ({
+      ...ingredient,
+      nested_recipe_id,
+      unit,
+    })),
+  };
+}
+
+function planPayload(data: Partial<MealPlan>): Record<string, unknown> {
+  return {
+    ...data,
+    items: data.items?.map(({ weekdays, portion, id: _id, ...item }) => ({
+      ...item,
+      weekdays,
+      portion: portion ?? 1,
+    })),
+  };
 }
 
 async function findLocalByServerId<T extends { localId?: number; serverId?: string }>(
@@ -118,6 +146,20 @@ class ApiClient {
       return JSON.parse(text) as T;
     } catch (err) {
       console.warn(`API request failed for ${path}:`, err);
+      throw new NetworkError(`Network request failed for ${path}`, err);
+    }
+  }
+
+  /** Commands returning HTTP 204 need an explicit success channel. */
+  private async requestOk(path: string, options?: RequestInit): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        ...options,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...options?.headers },
+      });
+      return response.ok;
+    } catch (err) {
       throw new NetworkError(`Network request failed for ${path}`, err);
     }
   }
@@ -536,6 +578,71 @@ class ApiClient {
 
   async incrementDishUsage(id: string): Promise<Dish | null> {
     return this.request<Dish>(`/dishes/${id}/use`, { method: 'POST' });
+  }
+
+  // Configurable meals v1.  Server derives the account from the session; callers
+  // never send an owner identifier.  These calls deliberately do not use the
+  // legacy offline queue: v1 mutations require revision-aware conflict handling.
+  async getMealCategories(includeInactive = false): Promise<MealCategory[]> {
+    const query = includeInactive ? '?include_inactive=true' : '';
+    return (await this.request<MealCategory[]>(`/meal-categories${query}`)) ?? [];
+  }
+  async createMealCategory(data: Pick<MealCategory, 'name'> & Partial<MealCategory>): Promise<MealCategory | null> {
+    return this.request('/meal-categories', { method: 'POST', body: JSON.stringify(data) });
+  }
+  async updateMealCategory(id: string, data: Partial<MealCategory>): Promise<MealCategory | null> {
+    const { updated_at, id: _id, default_time: _time, ...payload } = data;
+    return this.request(`/meal-categories/${id}`, { method: 'PUT', body: JSON.stringify({ ...payload, expected_updated_at: updated_at }) });
+  }
+  async deleteMealCategory(id: string): Promise<boolean> {
+    return this.requestOk(`/meal-categories/${id}`, { method: 'DELETE' });
+  }
+  async reorderMealCategories(ids: string[]): Promise<MealCategory[]> {
+    return (await this.request('/meal-categories/reorder', { method: 'PUT', body: JSON.stringify({ ids }) })) ?? [];
+  }
+  async getFoods(q?: string): Promise<Food[]> {
+    const query = q ? `?q=${encodeURIComponent(q)}` : '';
+    return (await this.request<Food[]>(`/foods${query}`)) ?? [];
+  }
+  async createFood(data: Omit<Food, 'id'>): Promise<Food | null> {
+    return this.request('/foods', { method: 'POST', body: JSON.stringify(foodPayload(data)) });
+  }
+  async updateFood(id: string, data: Partial<Food>): Promise<Food | null> {
+    const { updated_at, id: _id, ...rest } = data;
+    return this.request(`/foods/${id}`, { method: 'PUT', body: JSON.stringify({ ...foodPayload(rest), expected_updated_at: updated_at }) });
+  }
+  async deleteFood(id: string): Promise<boolean> { return this.requestOk(`/foods/${id}`, { method: 'DELETE' }); }
+  async getRecipes(): Promise<Recipe[]> { return (await this.request<Recipe[]>('/recipes')) ?? []; }
+  async createRecipe(data: Omit<Recipe, 'id'>): Promise<Recipe | null> { return this.request('/recipes', { method: 'POST', body: JSON.stringify(recipePayload(data)) }); }
+  async updateRecipe(id: string, data: Partial<Recipe>): Promise<Recipe | null> { const { updated_at, id: _id, ...rest } = data; return this.request(`/recipes/${id}`, { method: 'PUT', body: JSON.stringify({ ...recipePayload(rest), expected_updated_at: updated_at }) }); }
+  async deleteRecipe(id: string): Promise<boolean> { return this.requestOk(`/recipes/${id}`, { method: 'DELETE' }); }
+  async getMealPlans(): Promise<MealPlan[]> { return (await this.request<MealPlan[]>('/meal-plans')) ?? []; }
+  async createMealPlan(data: Omit<MealPlan, 'id'>): Promise<MealPlan | null> { return this.request('/meal-plans', { method: 'POST', body: JSON.stringify(planPayload(data)) }); }
+  async updateMealPlan(id: string, data: Partial<MealPlan>): Promise<MealPlan | null> { const { updated_at, id: _id, ...rest } = data; return this.request(`/meal-plans/${id}`, { method: 'PUT', body: JSON.stringify({ ...planPayload(rest), expected_updated_at: updated_at }) }); }
+  async deleteMealPlan(id: string): Promise<boolean> { return this.requestOk(`/meal-plans/${id}`, { method: 'DELETE' }); }
+  async getMealEntries(from: string, to = from): Promise<MealEntry[]> {
+    const params = new URLSearchParams({ from, to });
+    return (await this.request<MealEntry[]>(`/meal-entries?${params}`)) ?? [];
+  }
+  async instantiateMealEntries(date: string): Promise<MealEntry[]> {
+    return (await this.request<MealEntry[]>(`/meal-entries/instantiate?date=${encodeURIComponent(date)}`, { method: 'POST' })) ?? [];
+  }
+  async createMealEntry(data: Omit<MealEntry, 'id'>): Promise<MealEntry | null> { return this.request('/meal-entries', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateMealEntry(id: string, data: Partial<MealEntry>): Promise<MealEntry | null> { return this.request(`/meal-entries/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async setMealEntryStatus(id: string, status: 'consumed' | 'skipped', expectedUpdatedAt?: string): Promise<MealEntry | null> {
+    return this.request(`/meal-entries/${id}/${status === 'consumed' ? 'consume' : 'skip'}`, {
+      method: 'POST',
+      body: expectedUpdatedAt ? JSON.stringify({ expected_updated_at: expectedUpdatedAt }) : undefined,
+    });
+  }
+  async deleteMealEntry(id: string): Promise<boolean> { return this.requestOk(`/meal-entries/${id}`, { method: 'DELETE' }); }
+  async uploadMealEntryPhoto(id: string, file: File): Promise<MealPhotoAnalysis | null> {
+    const form = new FormData(); form.append('file', file);
+    try {
+      const response = await fetch(`${this.baseUrl}/meal-entries/${id}/photo-analyses`, { method: 'POST', body: form, credentials: 'include' });
+      if (!response.ok) return null;
+      return await response.json() as MealPhotoAnalysis;
+    } catch (err) { throw new NetworkError(`Network request failed for meal photo ${id}`, err); }
   }
 }
 

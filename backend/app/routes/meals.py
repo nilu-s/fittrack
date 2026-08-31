@@ -112,7 +112,20 @@ async def get_meals(date: date_type = Query(...), user: uuid.UUID = Depends(get_
 @router.post("", response_model=MealResponse, status_code=201)
 async def create_meal(body: MealCreate, user: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
-        meal = Meal(account_id=user, **body.model_dump())
+        payload = body.model_dump()
+        # A dish is account-owned too.  `dish_id` is not a database foreign key,
+        # so its ownership must be checked at the request boundary.
+        if payload["dish_id"] is not None:
+            dish = await session.scalar(
+                select(Dish).where(Dish.id == payload["dish_id"], Dish.account_id == user)
+            )
+            if dish is None:
+                raise HTTPException(status_code=404, detail="Dish not found")
+        # These fields are controlled by the server/photo workflow.  A browser
+        # must not forge a completed photo-analysis state or resurrect/delete a
+        # record by supplying legacy create fields.
+        payload.update(deleted=False, photo_url=None, photo_analysis=None, assigned_via_photo=False)
+        meal = Meal(account_id=user, **payload)
         session.add(meal)
         await session.commit()
         await session.refresh(meal)
@@ -122,11 +135,23 @@ async def create_meal(body: MealCreate, user: uuid.UUID = Depends(get_current_us
 @router.put("/{meal_id}", response_model=MealResponse)
 async def update_meal(meal_id: uuid.UUID, body: MealUpdate, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        result = await session.execute(select(Meal).where(Meal.id == meal_id))
+        result = await session.execute(
+            select(Meal).where(Meal.id == meal_id, Meal.account_id == user, Meal.deleted == False)
+        )
         meal = result.scalars().first()
         if meal is None:
             raise HTTPException(status_code=404, detail="Meal not found")
-        for field, value in body.model_dump(exclude_unset=True).items():
+        payload = body.model_dump(exclude_unset=True)
+        forbidden = {"deleted", "photo_url", "photo_analysis", "assigned_via_photo"}
+        if forbidden.intersection(payload):
+            raise HTTPException(status_code=422, detail="Photo and deletion fields are server-managed")
+        if payload.get("dish_id") is not None:
+            dish = await session.scalar(
+                select(Dish).where(Dish.id == payload["dish_id"], Dish.account_id == user)
+            )
+            if dish is None:
+                raise HTTPException(status_code=404, detail="Dish not found")
+        for field, value in payload.items():
             setattr(meal, field, value)
         await session.commit()
         await session.refresh(meal)
@@ -136,7 +161,9 @@ async def update_meal(meal_id: uuid.UUID, body: MealUpdate, user: str = Depends(
 @router.delete("/{meal_id}", status_code=204)
 async def delete_meal(meal_id: uuid.UUID, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        result = await session.execute(select(Meal).where(Meal.id == meal_id, Meal.deleted == False))
+        result = await session.execute(
+            select(Meal).where(Meal.id == meal_id, Meal.account_id == user, Meal.deleted == False)
+        )
         meal = result.scalars().first()
         if meal is None:
             raise HTTPException(status_code=404, detail="Meal not found")
@@ -147,7 +174,9 @@ async def delete_meal(meal_id: uuid.UUID, user: str = Depends(get_current_user))
 @router.post("/{meal_id}/done", response_model=MealResponse)
 async def mark_meal_done(meal_id: uuid.UUID, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        result = await session.execute(select(Meal).where(Meal.id == meal_id, Meal.deleted == False))
+        result = await session.execute(
+            select(Meal).where(Meal.id == meal_id, Meal.account_id == user, Meal.deleted == False)
+        )
         meal = result.scalars().first()
         if meal is None:
             raise HTTPException(status_code=404, detail="Meal not found")

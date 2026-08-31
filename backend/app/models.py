@@ -186,6 +186,133 @@ class MealTemplate(AccountOwned, Base):
     free_sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
 
 
+# The configurable meal domain deliberately does not reuse the legacy Meal,
+# Dish, and MealTemplate records above.  These records are immutable-at-use:
+# nutritional values copied to MealEntry/MealEntryItem remain historical facts.
+class MealCategory(AccountOwned, Base):
+    __tablename__ = "meal_categories"
+    __table_args__ = (UniqueConstraint("account_id", "name", name="uq_meal_categories_account_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class Food(AccountOwned, Base):
+    __tablename__ = "foods"
+    __table_args__ = (UniqueConstraint("account_id", "name", name="uq_foods_account_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    tags: Mapped[list | None] = mapped_column(JSONB)
+    source: Mapped[str] = mapped_column(Text, nullable=False, default="manual")
+    confidence: Mapped[str] = mapped_column(Text, nullable=False, default="verified")
+    kcal_per_100g: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+    protein_g_per_100g: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+    carbs_g_per_100g: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+    fat_g_per_100g: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+    fiber_g_per_100g: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+    sugar_g_per_100g: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+    free_sugar_g_per_100g: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+    is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class Recipe(AccountOwned, Base):
+    __tablename__ = "recipes"
+    __table_args__ = (UniqueConstraint("account_id", "name", name="uq_recipes_account_name"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="draft")
+    servings: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False, default=Decimal("1"))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class RecipeIngredient(AccountOwned, Base):
+    __tablename__ = "recipe_ingredients"
+    __table_args__ = (UniqueConstraint("recipe_id", "sort_order", name="uq_recipe_ingredients_order"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    recipe_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False)
+    food_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("foods.id"))
+    nested_recipe_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("recipes.id"))
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
+    unit: Mapped[str] = mapped_column(Text, nullable=False, default="g")
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class MealPlan(AccountOwned, Base):
+    __tablename__ = "meal_plans"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class MealPlanItem(AccountOwned, Base):
+    __tablename__ = "meal_plan_items"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    meal_plan_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_plans.id", ondelete="CASCADE"), nullable=False)
+    category_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_categories.id"), nullable=False)
+    recipe_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("recipes.id"))
+    name: Mapped[str | None] = mapped_column(Text)
+    planned_time: Mapped[time | None] = mapped_column(Time)
+    weekdays: Mapped[list | None] = mapped_column(JSONB)  # ISO weekday values 0..6, null = every day
+    portion: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False, default=Decimal("1"))
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Removed items are retained while historic entries still reference them.
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class MealPlanVersion(AccountOwned, Base):
+    """Immutable audit snapshot of a plan revision."""
+    __tablename__ = "meal_plan_versions"
+    __table_args__ = (UniqueConstraint("meal_plan_id", "version", name="uq_meal_plan_versions_plan_version"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    meal_plan_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_plans.id", ondelete="CASCADE"), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    items_snapshot: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class MealEntry(AccountOwned, Base):
+    __tablename__ = "meal_entries"
+    __table_args__ = (UniqueConstraint("account_id", "date", "meal_plan_id", "meal_plan_item_id", name="uq_meal_entries_plan_instance"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    category_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_categories.id"), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="planned")
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source: Mapped[str] = mapped_column(Text, nullable=False, default="manual")
+    meal_plan_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_plans.id"))
+    meal_plan_item_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_plan_items.id"))
+    meal_plan_version: Mapped[int | None] = mapped_column(Integer)
+    nutrition_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class MealEntryItem(AccountOwned, Base):
+    __tablename__ = "meal_entry_items"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    meal_entry_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_entries.id", ondelete="CASCADE"), nullable=False)
+    food_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("foods.id"))
+    recipe_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("recipes.id"))
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
+    unit: Mapped[str] = mapped_column(Text, nullable=False, default="g")
+    nutrition_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    source_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+
 class TrainingUnit(AccountOwned, Base):
     __tablename__ = "training_units"
     __table_args__ = (UniqueConstraint("account_id", "name", name="uq_training_units_account_name"),)
@@ -275,10 +402,32 @@ class Photo(AccountOwned, Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     meal_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    # `meal_id` is retained solely for the legacy Meal API. New photo flows
+    # bind to the account-owned MealEntry and require explicit acceptance.
+    meal_entry_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_entries.id", ondelete="SET NULL"))
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
     original_filename: Mapped[str | None] = mapped_column(Text)
     mime_type: Mapped[str | None] = mapped_column(Text)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MealPhotoAnalysis(AccountOwned, Base):
+    __tablename__ = "meal_photo_analyses"
+    __table_args__ = (UniqueConstraint("photo_id", name="uq_meal_photo_analyses_photo"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    photo_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("photos.id", ondelete="CASCADE"), nullable=False)
+    meal_entry_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_entries.id", ondelete="CASCADE"), nullable=False)
+    state: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
+    analysis: Mapped[dict | None] = mapped_column(JSONB)
+    provider: Mapped[str | None] = mapped_column(Text)
+    model: Mapped[str | None] = mapped_column(Text)
+    schema_version: Mapped[str | None] = mapped_column(Text)
+    error_code: Mapped[str | None] = mapped_column(Text)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
 class GoogleToken(AccountOwned, Base):

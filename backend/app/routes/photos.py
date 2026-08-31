@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy import select
 
 from app.config import settings
 from app.database import async_session
@@ -26,7 +27,11 @@ async def analyze_photo(
     meal_id: Optional[str] = Form(None),
     user: uuid.UUID = Depends(get_current_user),
 ):
-    """Upload a food photo → save → call the vision service → return analysis.
+    """Legacy ``Meal`` photo flow kept only for backward compatibility.
+
+    Configurable ``MealEntry`` photo analysis is deliberately proposal-first:
+    it must use the dedicated accept/reject commands, never this auto-mutating
+    endpoint.
 
     If meal_id is provided, the analysis result is also persisted to the meal:
     - meal.photo_analysis = analysis
@@ -34,6 +39,26 @@ async def analyze_photo(
     - meal.photo_url = file_path
     - Photo.meal_id = meal_id
     """
+    # Resolve and authorize the optional parent before persisting a file.  A
+    # photo may never be attached to another account's meal (and invalid IDs
+    # must not silently become standalone uploads).
+    parsed_meal_id = None
+    if meal_id:
+        try:
+            parsed_meal_id = uuid.UUID(meal_id)
+        except (ValueError, AttributeError):
+            raise HTTPException(status_code=422, detail="Invalid meal_id")
+        async with async_session() as session:
+            meal = await session.scalar(
+                select(Meal).where(
+                    Meal.id == parsed_meal_id,
+                    Meal.account_id == user,
+                    Meal.deleted == False,
+                )
+            )
+            if meal is None:
+                raise HTTPException(status_code=404, detail="Meal not found")
+
     # Read file content
     contents = await file.read()
     if not contents:
@@ -51,14 +76,6 @@ async def analyze_photo(
     file_path = os.path.join(settings.PHOTO_DIR, filename)
     with open(file_path, "wb") as f:
         f.write(contents)
-
-    # Parse meal_id to UUID if provided
-    parsed_meal_id = None
-    if meal_id:
-        try:
-            parsed_meal_id = uuid.UUID(meal_id)
-        except (ValueError, AttributeError):
-            logger.warning("Invalid meal_id provided: %s", meal_id)
 
     # Save photo record
     async with async_session() as session:
@@ -102,9 +119,12 @@ async def analyze_photo(
     dish_match: Optional[DishMatchResult] = None
     if analysis is not None and parsed_meal_id is not None:
         async with async_session() as session:
-            from sqlalchemy import select
             result = await session.execute(
-                select(Meal).where(Meal.id == parsed_meal_id, Meal.deleted == False)
+                select(Meal).where(
+                    Meal.id == parsed_meal_id,
+                    Meal.account_id == user,
+                    Meal.deleted == False,
+                )
             )
             meal = result.scalars().first()
             if meal is not None:

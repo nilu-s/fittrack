@@ -200,6 +200,122 @@ export interface MealTemplate {
   free_sugar_g?: number | null;
 }
 
+/** Target v1 meal domain.  These types intentionally have no account/user fields. */
+export interface MealCategory {
+  id: string;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+  default_time?: string | null;
+  updated_at?: string;
+}
+
+export interface Food {
+  id: string;
+  name: string;
+  /** API values are per 100 g. */
+  kcal?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  free_sugar_g?: number | null;
+  source?: 'manual' | 'photo' | 'import';
+  confidence?: 'verified' | 'estimated' | 'unknown';
+  is_archived?: boolean;
+  tags?: string[];
+  updated_at?: string;
+}
+
+export interface RecipeIngredient {
+  id?: string;
+  food_id?: string | null;
+  nested_recipe_id?: string | null;
+  name?: string;
+  quantity: number;
+  unit: 'g' | 'ml' | 'serving';
+  sort_order?: number;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  status: 'draft' | 'active' | 'archived';
+  servings: number;
+  ingredients: RecipeIngredient[];
+  notes?: string | null;
+  nutrition?: Nutrition;
+  updated_at?: string;
+  expected_updated_at?: string;
+}
+
+export interface MealPlanItem {
+  id?: string;
+  category_id: string;
+  weekdays?: number[] | null;
+  planned_time?: string | null;
+  recipe_id?: string | null;
+  name?: string | null;
+  portion?: number;
+  sort_order?: number;
+}
+
+export interface MealPlan {
+  id: string;
+  name: string;
+  is_active: boolean;
+  version?: number;
+  items: MealPlanItem[];
+  updated_at?: string;
+  expected_updated_at?: string;
+}
+
+export interface MealEntry {
+  id: string;
+  date: string;
+  category_id: string;
+  status: 'planned' | 'consumed' | 'skipped';
+  consumed_at?: string | null;
+  name?: string | null;
+  source: 'manual' | 'plan' | 'photo';
+  nutrition?: Nutrition;
+  items?: MealEntryItem[];
+  updated_at?: string;
+  /** Optimistic-locking value accepted by the update command. */
+  expected_updated_at?: string;
+}
+
+export interface Nutrition {
+  kcal?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  free_sugar_g?: number | null;
+}
+
+export interface MealEntryItem {
+  id?: string;
+  food_id?: string | null;
+  recipe_id?: string | null;
+  quantity: number;
+  unit: 'g' | 'ml' | 'serving';
+  nutrition_snapshot?: Nutrition;
+  source_snapshot?: Record<string, unknown>;
+}
+
+/** A photo analysis remains a proposal until the user explicitly applies items. */
+export interface MealPhotoAnalysis {
+  id: string;
+  meal_entry_id: string;
+  state: 'pending' | 'accepted' | 'rejected' | 'failed';
+  analysis?: Record<string, unknown> | null;
+  error_code?: string | null;
+  created_at: string;
+}
+
 export interface Dish {
   id?: string;
   slot?: number | null;

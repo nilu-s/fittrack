@@ -29,19 +29,10 @@
   async function loadWeightTrend() { try { const wt = await api.getStatsTrend('weight', weightRange); weightTrend = (wt?.points ?? []).filter((p: any) => p.value != null && p.value > 0); } catch {} }
 
   $: goals = $dailyGoals;
-  $: doneMeals = meals.filter((m) => m.is_done);
-  $: totalKcal = Math.round(doneMeals.reduce((s, m) => s + (Number(m.kcal) || 0), 0));
-  $: totalP = Math.round(doneMeals.reduce((s, m) => s + (Number(m.protein_g) || 0), 0));
-  $: totalKH = Math.round(doneMeals.reduce((s, m) => s + (Number(m.carbs_g) || 0), 0));
-  $: totalF = Math.round(doneMeals.reduce((s, m) => s + (Number(m.fat_g) || 0), 0));
-  $: totalFiber = Math.round(doneMeals.reduce((s, m) => s + (Number(m.fiber_g) || 0), 0));
-  $: totalSugar = Math.round(doneMeals.reduce((s, m) => s + (Number(m.sugar_g) || 0), 0));
-  $: totalFreeSugar = Math.round(doneMeals.reduce((s, m) => s + (Number(m.free_sugar_g) || 0), 0));
 
   let expandedTraining = false;
   let expandedSleep = false;
   let expandedWeight = false;
-  let expandedNutrition = false;
   let weightEditing = false;
   let quickAdd = '';
   let photoInput: HTMLInputElement;
@@ -66,8 +57,13 @@
     items.push({ id: 'metric-sleep', type: 'metric', icon: 'sleep', title: 'Schlaf', done: false, sortKey: '00-02', metricField: 'sleep_hours', metricValue: entry.sleep_hours ?? null, metricUnit: 'h', hasProgress: true, progressCurrent: entry.sleep_hours ?? 0, progressTarget: goals.sleepHours, sleepQuality: entry.sleep_quality ?? 0, sleepDetails: (entry.sleep_deep_hours != null || entry.sleep_rem_hours != null) ? { deep: Number(entry.sleep_deep_hours) || 0, rem: Number(entry.sleep_rem_hours) || 0, light: Number(entry.sleep_light_hours) || 0, awake: Number(entry.sleep_awake_hours) || 0, efficiency: Number(entry.sleep_efficiency) || 0 } : undefined, biometric: true });
     items.push({ id: 'metric-creatine', type: 'metric', icon: 'creatine', title: 'Kreatin', done: entry.creatine_done ?? false, sortKey: '00-03', metricField: 'creatine_done', metricValue: entry.creatine_done ? 'Eingenommen' : 'Ausstehend', metricCheckable: true, metricDoneField: 'creatine_done', metricEditable: false });
     items.push({ id: 'metric-belly', type: 'metric', icon: 'belly', title: 'Bauchumfang', done: false, sortKey: '00-04', metricField: 'belly_cm', metricValue: entry.belly_cm ?? null, metricUnit: 'cm', metricEditable: true });
+    // Mahlzeiten gehören in denselben Tagesfluss wie Training und freie To-dos.
     const sortedMeals = [...mealList].sort((a, b) => (a.meal_slot ?? 99) - (b.meal_slot ?? 99));
-    for (const m of sortedMeals) { const slotLabel = SLOT_NAMES[m.meal_slot] || `Slot ${m.meal_slot}`; const dishName = m.name || '— nichts gewählt —'; items.push({ id: `meal-${m.id ?? m.meal_slot}`, type: 'meal', icon: 'meal', title: `${slotLabel}: ${dishName}`, done: m.is_done ?? false, sortKey: `01-${String(m.meal_slot).padStart(2,'0')}`, kcal: Number(m.kcal) || null, protein: Number(m.protein_g) || null, fiber: Number(m.fiber_g) || null, sugar: Number(m.sugar_g) || null, mealTime: m.default_time ? m.default_time.slice(0, 5) : null }); }
+    for (const m of sortedMeals) {
+      const slotLabel = SLOT_NAMES[m.meal_slot] || `Slot ${m.meal_slot}`;
+      const dishName = m.name || '— Mahlzeit wählen —';
+      items.push({ id: `meal-${m.id ?? m.meal_slot}`, type: 'meal', icon: 'meal', title: `${slotLabel}: ${dishName}`, done: m.is_done ?? false, sortKey: `01-${String(m.meal_slot).padStart(2, '0')}`, kcal: Number(m.kcal) || null, protein: Number(m.protein_g) || null, fiber: Number(m.fiber_g) || null, sugar: Number(m.sugar_g) || null, mealTime: m.default_time ? m.default_time.slice(0, 5) : null });
+    }
     const trainingType = suggestion?.training_type ?? entry.training_type;
     if (trainingType && trainingType !== 'Ruhetag') {
       items.push({ id: 'training', type: 'training', icon: 'training', title: trainingType, done: entry.training_done ?? false, sortKey: '02-00' });
@@ -95,8 +91,11 @@
   let dishSearching = false;
   let selectedDish: any = null;
   let portionFactor = 1.0;
+  let swipedMealId = '';
+  let swipeStartX: number | null = null;
 
   function handleTouchStart(item: UnifiedItem, e: TouchEvent) {
+    swipeStartX = item.type === 'meal' ? e.touches[0]?.clientX ?? null : null;
     longPressTriggered = false;
     if (item.type !== 'todo' && item.type !== 'meal') return;
     longPressTimer = setTimeout(() => {
@@ -109,8 +108,24 @@
       }
     }, 500);
   }
-  function handleTouchEnd() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } }
-  function handleTouchMove() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } }
+  function handleTouchEnd(item?: UnifiedItem, e?: TouchEvent) {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+    if (item?.type === 'meal' && swipeStartX != null && e?.changedTouches[0]) {
+      const moved = e.changedTouches[0].clientX - swipeStartX;
+      if (moved < -36) swipedMealId = item.id;
+      if (moved > 24) swipedMealId = '';
+    }
+    swipeStartX = null;
+  }
+  function handleTouchMove(item: UnifiedItem, e: TouchEvent) {
+    if (item.type === 'meal' && swipeStartX != null && e.touches[0] && e.touches[0].clientX - swipeStartX < -18) {
+      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+      return;
+    }
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+  }
+  function closeMealActions() { swipedMealId = ''; }
+  function photoForMeal(item: UnifiedItem) { mealEditItem = item; editPhotoInput?.click(); }
   function handleContextMenu(item: UnifiedItem, e: MouseEvent) { if (item.type !== 'todo' && item.type !== 'meal') return; e.preventDefault(); if (item.type === 'meal') { openMealEdit(item); } else { actionSheetItem = item; } }
 
   function startEdit() {
@@ -445,26 +460,6 @@
   }
 </script>
 
-<!-- Nutrition: core macros first; health details are opt-in. -->
-<section class="nutrition-card">
-  <div class="nutrition-core">
-    <div class="macro"><span class="macro-l" style="color:var(--amber)">kcal</span><span class="macro-v">{totalKcal}/{goals.kcal}</span><ProgressBar current={totalKcal} target={goals.kcal} color="var(--amber)" /></div>
-    <div class="macro"><span class="macro-l" style="color:var(--blue)">Protein</span><span class="macro-v">{totalP}/{goals.protein}g</span><ProgressBar current={totalP} target={goals.protein} color="var(--blue)" /></div>
-    <div class="macro"><span class="macro-l" style="color:var(--purple)">KH</span><span class="macro-v">{totalKH}/{goals.carbs}g</span><ProgressBar current={totalKH} target={goals.carbs} color="var(--purple)" /></div>
-    <div class="macro"><span class="macro-l" style="color:var(--pink)">Fett</span><span class="macro-v">{totalF}/{goals.fat}g</span><ProgressBar current={totalF} target={goals.fat} color="var(--pink)" /></div>
-  </div>
-  <button class="nutrition-toggle" type="button" onclick={() => (expandedNutrition = !expandedNutrition)} aria-expanded={expandedNutrition}>
-    <span>{expandedNutrition ? 'Nährwert-Details ausblenden' : 'Nährwert-Details'}</span><span aria-hidden="true">{expandedNutrition ? '⌃' : '⌄'}</span>
-  </button>
-  {#if expandedNutrition}
-    <div class="nutrition-details">
-      <div class="macro"><span class="macro-l" style="color:var(--green)">Ballaststoffe</span><span class="macro-v">{totalFiber}/{goals.fiber}g</span><ProgressBar current={totalFiber} target={goals.fiber} color="var(--green)" /></div>
-      <div class="macro"><span class="macro-l" style="color:var(--amber)">Freie Zucker</span><span class="macro-v">{totalFreeSugar}/{goals.freeSugar}g</span><ProgressBar current={Math.min(totalFreeSugar, goals.freeSugar)} target={goals.freeSugar} color={totalFreeSugar > goals.freeSugar ? "var(--pink)" : "var(--amber)"} /></div>
-      <div class="macro"><span class="macro-l" style="color:var(--amber)">Zucker gesamt</span><span class="macro-v">{totalSugar}g</span></div>
-    </div>
-  {/if}
-</section>
-
 <!-- Biometrics: Schritte + Schlaf nebeneinander -->
 {#if biometricItems.length > 0}
   <div class="biometrics-row">
@@ -638,13 +633,20 @@
   {/if}
 
   {#each manualItems as item (item.id)}
+    <div class="swipe-row" class:actions-open={swipedMealId === item.id}>
+      {#if item.type === 'meal'}
+        <div class="meal-actions" aria-label="Mahlzeit-Aktionen">
+          <button aria-label="Gericht oder Preset suchen" onclick={() => { closeMealActions(); openMealEdit(item); }}><Icon name="edit" size={17} /><span>Preset</span></button>
+          <button aria-label="Mahlzeit fotografieren" onclick={() => { closeMealActions(); photoForMeal(item); }}><Icon name="camera" size={17} /><span>Foto</span></button>
+        </div>
+      {/if}
     <div class="item tap-area" class:done={item.done}
       onclick={(e) => handleTap(item, e)}
       oncontextmenu={(e) => handleContextMenu(item, e)}
       ontouchstart={(e) => handleTouchStart(item, e)}
-      ontouchend={handleTouchEnd}
-      ontouchmove={handleTouchMove}
-      ontouchcancel={handleTouchEnd}
+      ontouchend={(e) => handleTouchEnd(item, e)}
+      ontouchmove={(e) => handleTouchMove(item, e)}
+      ontouchcancel={() => handleTouchEnd()}
       onkeydown={(e) => handleItemKey(item, e)}
       role="button" tabindex="0">
       <button class="item-check" class:done={item.done} onclick={(e) => handleCheck(item, e)} aria-label={item.done ? `${item.title} als offen markieren` : `${item.title} erledigen`}>
@@ -664,6 +666,46 @@
       {/if}
       {#if item.hasProgress}<div class="item-prog"><ProgressBar current={item.progressCurrent ?? 0} target={item.progressTarget ?? 1} color="var(--text-dim)" /></div>{/if}
     </div>
+    </div>
+
+    {#if item.type === 'meal' && mealEditItem?.id === item.id}
+      <div class="meal-inline">
+        {#if !selectedDish}
+          <div class="meal-inline-title">{SLOT_NAMES[getMealSlotFromItem(mealEditItem)] || `Slot ${getMealSlotFromItem(mealEditItem)}`} bearbeiten</div>
+
+          {#if editDishesLoading}
+            <div class="modal-loading">Lade Empfehlungen…</div>
+          {:else}
+            {#if recommendResult?.default}
+              <div class="modal-section-label">Empfohlen</div>
+              <button class="dish-btn dish-default-highlight" onclick={() => selectDishForEdit(recommendResult.default)}>
+                <div class="dish-info"><span class="dish-name">{recommendResult.default.name}</span>{#if recommendResult.default.is_default}<span class="dish-badge">Standard</span>{/if}<span class="dish-uses">{recommendResult.default.usage_count ?? 0}× genutzt</span></div>
+                <div class="dish-macros"><span>{Math.round(Number(recommendResult.default.kcal) || 0)} kcal</span><span>{Math.round(Number(recommendResult.default.protein_g) || 0)}g P</span><span>{Math.round(Number(recommendResult.default.fiber_g) || 0)}g Ballaststoffe</span><span>{Math.round(Number(recommendResult.default.sugar_g) || 0)}g Zucker</span>{#if recommendResult.default.portion_label}<span class="dish-portion">{recommendResult.default.portion_label}</span>{/if}</div>
+              </button>
+            {/if}
+            {#if recommendResult?.alternatives?.length > 0}
+              <div class="modal-section-label">Ähnliche Alternativen</div>
+              <div class="dish-list">{#each recommendResult.alternatives as dish (dish.id)}<button class="dish-btn" onclick={() => selectDishForEdit(dish)}><div class="dish-info"><span class="dish-name">{dish.name}</span>{#if (dish.usage_count ?? 0) > 0}<span class="dish-uses">{dish.usage_count}×</span>{/if}</div><div class="dish-macros"><span>{Math.round(Number(dish.kcal) || 0)} kcal</span><span>{Math.round(Number(dish.protein_g) || 0)}g P</span><span>{Math.round(Number(dish.fiber_g) || 0)}g Ballaststoffe</span><span>{Math.round(Number(dish.sugar_g) || 0)}g Zucker</span></div></button>{/each}</div>
+            {/if}
+            <div class="modal-section-label">Anderes Gericht suchen</div>
+            <input class="dish-search-input" type="text" placeholder="Gericht eingeben…" oninput={onDishSearch} value={dishSearchQuery} />
+            {#if dishSearchResults.length > 0}
+              <div class="dish-list">{#each dishSearchResults as dish (dish.id)}<button class="dish-btn" onclick={() => selectDishForEdit(dish)}><div class="dish-info"><span class="dish-name">{dish.name}</span>{#if dish.is_default}<span class="dish-badge">Standard</span>{/if}</div><div class="dish-macros"><span>{Math.round(Number(dish.kcal) || 0)} kcal</span><span>{Math.round(Number(dish.protein_g) || 0)}g P</span><span>{Math.round(Number(dish.fiber_g) || 0)}g Ballaststoffe</span><span>{Math.round(Number(dish.sugar_g) || 0)}g Zucker</span>{#if dish.portion_label}<span class="dish-portion">{dish.portion_label}</span>{/if}</div></button>{/each}</div>
+            {:else if dishSearchQuery.trim().length >= 2}<div class="modal-empty">Keine Treffer</div>{/if}
+          {/if}
+          <div class="modal-actions">
+            {#if editPhotoLoading}<div class="photo-progress modal-progress"><div class="photo-progress-bar"><div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div></div><span class="photo-progress-label">{editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' : editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' : editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}</span></div>{/if}
+            <button class="modal-primary cam-action" onclick={triggerEditPhoto} disabled={editPhotoLoading}>{#if editPhotoLoading}<Icon name="refresh" size={18} />{:else}<Icon name="camera" size={18} />{/if}<span>{editPhotoLoading ? 'Analysiere…' : 'Foto analysieren'}</span></button>
+            <button class="modal-secondary" onclick={closeMealEdit}>Abbrechen</button>
+          </div>
+        {:else}
+          <div class="meal-inline-title">{selectedDish.name}</div>
+          <button class="modal-back" onclick={backToDishList}>← Zurück</button>
+          <div class="portion-section"><div class="portion-label-row"><span class="portion-current">{portionDisplay}</span><span class="portion-hint">{selectedDish.is_scalable ? 'Skaliere mit dem Slider' : 'Feste Portion'}</span></div>{#if selectedDish.is_scalable}<div class="portion-slider-row"><span class="slider-end">0.5×</span><input class="portion-slider" type="range" min="0.5" max="3" step="0.1" bind:value={portionFactor} /><span class="slider-end">3×</span></div>{/if}<div class="portion-macros"><div class="macro"><span class="macro-l">Kcal</span><span class="macro-v">{scaledKcal}</span></div><div class="macro"><span class="macro-l">Protein</span><span class="macro-v">{scaledProtein}g</span></div><div class="macro"><span class="macro-l">Carbs</span><span class="macro-v">{scaledCarbs}g</span></div><div class="macro"><span class="macro-l">Fat</span><span class="macro-v">{scaledFat}g</span></div><div class="macro"><span class="macro-l">Ballaststoffe</span><span class="macro-v">{scaledFiber}g</span></div><div class="macro"><span class="macro-l">Zucker</span><span class="macro-v">{scaledSugar}g</span></div></div></div>
+          <div class="modal-actions"><button class="modal-primary" onclick={confirmDishSelection}>Bestätigen</button><button class="modal-secondary" onclick={backToDishList}>Zurück</button></div>
+        {/if}
+      </div>
+    {/if}
 
     {#if item.id === 'training' && expandedTraining}
       <div class="train-inline" onclick={(e) => e.stopPropagation()}>
@@ -760,149 +802,7 @@
 
 <input bind:this={editPhotoInput} type="file" accept="image/*" capture="environment" style="display:none" onchange={onEditPhotoSelected} />
 
-{#if mealEditItem}
-  <div class="modal-overlay" onclick={closeMealEdit}>
-    <div class="modal-card" onclick={(e) => e.stopPropagation()}>
-      {#if !selectedDish}
-        <!-- Dish selection view -->
-        <div class="modal-title">{SLOT_NAMES[getMealSlotFromItem(mealEditItem)] || `Slot ${getMealSlotFromItem(mealEditItem)}`} bearbeiten</div>
-
-        {#if editDishesLoading}
-          <div class="modal-loading">Lade Empfehlungen…</div>
-        {:else}
-          <!-- Default dish (highlighted) -->
-          {#if recommendResult?.default}
-            <div class="modal-section-label">Empfohlen</div>
-            <button class="dish-btn dish-default-highlight" onclick={() => selectDishForEdit(recommendResult.default)}>
-              <div class="dish-info">
-                <span class="dish-name">{recommendResult.default.name}</span>
-                {#if recommendResult.default.is_default}<span class="dish-badge">Standard</span>{/if}
-                <span class="dish-uses">{recommendResult.default.usage_count ?? 0}× genutzt</span>
-              </div>
-              <div class="dish-macros">
-                <span>{Math.round(Number(recommendResult.default.kcal) || 0)} kcal</span>
-                <span>{Math.round(Number(recommendResult.default.protein_g) || 0)}g P</span>
-                <span>{Math.round(Number(recommendResult.default.fiber_g) || 0)}g Ballaststoffe</span>
-                <span>{Math.round(Number(recommendResult.default.sugar_g) || 0)}g Zucker</span>
-                {#if recommendResult.default.portion_label}<span class="dish-portion">{recommendResult.default.portion_label}</span>{/if}
-              </div>
-            </button>
-          {/if}
-
-          <!-- Alternatives with similar macros -->
-          {#if recommendResult?.alternatives?.length > 0}
-            <div class="modal-section-label">Ähnliche Alternativen</div>
-            <div class="dish-list">
-              {#each recommendResult.alternatives as dish (dish.id)}
-                <button class="dish-btn" onclick={() => selectDishForEdit(dish)}>
-                  <div class="dish-info">
-                    <span class="dish-name">{dish.name}</span>
-                    {#if (dish.usage_count ?? 0) > 0}<span class="dish-uses">{dish.usage_count}×</span>{/if}
-                  </div>
-                  <div class="dish-macros">
-                    <span>{Math.round(Number(dish.kcal) || 0)} kcal</span>
-                    <span>{Math.round(Number(dish.protein_g) || 0)}g P</span>
-                    <span>{Math.round(Number(dish.fiber_g) || 0)}g Ballaststoffe</span>
-                    <span>{Math.round(Number(dish.sugar_g) || 0)}g Zucker</span>
-                  </div>
-                </button>
-              {/each}
-            </div>
-          {/if}
-
-          <!-- Search input -->
-          <div class="modal-section-label">Anderes Gericht suchen</div>
-          <input class="dish-search-input" type="text" placeholder="Gericht eingeben…" oninput={onDishSearch} value={dishSearchQuery} />
-          {#if dishSearchResults.length > 0}
-            <div class="dish-list">
-              {#each dishSearchResults as dish (dish.id)}
-                <button class="dish-btn" onclick={() => selectDishForEdit(dish)}>
-                  <div class="dish-info">
-                    <span class="dish-name">{dish.name}</span>
-                    {#if dish.is_default}<span class="dish-badge">Standard</span>{/if}
-                  </div>
-                  <div class="dish-macros">
-                    <span>{Math.round(Number(dish.kcal) || 0)} kcal</span>
-                    <span>{Math.round(Number(dish.protein_g) || 0)}g P</span>
-                    <span>{Math.round(Number(dish.fiber_g) || 0)}g Ballaststoffe</span>
-                    <span>{Math.round(Number(dish.sugar_g) || 0)}g Zucker</span>
-                    {#if dish.portion_label}<span class="dish-portion">{dish.portion_label}</span>{/if}
-                  </div>
-                </button>
-              {/each}
-            </div>
-          {:else if dishSearchQuery.trim().length >= 2}
-            <div class="modal-empty">Keine Treffer</div>
-          {/if}
-        {/if}
-
-        <div class="modal-actions">
-          {#if editPhotoLoading}
-            <div class="photo-progress modal-progress">
-              <div class="photo-progress-bar">
-                <div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div>
-              </div>
-              <span class="photo-progress-label">
-                {editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' :
-                 editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' :
-                 editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}
-              </span>
-            </div>
-          {/if}
-          <button class="modal-primary cam-action" onclick={triggerEditPhoto} disabled={editPhotoLoading}>
-            {#if editPhotoLoading}<Icon name="refresh" size={18} />{:else}<Icon name="camera" size={18} />{/if}
-            <span>{editPhotoLoading ? 'Analysiere…' : 'Foto analysieren'}</span>
-          </button>
-          <button class="modal-secondary" onclick={closeMealEdit}>Abbrechen</button>
-        </div>
-      {:else}
-        <!-- Dish detail view with portion slider -->
-        <div class="modal-title">{selectedDish.name}</div>
-        <button class="modal-back" onclick={backToDishList}>← Zurück</button>
-
-        <div class="portion-section">
-          <div class="portion-label-row">
-            <span class="portion-current">{portionDisplay}</span>
-            {#if selectedDish.is_scalable}
-              <span class="portion-hint">Skaliere mit dem Slider</span>
-            {:else}
-              <span class="portion-hint">Feste Portion</span>
-            {/if}
-          </div>
-
-          {#if selectedDish.is_scalable}
-            <div class="portion-slider-row">
-              <span class="slider-end">0.5×</span>
-              <input class="portion-slider" type="range" min="0.5" max="3" step="0.1" bind:value={portionFactor} />
-              <span class="slider-end">3×</span>
-            </div>
-          {/if}
-
-          <div class="portion-macros">
-            <div class="macro"><span class="macro-l">Kcal</span><span class="macro-v">{scaledKcal}</span></div>
-            <div class="macro"><span class="macro-l">Protein</span><span class="macro-v">{scaledProtein}g</span></div>
-            <div class="macro"><span class="macro-l">Carbs</span><span class="macro-v">{scaledCarbs}g</span></div>
-            <div class="macro"><span class="macro-l">Fat</span><span class="macro-v">{scaledFat}g</span></div>
-            <div class="macro"><span class="macro-l">Ballaststoffe</span><span class="macro-v">{scaledFiber}g</span></div>
-            <div class="macro"><span class="macro-l">Zucker</span><span class="macro-v">{scaledSugar}g</span></div>
-          </div>
-        </div>
-
-        <div class="modal-actions">
-          <button class="modal-primary" onclick={confirmDishSelection}>Bestätigen</button>
-          <button class="modal-secondary" onclick={backToDishList}>Zurück</button>
-        </div>
-      {/if}
-    </div>
-  </div>
-{/if}
-
 <style>
-  .nutrition-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .nutrition-core, .nutrition-details { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px 14px; }
-  .nutrition-details { grid-template-columns: repeat(3, 1fr); padding-top: 10px; border-top: 1px solid var(--border); }
-  .nutrition-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; border: 0; border-top: 1px solid var(--border); background: transparent; color: var(--text-dim); font-size: 12px; font-weight: 600; cursor: pointer; }
-  .nutrition-toggle:active { background: var(--card-2); }
   .macro { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .macro-l { font-size: 11px; text-transform: uppercase; font-weight: 600; }
   .macro-v { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; }
@@ -913,7 +813,13 @@
   .photo-btn:active { background: #26272a; }
   .photo-btn:disabled { opacity: 0.5; }
 
-  .item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s, opacity 0.15s; min-height: 56px; -webkit-user-select: none; user-select: none; }
+  .swipe-row { position: relative; overflow: hidden; border-bottom: 1px solid var(--border); background: var(--card); }
+  .swipe-row:last-of-type { border-bottom: none; }
+  .meal-actions { position: absolute; inset: 0 0 0 auto; display: flex; align-items: stretch; background: var(--card-2); }
+  .meal-actions button { width: 70px; border: 0; border-left: 1px solid var(--border); background: transparent; color: var(--text); display: grid; place-content: center; gap: 3px; cursor: pointer; font: inherit; font-size: 11px; }
+  .meal-actions button:last-child { background: color-mix(in srgb, var(--blue) 22%, var(--card-2)); }
+  .item { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 0; cursor: pointer; transition: transform 0.2s ease, background 0.15s, opacity 0.15s; min-height: 56px; -webkit-user-select: none; user-select: none; background: var(--card); }
+  .actions-open > .item { transform: translateX(-140px); }
   .item:last-of-type { border-bottom: none; }
   .item.done { opacity: 0.5; }
   .item:active { background: var(--card-2); }
@@ -933,6 +839,8 @@
   .item-prog { flex: 0 0 70px; }
   .spark-row { padding: 0 14px 8px; }
   .train-inline { padding: 0 14px 8px; }
+  .meal-inline { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px 54px; border-bottom: 1px solid var(--border); background: var(--card); animation: inlineExpand 0.18s ease-out; }
+  .meal-inline-title { color: var(--text); font-size: 14px; font-weight: 600; }
 
   .quality-stars { font-size: 11px; color: var(--amber); letter-spacing: 1px; }
 
@@ -1039,6 +947,7 @@
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes inlineExpand { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
   /* Meal edit modal — additional classes (modal-overlay/card/title/actions/primary/secondary already defined above) */
   .modal-section-label { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -1085,4 +994,11 @@
   .portion-macros .macro { display: flex; flex-direction: column; gap: 3px; text-align: center; }
   .portion-macros .macro-l { font-size: 11px; text-transform: uppercase; font-weight: 600; color: var(--text-dim); }
   .portion-macros .macro-v { font-size: 16px; font-weight: 700; color: var(--text); }
+
+  @media (max-width: 520px) {
+    .meal-inline { padding-left: 14px; }
+    .dish-btn { align-items: flex-start; flex-direction: column; gap: 5px; }
+    .dish-macros { flex-wrap: wrap; }
+    .portion-macros { grid-template-columns: repeat(3, 1fr); }
+  }
 </style>
