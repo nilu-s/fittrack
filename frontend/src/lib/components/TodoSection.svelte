@@ -63,7 +63,24 @@
     let result = [...todos];
     if (filter === 'open') result = result.filter((t) => t.status === 'open'); else if (filter === 'done') result = result.filter((t) => t.status === 'done'); else if (filter === 'today') result = result.filter((t) => t.due_date === date);
     if (catFilter) result = result.filter((t) => t.category === catFilter);
-    if (sort === 'priority') { result.sort((a, b) => (b.priority ?? 2) - (a.priority ?? 2)); } else if (sort === 'due') { result.sort((a, b) => { const ad = a.due_date ?? '9999'; const bd = b.due_date ?? '9999'; return ad.localeCompare(bd); }); } else { result.sort((a, b) => { const aR = a.source === 'meal_routine' || a.source === 'training' || a.source === 'cardio'; const bR = b.source === 'meal_routine' || b.source === 'training' || b.source === 'cardio'; if (aR && bR) return (a.sort_order ?? 99) - (b.sort_order ?? 99); if (aR) return -1; if (bR) return 1; return (a.due_time ?? '99:99').localeCompare(b.due_time ?? '99:99'); }); }
+    // Erledigte Aufgaben bleiben sichtbar, stehen aber immer hinter offenen.
+    // Dadurch wandert ein Eintrag direkt nach dem Abhaken ans Listenende.
+    result.sort((a, b) => {
+      const completionOrder = Number(a.status === 'done') - Number(b.status === 'done');
+      if (completionOrder !== 0) return completionOrder;
+      if (sort === 'priority') return (b.priority ?? 2) - (a.priority ?? 2);
+      if (sort === 'due') {
+        const ad = a.due_date ?? '9999';
+        const bd = b.due_date ?? '9999';
+        return ad.localeCompare(bd);
+      }
+      const aR = a.source === 'meal_routine' || a.source === 'training' || a.source === 'cardio';
+      const bR = b.source === 'meal_routine' || b.source === 'training' || b.source === 'cardio';
+      if (aR && bR) return (a.sort_order ?? 99) - (b.sort_order ?? 99);
+      if (aR) return -1;
+      if (bR) return 1;
+      return (a.due_time ?? '99:99').localeCompare(b.due_time ?? '99:99');
+    });
     return result;
   }
 

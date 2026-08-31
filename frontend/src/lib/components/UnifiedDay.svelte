@@ -68,7 +68,8 @@
     if (trainingType && trainingType !== 'Ruhetag') {
       items.push({ id: 'training', type: 'training', icon: 'training', title: trainingType, done: entry.training_done ?? false, sortKey: '02-00' });
     }
-    for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.due_time ?? '99:99'}`, todoData: t }); }
+    // Abgehakte freie To-dos werden am Ende des Tagesflusses angezeigt.
+    for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `${t.status === 'done' ? '99' : '03'}-${t.due_time ?? '99:99'}`, todoData: t }); }
     return items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   }
 
