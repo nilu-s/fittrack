@@ -68,9 +68,13 @@
     if (trainingType && trainingType !== 'Ruhetag') {
       items.push({ id: 'training', type: 'training', icon: 'training', title: trainingType, done: entry.training_done ?? false, sortKey: '02-00' });
     }
-    // Abgehakte freie To-dos werden am Ende des Tagesflusses angezeigt.
-    for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `${t.status === 'done' ? '99' : '03'}-${t.due_time ?? '99:99'}`, todoData: t }); }
-    return items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+    for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.due_time ?? '99:99'}`, todoData: t }); }
+    // Alles, was abgehakt ist, wird im Tagesfluss ans Ende verschoben.
+    // Innerhalb der offenen bzw. erledigten Gruppe bleibt die Tagesreihenfolge erhalten.
+    return items.sort((a, b) => {
+      const completionOrder = Number(a.done) - Number(b.done);
+      return completionOrder || a.sortKey.localeCompare(b.sortKey);
+    });
   }
 
   let longPressTimer: ReturnType<typeof setTimeout> | null = null;
