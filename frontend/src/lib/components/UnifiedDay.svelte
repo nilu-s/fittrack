@@ -89,9 +89,6 @@
   let dishSearchQuery = '';
   let dishSearchResults: any[] = [];
   let dishSearching = false;
-  let mealPickerOpen = false;
-  let swipedMealId = '';
-  let swipeStartX: number | null = null;
 
   /** Only one task detail may be open in the daily list at a time. */
   function closeOpenTodoDetails() {
@@ -120,38 +117,21 @@
   }
 
   function handleTouchStart(item: UnifiedItem, e: TouchEvent) {
-    swipeStartX = item.type === 'meal' && !item.done ? e.touches[0]?.clientX ?? null : null;
     longPressTriggered = false;
-    if (item.type !== 'todo' && item.type !== 'meal') return;
+    if (item.type !== 'todo') return;
     longPressTimer = setTimeout(() => {
       longPressTriggered = true;
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-      if (item.type === 'meal') {
-        toggleMealEdit(item);
-      } else {
-        toggleTodoActions(item);
-      }
+      toggleTodoActions(item);
     }, 500);
   }
-  function handleTouchEnd(item?: UnifiedItem, e?: TouchEvent) {
-    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-    if (item?.type === 'meal' && !item.done && swipeStartX != null && e?.changedTouches[0]) {
-      const moved = e.changedTouches[0].clientX - swipeStartX;
-      if (moved < -36) swipedMealId = item.id;
-      if (moved > 24) swipedMealId = '';
-    }
-    swipeStartX = null;
-  }
-  function handleTouchMove(item: UnifiedItem, e: TouchEvent) {
-    if (item.type === 'meal' && swipeStartX != null && e.touches[0] && e.touches[0].clientX - swipeStartX < -18) {
-      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-      return;
-    }
+  function handleTouchEnd() {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
   }
-  function closeMealActions() { swipedMealId = ''; }
-  function photoForMeal(item: UnifiedItem) { closeOpenTodoDetails(); mealEditItem = item; editPhotoInput?.click(); }
-  function handleContextMenu(item: UnifiedItem, e: MouseEvent) { if (item.type !== 'todo' && item.type !== 'meal') return; e.preventDefault(); if (item.type === 'meal') { toggleMealEdit(item); } else { toggleTodoActions(item); } }
+  function handleTouchMove() {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+  }
+  function handleContextMenu(item: UnifiedItem, e: MouseEvent) { if (item.type !== 'todo') return; e.preventDefault(); toggleTodoActions(item); }
 
   function startEdit() {
     if (!actionSheetItem?.todoData) return;
@@ -178,7 +158,7 @@
   function handleTap(item: UnifiedItem, e: MouseEvent) {
     if (longPressTriggered) { longPressTriggered = false; return; }
     if (item.type === 'training') { toggleTrainingDetail(); return; }
-    if (item.type === 'meal') { toggleMealEdit(item); return; }
+    if (item.type === 'meal') return;
     if (item.type === 'todo') { toggleTodoActions(item); return; }
     if (item.id === 'metric-sleep') { expandedSleep = !expandedSleep; return; }
     if (item.id === 'metric-weight' && item.weightDetails) { expandedWeight = !expandedWeight; return; }
@@ -192,7 +172,6 @@
 
   function handleCheck(item: UnifiedItem, e: MouseEvent) {
     e.stopPropagation();
-    if (item.type === 'meal') closeMealActions();
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(25);
     toggleDone(item);
   }
@@ -257,7 +236,6 @@
     const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id);
     if (!meal) return;
     mealEditItem = item;
-    mealPickerOpen = false;
     dishSearchQuery = '';
     dishSearchResults = [];
     recommendResult = null;
@@ -270,7 +248,7 @@
     } catch { editDishes = []; recommendResult = null; }
     editDishesLoading = false;
   }
-  function closeMealEdit() { mealEditItem = null; mealPickerOpen = false; }
+  function closeMealEdit() { mealEditItem = null; }
 
   function getMealFromItem(item: UnifiedItem): Meal | undefined {
     const id = String(item.id).replace('meal-', '');
@@ -655,19 +633,12 @@
   {/if}
 
   {#each manualItems as item (item.id)}
-    <div class="swipe-row" class:actions-open={item.type === 'meal' && !item.done && swipedMealId === item.id}>
-      {#if item.type === 'meal' && !item.done}
-        <div class="meal-actions" aria-label="Mahlzeit-Aktionen">
-          <button aria-label="Gericht oder Preset suchen" onclick={() => { closeMealActions(); toggleMealEdit(item); }}><Icon name="edit" size={17} /><span>Preset</span></button>
-          <button aria-label="Mahlzeit fotografieren" onclick={() => { closeMealActions(); photoForMeal(item); }}><Icon name="camera" size={17} /><span>Foto</span></button>
-        </div>
-      {/if}
     <div class="item tap-area" class:done={item.done}
       onclick={(e) => handleTap(item, e)}
       oncontextmenu={(e) => handleContextMenu(item, e)}
       ontouchstart={(e) => handleTouchStart(item, e)}
-      ontouchend={(e) => handleTouchEnd(item, e)}
-      ontouchmove={(e) => handleTouchMove(item, e)}
+      ontouchend={handleTouchEnd}
+      ontouchmove={handleTouchMove}
       ontouchcancel={() => handleTouchEnd()}
       onkeydown={(e) => handleItemKey(item, e)}
       role="button" tabindex="0">
@@ -683,35 +654,20 @@
           {#if item.mealTime}<span class="item-time">{item.mealTime}</span>{/if}
         </div>
       </div>
+      {#if item.type === 'meal' && !item.done}
+        <button class="meal-change-button" onclick={(e) => { e.stopPropagation(); toggleMealEdit(item); }}>Gericht ändern</button>
+      {/if}
       {#if item.type === 'metric'}
         <MetricRow icon="" label="" value={item.metricValue} unit={item.metricUnit ?? ''} editable={item.metricEditable ?? false} checkable={false} on:change={(e) => updateMetric(item.metricField!, e.detail)} />
       {/if}
       {#if item.hasProgress}<div class="item-prog"><ProgressBar current={item.progressCurrent ?? 0} target={item.progressTarget ?? 1} color="var(--text-dim)" /></div>{/if}
-    </div>
     </div>
 
     {#if item.type === 'meal' && mealEditItem?.id === item.id}
       <div class="meal-inline">
         <div class="meal-inline-heading"><div class="meal-inline-title">{SLOT_NAMES[getMealSlotFromItem(mealEditItem)] || `Slot ${getMealSlotFromItem(mealEditItem)}`} bearbeiten</div><button class="meal-collapse" onclick={closeMealEdit}>Einklappen</button></div>
 
-          {#if !mealPickerOpen}
-            {@const currentMeal = getMealFromItem(mealEditItem)}
-            <div class="meal-current">
-              <span class="meal-current-label">Aktuelles Gericht</span>
-              <span class="meal-current-name">{currentMeal?.name || 'Noch kein Gericht ausgewählt'}</span>
-              {#if currentMeal?.kcal || currentMeal?.protein_g}
-                <span class="meal-current-meta">{#if currentMeal?.kcal}{Math.round(Number(currentMeal.kcal))} kcal{/if}{#if currentMeal?.kcal && currentMeal?.protein_g} · {/if}{#if currentMeal?.protein_g}{Math.round(Number(currentMeal.protein_g))} g Protein{/if}</span>
-              {/if}
-            </div>
-            <div class="meal-editor-actions">
-              <button class="modal-primary" onclick={() => (mealPickerOpen = true)}>Gericht ändern</button>
-              <button class="meal-photo-button" onclick={triggerEditPhoto} disabled={editPhotoLoading}>
-                {#if editPhotoLoading}<Icon name="refresh" size={17} />{:else}<Icon name="camera" size={17} />{/if}
-                <span>{editPhotoLoading ? 'Analysiere…' : 'Foto analysieren'}</span>
-              </button>
-            </div>
-            {#if editPhotoLoading}<div class="photo-progress modal-progress"><div class="photo-progress-bar"><div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div></div><span class="photo-progress-label">{editPhotoStatus === 'analyze' ? 'Foto wird analysiert…' : 'Gericht wird zugeordnet…'}</span></div>{/if}
-          {:else if editDishesLoading}
+          {#if editDishesLoading}
             <div class="modal-loading">Lade Empfehlungen…</div>
           {:else}
             {#if recommendResult?.default}
@@ -731,10 +687,10 @@
               <div class="dish-list">{#each dishSearchResults as dish (dish.id)}<button class="dish-btn" onclick={() => selectDishForEdit(dish)}><div class="dish-info"><span class="dish-name">{dish.name}</span>{#if dish.is_default}<span class="dish-badge">Standard</span>{/if}</div><span class="dish-summary">{Math.round(Number(dish.kcal) || 0)} kcal · {Math.round(Number(dish.protein_g) || 0)} g Protein</span></button>{/each}</div>
             {:else if dishSearchQuery.trim().length >= 2}<div class="modal-empty">Keine Treffer</div>{/if}
           {/if}
-          {#if mealPickerOpen}<div class="modal-actions">
+          <div class="modal-actions">
             {#if editPhotoLoading}<div class="photo-progress modal-progress"><div class="photo-progress-bar"><div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div></div><span class="photo-progress-label">{editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' : editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' : editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}</span></div>{/if}
-            <button class="modal-secondary" onclick={() => (mealPickerOpen = false)}>Zur Übersicht</button>
-          </div>{/if}
+            <button class="meal-photo-button" onclick={triggerEditPhoto} disabled={editPhotoLoading}>{#if editPhotoLoading}<Icon name="refresh" size={17} />{:else}<Icon name="camera" size={17} />{/if}<span>{editPhotoLoading ? 'Analysiere…' : 'Foto analysieren'}</span></button>
+          </div>
       </div>
     {/if}
 
@@ -844,13 +800,7 @@
   .photo-btn:active { background: #26272a; }
   .photo-btn:disabled { opacity: 0.5; }
 
-  .swipe-row { position: relative; overflow: hidden; border-bottom: 1px solid var(--border); background: var(--card); }
-  .swipe-row:last-of-type { border-bottom: none; }
-  .meal-actions { position: absolute; inset: 0 0 0 auto; display: flex; align-items: stretch; background: var(--card-2); }
-  .meal-actions button { width: 70px; border: 0; border-left: 1px solid var(--border); background: transparent; color: var(--text); display: grid; place-content: center; gap: 3px; cursor: pointer; font: inherit; font-size: 11px; }
-  .meal-actions button:last-child { background: color-mix(in srgb, var(--blue) 22%, var(--card-2)); }
   .item { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 0; cursor: pointer; transition: transform 0.2s ease, background 0.15s, opacity 0.15s; min-height: 56px; -webkit-user-select: none; user-select: none; background: var(--card); }
-  .actions-open > .item { transform: translateX(-140px); }
   .item:last-of-type { border-bottom: none; }
   .item.done { opacity: 0.5; }
   .item:active { background: var(--card-2); }
@@ -868,6 +818,8 @@
   .item-badges { display: flex; align-items: center; gap: 4px; }
   .item-time { font-size: 11px; color: var(--text-faint); font-weight: 500; }
   .item-prog { flex: 0 0 70px; }
+  .meal-change-button { flex: 0 0 auto; border: 1px solid var(--border-2); border-radius: 7px; background: var(--card-2); color: var(--text); cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; padding: 7px 9px; white-space: nowrap; }
+  .meal-change-button:active { background: var(--border); }
   .spark-row { padding: 0 14px 8px; }
   .train-inline { padding: 0 14px 8px; }
   .meal-inline { display: flex; flex-direction: column; gap: 12px; margin: 4px 10px 10px 54px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2); animation: inlineExpand 0.18s ease-out; }
@@ -875,11 +827,6 @@
   .meal-inline-title { color: var(--text); font-size: 15px; font-weight: 650; }
   .meal-collapse { border: 0; background: transparent; color: var(--text-dim); cursor: pointer; font: inherit; font-size: 13px; padding: 4px; }
   .meal-collapse:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
-  .meal-current { display: flex; flex-direction: column; gap: 4px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
-  .meal-current-label { font-size: 13px; color: var(--text-dim); }
-  .meal-current-name { font-size: 15px; font-weight: 600; color: var(--text); }
-  .meal-current-meta { font-size: 14px; color: var(--text-dim); }
-  .meal-editor-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
   .meal-photo-button { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 14px; border: 1px solid var(--border-2); border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
   .meal-photo-button:disabled { opacity: 0.6; }
 
