@@ -31,3 +31,11 @@ to `config.h`, set `DEVICE_KEY` to the registered device credential, then build 
 flash the firmware as described in
 [`esp32-scale-bridge/README.md`](esp32-scale-bridge/README.md).  Do not commit
 the generated `config.h`.
+
+## Multi-account release
+
+The account and shared-scale cutover is an Alembic maintenance-window release.
+Use the checked-in [cutover runbook](docs/runbooks/multi-account-cutover.md): it
+requires a verified backup, an allow-list, and a uniquely resolved legacy
+owner before finalizing ownership. Browser offline data is cleared whenever a
+different account signs in on the same browser profile.

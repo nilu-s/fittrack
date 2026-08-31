@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { clearAccountData } from './db';
 
 export const isAuthenticated = writable<boolean>(false);
 export const authEmail = writable<string | null>(null);
@@ -20,6 +21,11 @@ export async function checkAuth(): Promise<void> {
     }
     const data = await resp.json();
     if (data.authenticated) {
+      const previousAccountId = window.localStorage.getItem('fittrack_account_id');
+      if (previousAccountId && previousAccountId !== data.id) {
+        await clearAccountData();
+      }
+      window.localStorage.setItem('fittrack_account_id', data.id);
       isAuthenticated.set(true);
       authEmail.set(data.email);
     } else {

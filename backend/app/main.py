@@ -3,8 +3,9 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,46 @@ from app.routes.training import router as training_router
 from app.routes.vision import router as vision_router
 from app.routes.goals import router as goals_router
 from app.routes.dishes import router as dishes_router
+
+
+# Device ingestion and OAuth are deliberately outside the browser-session
+# boundary. Every other API route obtains its owner exclusively from the
+# signed session before any route handler or ORM query can run.
+from app.routes.auth import (
+    SESSION_COOKIE_NAME,
+    _verify_session_jwt,
+)
+from app.services.ownership import reset_current_account, set_current_account
+import uuid
+
+_PUBLIC_API_PATHS = {
+    "/api/health",
+    "/api/auth/me",
+    "/api/auth/google/login",
+    "/api/auth/logout",
+    "/api/google/callback",
+}
+
+
+@app.middleware("http")
+async def require_browser_account(request: Request, call_next):
+    """Establish request-local account scope for every browser API request."""
+    path = request.url.path
+    if not path.startswith("/api/") or path in _PUBLIC_API_PATHS or path == "/api/scale-sync/v2":
+        return await call_next(request)
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    claims = _verify_session_jwt(token) if token else None
+    if not claims:
+        return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
+    try:
+        account_id = uuid.UUID(claims["account_id"])
+    except (KeyError, TypeError, ValueError):
+        return JSONResponse(status_code=401, content={"detail": "Invalid session account"})
+    scope = set_current_account(account_id)
+    try:
+        return await call_next(request)
+    finally:
+        reset_current_account(scope)
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(auth_google_router, prefix="/api")

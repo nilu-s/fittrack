@@ -91,23 +91,13 @@ class ScaleMeasurement(AccountOwned, Base):
 
 class DayEntry(AccountOwned, Base):
     __tablename__ = "day_entries"
-    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_day_entries_user_date"),)
+    __table_args__ = (UniqueConstraint("account_id", "date", name="uq_day_entries_account_date"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     date: Mapped[date] = mapped_column(Date, nullable=False)
     weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     weight_source: Mapped[str | None] = mapped_column(Text)  # 'scale_esp' | 'manual' | 'google_fit' | None
-    # Body composition — from Renpho scale via ESP32 BLE
-    body_fat_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    muscle_mass_kg: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    water_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    bone_mass_kg: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     bmi: Mapped[Decimal | None] = mapped_column(Numeric(4, 1))
-    basal_metabolism: Mapped[int | None] = mapped_column(Integer)  # BMR in kcal
-    impedance: Mapped[int | None] = mapped_column(Integer)  # ohms
-    visceral_fat: Mapped[int | None] = mapped_column(Integer)
-    metabolic_age: Mapped[int | None] = mapped_column(Integer)
     steps: Mapped[int | None] = mapped_column(Integer)
     sleep_hours: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))
     # Sleep detail metrics — from Google Fit sleep segments (never manually "done")
@@ -136,7 +126,6 @@ class Meal(AccountOwned, Base):
     __tablename__ = "meals"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     date: Mapped[date] = mapped_column(Date, nullable=False)
     meal_slot: Mapped[int] = mapped_column(Integer, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
@@ -164,7 +153,6 @@ class Todo(AccountOwned, Base):
     __tablename__ = "todos"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     title: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str | None] = mapped_column(Text)
     priority: Mapped[int] = mapped_column(Integer, default=2)
@@ -184,10 +172,9 @@ class Todo(AccountOwned, Base):
 
 class MealTemplate(AccountOwned, Base):
     __tablename__ = "meal_templates"
-    __table_args__ = (UniqueConstraint("user_id", "slot", name="uq_meal_templates_user_slot"),)
+    __table_args__ = (UniqueConstraint("account_id", "slot", name="uq_meal_templates_account_slot"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     slot: Mapped[int] = mapped_column(Integer, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     kcal: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
@@ -201,10 +188,9 @@ class MealTemplate(AccountOwned, Base):
 
 class TrainingUnit(AccountOwned, Base):
     __tablename__ = "training_units"
-    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_training_units_user_name"),)
+    __table_args__ = (UniqueConstraint("account_id", "name", name="uq_training_units_account_name"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     unit_type: Mapped[str] = mapped_column(Text, nullable=False, default="gym")
@@ -214,10 +200,9 @@ class TrainingUnit(AccountOwned, Base):
 
 class TrainingRotation(AccountOwned, Base):
     __tablename__ = "training_rotation"
-    __table_args__ = (UniqueConstraint("user_id", "slot", name="uq_training_rotation_user_slot"),)
+    __table_args__ = (UniqueConstraint("account_id", "slot", name="uq_training_rotation_account_slot"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     slot: Mapped[int] = mapped_column(Integer, nullable=False)
     training_type: Mapped[str] = mapped_column(Text, nullable=False)
     weekday: Mapped[int | None] = mapped_column(Integer)
@@ -229,11 +214,10 @@ class TrainingRotation(AccountOwned, Base):
 class TrainingSet(AccountOwned, Base):
     __tablename__ = "training_sets"
     __table_args__ = (
-        UniqueConstraint("user_id", "date", "exercise_name", "set_number", name="uq_training_set_user_date_ex_set"),
+        UniqueConstraint("account_id", "date", "exercise_name", "set_number", name="uq_training_set_account_date_ex_set"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     date: Mapped[date] = mapped_column(Date, nullable=False)
     training_type: Mapped[str] = mapped_column(Text, nullable=False)
     exercise_name: Mapped[str] = mapped_column(Text, nullable=False)
@@ -249,11 +233,10 @@ class TrainingSet(AccountOwned, Base):
 class Exercise(AccountOwned, Base):
     __tablename__ = "exercises"
     __table_args__ = (
-        UniqueConstraint("user_id", "training_type", "exercise_name", name="uq_exercises_user_type_name"),
+        UniqueConstraint("account_id", "training_type", "exercise_name", name="uq_exercises_account_type_name"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     training_type: Mapped[str] = mapped_column(Text, nullable=False)
     exercise_name: Mapped[str] = mapped_column(Text, nullable=False)
     target_sets: Mapped[str] = mapped_column(Text, nullable=False)
@@ -278,7 +261,6 @@ class SyncLog(AccountOwned, Base):
     __tablename__ = "sync_log"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     entity_type: Mapped[str] = mapped_column(Text, nullable=False)
     entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     action: Mapped[str] = mapped_column(Text, nullable=False)
@@ -292,7 +274,6 @@ class Photo(AccountOwned, Base):
     __tablename__ = "photos"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     meal_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
     original_filename: Mapped[str | None] = mapped_column(Text)
@@ -304,7 +285,6 @@ class GoogleToken(AccountOwned, Base):
     __tablename__ = "google_tokens"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, default="luis")
     email: Mapped[str | None] = mapped_column(Text)
     access_token: Mapped[str | None] = mapped_column(Text)
     refresh_token: Mapped[str | None] = mapped_column(Text)
@@ -318,10 +298,9 @@ class GoogleToken(AccountOwned, Base):
 class ExerciseProgress(AccountOwned, Base):
     """Tracks actual performance per exercise per completed session."""
     __tablename__ = "exercise_progress"
-    __table_args__ = (UniqueConstraint("user_id", "exercise_id", "date", name="uq_exercise_progress_user_exercise_date"),)
+    __table_args__ = (UniqueConstraint("account_id", "exercise_id", "date", name="uq_exercise_progress_account_exercise_date"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     exercise_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("exercises.id"), nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     training_type: Mapped[str] = mapped_column(Text, nullable=False)
@@ -355,11 +334,10 @@ class Dish(AccountOwned, Base):
     """
     __tablename__ = "dishes"
     __table_args__ = (
-        UniqueConstraint("user_id", "name", name="uq_dishes_user_name"),
+        UniqueConstraint("account_id", "name", name="uq_dishes_account_name"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     slot: Mapped[int | None] = mapped_column(Integer, nullable=True)  # preferred slot, not mandatory
     name: Mapped[str] = mapped_column(Text, nullable=False)
     kcal: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
@@ -383,10 +361,9 @@ class Dish(AccountOwned, Base):
 class Goal(AccountOwned, Base):
     """Backend-persisted daily/weekly goals — single source of truth, not frontend-only."""
     __tablename__ = "goals"
-    __table_args__ = (UniqueConstraint("user_id", "key", name="uq_goals_user_key"),)
+    __table_args__ = (UniqueConstraint("account_id", "key", name="uq_goals_account_key"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[str] = mapped_column(Text, nullable=False, default="luis")
     key: Mapped[str] = mapped_column(Text, nullable=False)  # kcal | protein | carbs | fat | steps | sleep_hours | training_days_per_week
     value: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     effective_from: Mapped[date] = mapped_column(Date, nullable=False, default=date.today)

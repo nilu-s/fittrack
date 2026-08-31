@@ -43,12 +43,12 @@ def _similarity(a: str, b: str) -> float:
 async def list_dishes(
     slot: Optional[int] = Query(None, description="Filter by preferred slot"),
     q: Optional[str] = Query(None, description="Search query (case-insensitive name match)"),
-    user: str = Depends(get_current_user),
+    user: uuid.UUID = Depends(get_current_user),
 ):
     """List all dishes. Optionally filter by slot or search by name.
     Sorted by is_default desc, usage_count desc, name."""
     async with async_session() as session:
-        stmt = select(Dish).where(Dish.user_id == "luis")
+        stmt = select(Dish).where(Dish.account_id == user)
         if slot is not None:
             # A slot is a meal category.  Slot-filtered alternatives must be
             # explicitly categorized; uncategorized dishes belong only to the
@@ -64,7 +64,7 @@ async def list_dishes(
 @router.get("/recommend", response_model=DishRecommendResult)
 async def recommend_for_slot(
     slot: int = Query(..., description="Meal slot 1-4"),
-    user: str = Depends(get_current_user),
+    user: uuid.UUID = Depends(get_current_user),
 ):
     """Get the default dish for a slot and alternatives from that same slot.
 
@@ -76,7 +76,7 @@ async def recommend_for_slot(
         # 1. Default dish for this slot
         default_result = await session.execute(
             select(Dish).where(
-                Dish.user_id == "luis",
+                Dish.account_id == user,
                 Dish.is_default == True,
                 Dish.slot == slot,
             ).order_by(Dish.usage_count.desc())
@@ -87,7 +87,7 @@ async def recommend_for_slot(
         if not default_dish:
             fallback_result = await session.execute(
                 select(Dish).where(
-                    Dish.user_id == "luis",
+                    Dish.account_id == user,
                     Dish.slot == slot,
                 ).order_by(Dish.usage_count.desc())
             )
@@ -100,7 +100,7 @@ async def recommend_for_slot(
             target_kcal = float(default_dish.kcal)
             alternatives_result = await session.execute(
                 select(Dish).where(
-                    Dish.user_id == "luis",
+                    Dish.account_id == user,
                     Dish.slot == slot,
                     Dish.id != default_dish.id,
                     Dish.kcal.is_not(None),
@@ -114,7 +114,7 @@ async def recommend_for_slot(
         elif default_dish:
             alternatives_result = await session.execute(
                 select(Dish).where(
-                    Dish.user_id == "luis",
+                    Dish.account_id == user,
                     Dish.slot == slot,
                     Dish.id != default_dish.id,
                 ).order_by(Dish.usage_count.desc(), Dish.name).limit(2)
@@ -130,10 +130,10 @@ async def recommend_for_slot(
 @router.post("", response_model=DishResponse, status_code=201)
 async def create_dish(body: DishCreate, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        # Check for exact duplicate (user_id, name) — dishes are slot-independent now
+        # Check for exact duplicate within this account — dishes are slot-independent.
         existing = await session.execute(
             select(Dish).where(
-                Dish.user_id == "luis",
+                Dish.account_id == user,
                 func.lower(func.trim(Dish.name)) == func.lower(func.trim(body.name)),
             )
         )
@@ -145,7 +145,7 @@ async def create_dish(body: DishCreate, user: str = Depends(get_current_user)):
             await session.refresh(dup)
             return _dish_to_response(dup)
 
-        dish = Dish(**body.model_dump())
+        dish = Dish(account_id=user, **body.model_dump())
         session.add(dish)
         await session.commit()
         await session.refresh(dish)
@@ -164,7 +164,7 @@ async def update_dish(dish_id: uuid.UUID, body: DishUpdate, user: str = Depends(
         if body.is_default is True and dish.slot is not None:
             other_defaults = await session.execute(
                 select(Dish).where(
-                    Dish.user_id == "luis",
+                    Dish.account_id == user,
                     Dish.slot == dish.slot,
                     Dish.is_default == True,
                     Dish.id != dish_id,
@@ -202,7 +202,7 @@ async def match_dish(
     """Fuzzy-match a dish name against ALL existing dishes (slot-independent)."""
     async with async_session() as session:
         result = await session.execute(
-            select(Dish).where(Dish.user_id == "luis")
+            select(Dish).where(Dish.account_id == user)
         )
         dishes = list(result.scalars().all())
 

@@ -18,8 +18,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sync", tags=["sync"])
 
-USER_ID = "luis"
-
 # Mapping entity_type → model
 ENTITY_MODELS = {
     "day_entry": DayEntry,
@@ -55,11 +53,18 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                 applied.append({"entity_type": change.entity_type, "entity_id": str(change.entity_id), "action": "delete"})
                 continue
 
-            payload = change.payload or {}
+            # Offline records are untrusted input. In particular, an IndexedDB
+            # replay must never be able to carry either legacy or new owner
+            # fields across the account boundary.
+            payload = {
+                key: value
+                for key, value in (change.payload or {}).items()
+                if key not in {"id", "account_id", "user_id"}
+            }
 
             if existing is None:
                 # Create new record
-                obj = model(**payload, id=change.entity_id)
+                obj = model(**payload, id=change.entity_id, account_id=user)
                 session.add(obj)
                 applied.append({"entity_type": change.entity_type, "entity_id": str(change.entity_id), "action": "create"})
             else:
@@ -77,13 +82,13 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                     ))
                     # Still apply client change (last-write-wins policy for Phase 1)
                 for field, value in payload.items():
-                    if hasattr(existing, field) and field != "id":
+                    if hasattr(existing, field) and field not in {"id", "account_id", "user_id"}:
                         setattr(existing, field, value)
                 applied.append({"entity_type": change.entity_type, "entity_id": str(change.entity_id), "action": "update"})
 
             # Log to sync_log
             session.add(SyncLog(
-                user_id=USER_ID,
+                account_id=user,
                 entity_type=change.entity_type,
                 entity_id=change.entity_id,
                 action=change.action,
@@ -101,7 +106,6 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                 if hasattr(model, "updated_at"):
                     result = await session.execute(
                         select(model).where(
-                            model.user_id == USER_ID,
                             model.updated_at > body.last_sync,
                         )
                     )
@@ -109,7 +113,11 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                         server_changes.append({
                             "entity_type": entity_type,
                             "entity_id": str(obj.id),
-                            "payload": {c.name: getattr(obj, c.name) for c in obj.__table__.columns},
+                            "payload": {
+                                c.name: getattr(obj, c.name)
+                                for c in obj.__table__.columns
+                                if c.name not in {"account_id", "user_id"}
+                            },
                         })
 
         sync_token = datetime.now(BERLIN_TZ)

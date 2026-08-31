@@ -1,10 +1,33 @@
 from datetime import datetime, timezone
+import json
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from app.schemas import ScaleSyncV2Request
 from app.services.scale_assignment import AssignmentRange, choose_assignment
+from app.models import DayEntry, Dish, Goal, Meal, Todo
+from app.main import app
+
+
+def test_account_owned_models_expose_no_legacy_owner_column():
+    for model in (DayEntry, Dish, Goal, Meal, Todo):
+        assert not hasattr(model, "user_id")
+
+
+def test_openapi_exposes_only_scale_v2_and_no_browser_owner_inputs():
+    document = app.openapi()
+    assert "/api/scale-sync" not in document["paths"]
+    assert "/api/scale-sync/v2" in document["paths"]
+    serialized = str(document["components"]["schemas"])
+    assert "user_id" not in serialized
+    assert '"account_id"' not in serialized
+
+
+def test_versioned_openapi_snapshot_matches_the_application_contract():
+    snapshot_path = Path(__file__).parents[2] / "docs" / "contracts" / "openapi.json"
+    assert json.loads(snapshot_path.read_text(encoding="utf-8")) == app.openapi()
 
 
 def test_device_payload_cannot_carry_an_account_or_body_profile():
@@ -22,6 +45,20 @@ def test_device_payload_cannot_carry_an_account_or_body_profile():
 
     with pytest.raises(ValidationError):
         ScaleSyncV2Request.model_validate(payload)
+
+
+def test_device_event_time_must_be_timezone_aware():
+    with pytest.raises(ValidationError, match="timezone"):
+        ScaleSyncV2Request.model_validate(
+            {
+                "device_id": "esp32-renpho-aabb-bridge",
+                "device_event_id": "event-naive-time",
+                "measured_at": "2026-08-31T07:15:02",
+                "weight_kg": 115.2,
+                "protocol": "renpho-aabb",
+                "protocol_version": 1,
+            }
+        )
 
 
 def test_non_overlapping_ranges_assign_only_one_account_or_discard():

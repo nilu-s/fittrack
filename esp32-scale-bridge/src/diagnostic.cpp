@@ -102,11 +102,10 @@ void inspectGatt() {
         Serial.println();
       }
       if (characteristic->canNotify() || characteristic->canIndicate()) {
-        const bool subscribed = characteristic->registerForNotify(
+        characteristic->registerForNotify(
             onNotification, characteristic->canNotify(), characteristic->canIndicate());
-        Serial.printf("SUBSCRIBE uuid=%s result=%s\n",
-                      characteristic->getUUID().toString().c_str(),
-                      subscribed ? "ok" : "failed");
+        Serial.printf("SUBSCRIBE uuid=%s requested\n",
+                      characteristic->getUUID().toString().c_str());
       }
     }
   }

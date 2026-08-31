@@ -29,12 +29,12 @@ def _meal_to_response(meal: Meal) -> MealResponse:
     return MealResponse.model_validate(meal)
 
 
-async def _auto_create_from_templates(session, user_id: str, day: date_type) -> list[Meal]:
+async def _auto_create_from_templates(session, account_id: uuid.UUID, day: date_type) -> list[Meal]:
     """Auto-create meals from templates only if NO meals exist for this date at all
     (including soft-deleted). If user deleted all meals, respect that."""
     # Check if ANY meals exist for this date (including deleted)
     result = await session.execute(
-        select(Meal).where(Meal.user_id == user_id, Meal.date == day).order_by(Meal.meal_slot)
+        select(Meal).where(Meal.account_id == account_id, Meal.date == day).order_by(Meal.meal_slot)
     )
     all_meals = list(result.scalars().all())
     if all_meals:
@@ -43,14 +43,14 @@ async def _auto_create_from_templates(session, user_id: str, day: date_type) -> 
 
     # No meals at all → create from default dishes (fall back to templates)
     dish_result = await session.execute(
-        select(Dish).where(Dish.user_id == user_id, Dish.is_default == True).order_by(Dish.slot)
+        select(Dish).where(Dish.account_id == account_id, Dish.is_default == True).order_by(Dish.slot)
     )
     default_dishes = list(dish_result.scalars().all())
 
     if default_dishes:
         for dish in default_dishes:
             meal = Meal(
-                user_id=user_id,
+                account_id=account_id,
                 date=day,
                 meal_slot=dish.slot,
                 name=dish.name,
@@ -71,12 +71,12 @@ async def _auto_create_from_templates(session, user_id: str, day: date_type) -> 
     else:
         # Fallback to meal_templates if no default dishes exist
         tpl_result = await session.execute(
-            select(MealTemplate).where(MealTemplate.user_id == user_id).order_by(MealTemplate.slot)
+            select(MealTemplate).where(MealTemplate.account_id == account_id).order_by(MealTemplate.slot)
         )
         templates = list(tpl_result.scalars().all())
         for tpl in templates:
             meal = Meal(
-                user_id=user_id,
+                account_id=account_id,
                 date=day,
                 meal_slot=tpl.slot,
                 name=tpl.name,
@@ -94,7 +94,7 @@ async def _auto_create_from_templates(session, user_id: str, day: date_type) -> 
             session.add(meal)
     await session.flush()
     result = await session.execute(
-        select(Meal).where(Meal.user_id == user_id, Meal.date == day).order_by(Meal.meal_slot)
+        select(Meal).where(Meal.account_id == account_id, Meal.date == day).order_by(Meal.meal_slot)
     )
     return list(result.scalars().all())
 
@@ -102,17 +102,17 @@ async def _auto_create_from_templates(session, user_id: str, day: date_type) -> 
 # --- Meal endpoints ---
 
 @router.get("", response_model=list[MealResponse])
-async def get_meals(date: date_type = Query(...), user: str = Depends(get_current_user)):
+async def get_meals(date: date_type = Query(...), user: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
-        meals = await _auto_create_from_templates(session, "luis", date)
+        meals = await _auto_create_from_templates(session, user, date)
         await session.commit()
         return [_meal_to_response(m) for m in meals]
 
 
 @router.post("", response_model=MealResponse, status_code=201)
-async def create_meal(body: MealCreate, user: str = Depends(get_current_user)):
+async def create_meal(body: MealCreate, user: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
-        meal = Meal(**body.model_dump())
+        meal = Meal(account_id=user, **body.model_dump())
         session.add(meal)
         await session.commit()
         await session.refresh(meal)
@@ -163,20 +163,20 @@ templates_router = APIRouter(prefix="/meal-templates", tags=["meal-templates"])
 
 
 @templates_router.get("", response_model=list[MealTemplateResponse])
-async def list_meal_templates(user: str = Depends(get_current_user)):
+async def list_meal_templates(user: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(
-            select(MealTemplate).where(MealTemplate.user_id == "luis").order_by(MealTemplate.slot)
+            select(MealTemplate).where(MealTemplate.account_id == user).order_by(MealTemplate.slot)
         )
         templates = result.scalars().all()
         return [MealTemplateResponse.model_validate(t) for t in templates]
 
 
 @templates_router.put("/{slot}", response_model=MealTemplateResponse)
-async def update_meal_template(slot: int, body: MealTemplateUpdate, user: str = Depends(get_current_user)):
+async def update_meal_template(slot: int, body: MealTemplateUpdate, user: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(
-            select(MealTemplate).where(MealTemplate.user_id == "luis", MealTemplate.slot == slot)
+            select(MealTemplate).where(MealTemplate.account_id == user, MealTemplate.slot == slot)
         )
         tpl = result.scalars().first()
         if tpl is None:

@@ -24,7 +24,7 @@ router = APIRouter(prefix="/photos", tags=["photos"])
 async def analyze_photo(
     file: UploadFile = File(...),
     meal_id: Optional[str] = Form(None),
-    user: str = Depends(get_current_user),
+    user: uuid.UUID = Depends(get_current_user),
 ):
     """Upload a food photo → save → call the vision service → return analysis.
 
@@ -64,7 +64,7 @@ async def analyze_photo(
     async with async_session() as session:
         photo = Photo(
             id=photo_id,
-            user_id="luis",
+            account_id=user,
             meal_id=parsed_meal_id,
             file_path=file_path,
             original_filename=file.filename,
@@ -116,13 +116,13 @@ async def analyze_photo(
 
                 # --- Dish duplicate check (slot-independent) ---
                 dish_name = analysis.get("items", [{}])[0].get("name", "Erkanntes Gericht")
-                dish_match = await _match_dish(session, "luis", dish_name)
+                dish_match = await _match_dish(session, user, dish_name)
                 # Auto-create dish if no match found
                 if not dish_match.matched:
                     item = analysis.get("items", [{}])[0]
                     total = analysis.get("total", {})
                     new_dish = Dish(
-                        user_id="luis",
+                        account_id=user,
                         slot=None,
                         name=dish_name,
                         kcal=total.get("kcal"),
@@ -150,12 +150,12 @@ async def analyze_photo(
         # No meal_id — still do dish match + auto-create for standalone photos
         dish_name = analysis.get("items", [{}])[0].get("name", "Erkanntes Gericht")
         async with async_session() as session:
-            dish_match = await _match_dish(session, "luis", dish_name)
+            dish_match = await _match_dish(session, user, dish_name)
             if not dish_match.matched:
                 item = analysis.get("items", [{}])[0]
                 total = analysis.get("total", {})
                 new_dish = Dish(
-                    user_id="luis",
+                    account_id=user,
                     slot=None,
                     name=dish_name,
                     kcal=total.get("kcal"),
@@ -187,7 +187,7 @@ async def analyze_photo(
     )
 
 
-async def _match_dish(session, user_id: str, name: str) -> DishMatchResult:
+async def _match_dish(session, account_id: uuid.UUID, name: str) -> DishMatchResult:
     """Fuzzy-match a dish name against ALL existing dishes (slot-independent).
     Returns best match if similarity >= 0.75."""
     from difflib import SequenceMatcher
@@ -196,7 +196,7 @@ async def _match_dish(session, user_id: str, name: str) -> DishMatchResult:
     def normalize(n: str) -> str:
         return " ".join(n.strip().lower().split())
 
-    stmt = sa.select(Dish).where(Dish.user_id == user_id)
+    stmt = sa.select(Dish).where(Dish.account_id == account_id)
     result = await session.execute(stmt)
     dishes = list(result.scalars().all())
 

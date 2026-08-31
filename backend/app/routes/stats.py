@@ -16,8 +16,6 @@ from app.tz import BERLIN_TZ
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
-USER_ID = "luis"
-
 
 def _berlin_today() -> date_type:
     """Return today's date in Europe/Berlin."""
@@ -58,7 +56,7 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
         # Day entries
         de_result = await session.execute(
             select(DayEntry).where(
-                DayEntry.user_id == USER_ID,
+                DayEntry.account_id == user,
                 DayEntry.date >= week_start,
                 DayEntry.date <= week_end,
             )
@@ -79,7 +77,7 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
                    func.sum(Meal.carbs_g), func.sum(Meal.fat_g),
                    func.sum(Meal.fiber_g), func.sum(Meal.sugar_g), func.sum(Meal.free_sugar_g))
             .where(
-                Meal.user_id == USER_ID,
+                Meal.account_id == user,
                 Meal.date >= week_start,
                 Meal.date <= week_end,
                 Meal.deleted == False,
@@ -112,7 +110,7 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
         # Todos (skip soft-deleted)
         todo_result = await session.execute(
             select(Todo).where(
-                Todo.user_id == USER_ID,
+                Todo.account_id == user,
                 Todo.due_date >= week_start,
                 Todo.due_date <= week_end,
                 Todo.deleted == False,
@@ -123,10 +121,10 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
         todo_done = sum(1 for t in todos if t.status == "done")
 
         # Goals
-        step_goal = int((await _resolve_goal_value("steps", session)))
-        sleep_goal = Decimal((await _resolve_goal_value("sleep_hours", session)))
-        training_days_goal = int((await _resolve_goal_value("training_days_per_week", session)))
-        goals = {key: (await _resolve_goal_value(key, session)) for key in DEFAULT_GOALS}
+        step_goal = int((await _resolve_goal_value("steps", session, user)))
+        sleep_goal = Decimal((await _resolve_goal_value("sleep_hours", session, user)))
+        training_days_goal = int((await _resolve_goal_value("training_days_per_week", session, user)))
+        goals = {key: (await _resolve_goal_value(key, session, user)) for key in DEFAULT_GOALS}
 
         # Streaks (consecutive days ending at week_end)
         training_streak = _consecutive_streak(entries, lambda e: e.training_done)
@@ -210,7 +208,7 @@ async def trend(
         if metric == "weight":
             result = await session.execute(
                 select(DayEntry.date, DayEntry.weight_kg).where(
-                    DayEntry.user_id == USER_ID,
+                    DayEntry.account_id == user,
                     DayEntry.date >= start,
                     DayEntry.date <= end,
                 ).order_by(DayEntry.date)
@@ -219,7 +217,7 @@ async def trend(
         elif metric == "kcal":
             result = await session.execute(
                 select(Meal.date, func.sum(Meal.kcal)).where(
-                    Meal.user_id == USER_ID,
+                    Meal.account_id == user,
                     Meal.date >= start,
                     Meal.date <= end,
                     Meal.deleted == False,
@@ -229,7 +227,7 @@ async def trend(
         elif metric == "protein":
             result = await session.execute(
                 select(Meal.date, func.sum(Meal.protein_g)).where(
-                    Meal.user_id == USER_ID,
+                    Meal.account_id == user,
                     Meal.date >= start,
                     Meal.date <= end,
                     Meal.deleted == False,
@@ -239,7 +237,7 @@ async def trend(
         elif metric == "carbs":
             result = await session.execute(
                 select(Meal.date, func.sum(Meal.carbs_g)).where(
-                    Meal.user_id == USER_ID,
+                    Meal.account_id == user,
                     Meal.date >= start,
                     Meal.date <= end,
                     Meal.deleted == False,
@@ -249,7 +247,7 @@ async def trend(
         elif metric == "fat":
             result = await session.execute(
                 select(Meal.date, func.sum(Meal.fat_g)).where(
-                    Meal.user_id == USER_ID,
+                    Meal.account_id == user,
                     Meal.date >= start,
                     Meal.date <= end,
                     Meal.deleted == False,
@@ -259,7 +257,7 @@ async def trend(
         elif metric == "steps":
             result = await session.execute(
                 select(DayEntry.date, DayEntry.steps).where(
-                    DayEntry.user_id == USER_ID,
+                    DayEntry.account_id == user,
                     DayEntry.date >= start,
                     DayEntry.date <= end,
                 ).order_by(DayEntry.date)
@@ -268,7 +266,7 @@ async def trend(
         elif metric == "sleep_hours":
             result = await session.execute(
                 select(DayEntry.date, DayEntry.sleep_hours).where(
-                    DayEntry.user_id == USER_ID,
+                    DayEntry.account_id == user,
                     DayEntry.date >= start,
                     DayEntry.date <= end,
                 ).order_by(DayEntry.date)

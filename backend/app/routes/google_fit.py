@@ -190,12 +190,12 @@ async def sync_google_fit(
         sleep = _parse_sleep_segments(sleep_data)
 
         result = await session.execute(
-            select(DayEntry).where(DayEntry.user_id == "luis", DayEntry.date == date)
+            select(DayEntry).where(DayEntry.account_id == user, DayEntry.date == date)
         )
         entry = result.scalars().first()
         if entry is None:
             entry = DayEntry(
-                user_id="luis",
+                account_id=user,
                 date=date,
                 steps=steps,
                 sleep_hours=sleep["total_hours"],

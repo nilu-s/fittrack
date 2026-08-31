@@ -121,7 +121,7 @@ async def ingest_scale_measurement(body: ScaleSyncV2Request, x_fittrack_device_k
         day = body.measured_at.astimezone(timezone.utc).date()
         entry = (await session.execute(select(DayEntry).where(DayEntry.account_id == measurement.account_id, DayEntry.date == day))).scalar_one_or_none()
         if entry is None:
-            entry = DayEntry(account_id=measurement.account_id, user_id="legacy", date=day)
+            entry = DayEntry(account_id=measurement.account_id, date=day)
             session.add(entry)
         # A scale event is a projection. Do not replace a newer manual weight.
         if entry.weight_source != "manual":

@@ -14,6 +14,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.database import async_session
 from app.models import DayEntry, Exercise, ExerciseProgress, TrainingRotation, TrainingSet, TrainingUnit
 from app.routes.auth import get_current_user
+from app.services.ownership import current_account_id
 from app.schemas import (
     ExerciseCreate,
     ExerciseProgressResponse,
@@ -35,7 +36,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["training"])
 
-USER_ID = "luis"
+
+def _account_id():
+    account_id = current_account_id()
+    if account_id is None:
+        raise RuntimeError("training access requires an account scope")
+    return account_id
 
 
 # ---------------------------------------------------------------------------
@@ -52,9 +58,9 @@ async def _get_rotation_slot_for_date(session, target_date: date_type) -> tuple[
         select(TrainingRotation)
         .join(
             TrainingUnit,
-            (TrainingUnit.user_id == TrainingRotation.user_id) & (TrainingUnit.name == TrainingRotation.training_type),
+            (TrainingUnit.account_id == TrainingRotation.account_id) & (TrainingUnit.name == TrainingRotation.training_type),
         )
-        .where(TrainingRotation.user_id == USER_ID, TrainingRotation.weekday.isnot(None), TrainingUnit.is_active.is_(True))
+        .where(TrainingRotation.account_id == _account_id(), TrainingRotation.weekday.isnot(None), TrainingUnit.is_active.is_(True))
         .order_by(TrainingRotation.slot)
     )
     configured = configured_result.scalars().all()
@@ -72,7 +78,7 @@ async def _get_rotation_slot_for_date(session, target_date: date_type) -> tuple[
 
     result = await session.execute(
         select(DayEntry)
-        .where(DayEntry.user_id == USER_ID, DayEntry.date <= target_date, DayEntry.rotation_slot.isnot(None))
+        .where(DayEntry.account_id == _account_id(), DayEntry.date <= target_date, DayEntry.rotation_slot.isnot(None))
         .order_by(desc(DayEntry.date))
         .limit(1)
     )
@@ -87,7 +93,7 @@ async def _get_rotation_slot_for_date(session, target_date: date_type) -> tuple[
         slot = 1
 
     rot_result = await session.execute(
-        select(TrainingRotation).where(TrainingRotation.user_id == USER_ID, TrainingRotation.slot == slot)
+        select(TrainingRotation).where(TrainingRotation.account_id == _account_id(), TrainingRotation.slot == slot)
     )
     rotation = rot_result.scalars().first()
     return slot, rotation
@@ -96,7 +102,7 @@ async def _get_rotation_slot_for_date(session, target_date: date_type) -> tuple[
 async def _build_suggestion(session, target_date: date_type, training_type: str, rotation_slot: Optional[int], cardio_minutes: Optional[int]) -> TrainingSuggestion:
     ex_result = await session.execute(
         select(Exercise)
-        .where(Exercise.user_id == USER_ID, Exercise.training_type == training_type)
+        .where(Exercise.account_id == _account_id(), Exercise.training_type == training_type)
         .order_by(Exercise.sort_order)
     )
     exercises = ex_result.scalars().all()
@@ -225,7 +231,7 @@ def _validate_topset_plan(exercise: Exercise) -> None:
 
 async def _require_active_training_unit(session, training_type: str) -> None:
     unit = (await session.execute(
-        select(TrainingUnit).where(TrainingUnit.user_id == USER_ID, TrainingUnit.name == training_type, TrainingUnit.is_active.is_(True))
+        select(TrainingUnit).where(TrainingUnit.account_id == _account_id(), TrainingUnit.name == training_type, TrainingUnit.is_active.is_(True))
     )).scalars().first()
     if unit is None:
         raise HTTPException(status_code=422, detail="training_type must reference an active training unit")
@@ -239,7 +245,7 @@ async def get_training_for_date(date: date_type = Query(...), user: str = Depend
     async with async_session() as session:
         slot, rotation = await _get_rotation_slot_for_date(session, date)
         training_type = rotation.training_type if rotation else "Ruhetag"
-        unit_result = await session.execute(select(TrainingUnit).where(TrainingUnit.user_id == USER_ID, TrainingUnit.name == training_type))
+        unit_result = await session.execute(select(TrainingUnit).where(TrainingUnit.account_id == _account_id(), TrainingUnit.name == training_type))
         unit = unit_result.scalars().first()
         cardio = unit.cardio_minutes if unit and unit.unit_type == "cardio" else None
         return await _build_suggestion(session, date, training_type, slot, cardio)
@@ -256,7 +262,7 @@ async def get_next_training(
 ):
     target_date = date or date_type.today()
     async with async_session() as session:
-        unit = (await session.execute(select(TrainingUnit).where(TrainingUnit.user_id == USER_ID, TrainingUnit.name == training_type))).scalars().first()
+        unit = (await session.execute(select(TrainingUnit).where(TrainingUnit.account_id == _account_id(), TrainingUnit.name == training_type))).scalars().first()
         cardio_minutes = unit.cardio_minutes if unit and unit.unit_type == "cardio" else None
         return await _build_suggestion(session, target_date, training_type, None, cardio_minutes)
 
@@ -273,7 +279,7 @@ async def complete_training(body: TrainingCompleteRequest, user: str = Depends(g
         saved_count = 0
         for set_item in body.sets:
             insert_stmt = pg_insert(TrainingSet).values(
-                user_id=USER_ID,
+                account_id=_account_id(),
                 date=body.date,
                 training_type=body.training_type,
                 exercise_name=set_item.exercise_name,
@@ -285,7 +291,7 @@ async def complete_training(body: TrainingCompleteRequest, user: str = Depends(g
                 completed=True,
             )
             upsert_stmt = insert_stmt.on_conflict_do_update(
-                index_elements=["user_id", "date", "exercise_name", "set_number"],
+                index_elements=["account_id", "date", "exercise_name", "set_number"],
                 set_={
                     "set_type": insert_stmt.excluded.set_type,
                     "reps": insert_stmt.excluded.reps,
@@ -300,7 +306,7 @@ async def complete_training(body: TrainingCompleteRequest, user: str = Depends(g
         # 2. Apply progression and record ExerciseProgress for each exercise in this training_type
         ex_result = await session.execute(
             select(Exercise)
-            .where(Exercise.user_id == USER_ID, Exercise.training_type == body.training_type)
+            .where(Exercise.account_id == _account_id(), Exercise.training_type == body.training_type)
             .order_by(Exercise.sort_order)
         )
         exercises = list(ex_result.scalars().all())
@@ -343,7 +349,7 @@ async def complete_training(body: TrainingCompleteRequest, user: str = Depends(g
             total_volume_kg = sum((s.weight_kg or Decimal("0")) * (s.reps or 0) for s in actual_sets)
 
             progress_values = {
-                "user_id": USER_ID,
+                "account_id": _account_id(),
                 "exercise_id": ex.id,
                 "date": body.date,
                 "training_type": body.training_type,
@@ -365,8 +371,8 @@ async def complete_training(body: TrainingCompleteRequest, user: str = Depends(g
             progress_insert = pg_insert(ExerciseProgress).values(**progress_values)
             await session.execute(
                 progress_insert.on_conflict_do_update(
-                    index_elements=["user_id", "exercise_id", "date"],
-                    set_={key: progress_insert.excluded[key] for key in progress_values if key not in {"user_id", "exercise_id", "date"}},
+                    index_elements=["account_id", "exercise_id", "date"],
+                    set_={key: progress_insert.excluded[key] for key in progress_values if key not in {"account_id", "exercise_id", "date"}},
                 )
             )
             progressed.append(ex)
@@ -375,12 +381,12 @@ async def complete_training(body: TrainingCompleteRequest, user: str = Depends(g
 
         # 3. Mark day_entries.training_done = True
         day_result = await session.execute(
-            select(DayEntry).where(DayEntry.user_id == USER_ID, DayEntry.date == body.date)
+            select(DayEntry).where(DayEntry.account_id == _account_id(), DayEntry.date == body.date)
         )
         day_entry = day_result.scalars().first()
         if day_entry is None:
             day_entry = DayEntry(
-                user_id=USER_ID,
+                account_id=_account_id(),
                 date=body.date,
                 training_done=True,
                 training_type=body.training_type,
@@ -400,7 +406,7 @@ async def complete_training(body: TrainingCompleteRequest, user: str = Depends(g
         # 4. Build next training suggestion (next rotation slot)
         slot, rotation = await _get_rotation_slot_for_date(session, body.date + timedelta(days=1))
         next_type = rotation.training_type if rotation else body.training_type
-        unit_result = await session.execute(select(TrainingUnit).where(TrainingUnit.user_id == USER_ID, TrainingUnit.name == next_type))
+        unit_result = await session.execute(select(TrainingUnit).where(TrainingUnit.account_id == _account_id(), TrainingUnit.name == next_type))
         unit = unit_result.scalars().first()
         next_cardio = unit.cardio_minutes if unit and unit.unit_type == "cardio" else None
         next_suggestion = await _build_suggestion(session, body.date + timedelta(days=1), next_type, slot, next_cardio)
@@ -427,7 +433,7 @@ async def list_exercise_progress(
     user: str = Depends(get_current_user),
 ):
     async with async_session() as session:
-        stmt = select(ExerciseProgress).where(ExerciseProgress.user_id == USER_ID)
+        stmt = select(ExerciseProgress).where(ExerciseProgress.account_id == _account_id())
         if exercise_name:
             stmt = stmt.where(ExerciseProgress.exercise_name == exercise_name)
         if from_date:
@@ -451,7 +457,7 @@ exercises_router = APIRouter(prefix="/exercises", tags=["exercises"])
 @exercises_router.get("", response_model=list[ExerciseResponse])
 async def list_exercises(training_type: Optional[str] = Query(None), user: str = Depends(get_current_user)):
     async with async_session() as session:
-        stmt = select(Exercise).where(Exercise.user_id == USER_ID)
+        stmt = select(Exercise).where(Exercise.account_id == _account_id())
         if training_type:
             stmt = stmt.where(Exercise.training_type == training_type)
         stmt = stmt.order_by(Exercise.sort_order)
@@ -489,7 +495,7 @@ async def update_exercise(exercise_id: uuid.UUID, body: ExerciseUpdate, user: st
 @exercises_router.delete("/{exercise_id}", status_code=204)
 async def delete_exercise(exercise_id: uuid.UUID, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        ex = (await session.execute(select(Exercise).where(Exercise.id == exercise_id, Exercise.user_id == USER_ID))).scalars().first()
+        ex = (await session.execute(select(Exercise).where(Exercise.id == exercise_id, Exercise.account_id == _account_id()))).scalars().first()
         if ex is None:
             raise HTTPException(status_code=404, detail="Exercise not found")
         has_history = await session.scalar(select(func.count()).select_from(ExerciseProgress).where(ExerciseProgress.exercise_id == exercise_id))
@@ -502,7 +508,7 @@ async def delete_exercise(exercise_id: uuid.UUID, user: str = Depends(get_curren
 @exercises_router.put("/reorder/all", response_model=list[ExerciseResponse])
 async def reorder_exercises(body: list[uuid.UUID], training_type: str = Query(...), user: str = Depends(get_current_user)):
     async with async_session() as session:
-        exercises = (await session.execute(select(Exercise).where(Exercise.user_id == USER_ID, Exercise.training_type == training_type))).scalars().all()
+        exercises = (await session.execute(select(Exercise).where(Exercise.account_id == _account_id(), Exercise.training_type == training_type))).scalars().all()
         by_id = {exercise.id: exercise for exercise in exercises}
         if set(body) != set(by_id):
             raise HTTPException(status_code=422, detail="Exercise order must contain every exercise exactly once")
@@ -525,7 +531,7 @@ units_router = APIRouter(prefix="/training-units", tags=["training-units"])
 async def list_training_units(user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(
-            select(TrainingUnit).where(TrainingUnit.user_id == USER_ID).order_by(TrainingUnit.name)
+            select(TrainingUnit).where(TrainingUnit.account_id == _account_id()).order_by(TrainingUnit.name)
         )
         return [TrainingUnitResponse.model_validate(unit) for unit in result.scalars().all()]
 
@@ -537,7 +543,7 @@ async def create_training_unit(body: TrainingUnitCreate, user: str = Depends(get
     if body.cardio_minutes is not None and body.cardio_minutes < 0:
         raise HTTPException(status_code=422, detail="cardio_minutes must not be negative")
     async with async_session() as session:
-        unit = TrainingUnit(user_id=USER_ID, name=body.name.strip(), description=body.description, unit_type=body.unit_type, cardio_minutes=body.cardio_minutes, is_active=body.is_active)
+        unit = TrainingUnit(account_id=_account_id(), name=body.name.strip(), description=body.description, unit_type=body.unit_type, cardio_minutes=body.cardio_minutes, is_active=body.is_active)
         session.add(unit)
         await session.commit()
         await session.refresh(unit)
@@ -551,7 +557,7 @@ async def update_training_unit(unit_id: uuid.UUID, body: TrainingUnitUpdate, use
     if body.cardio_minutes is not None and body.cardio_minutes < 0:
         raise HTTPException(status_code=422, detail="cardio_minutes must not be negative")
     async with async_session() as session:
-        result = await session.execute(select(TrainingUnit).where(TrainingUnit.id == unit_id, TrainingUnit.user_id == USER_ID))
+        result = await session.execute(select(TrainingUnit).where(TrainingUnit.id == unit_id, TrainingUnit.account_id == _account_id()))
         unit = result.scalars().first()
         if unit is None:
             raise HTTPException(status_code=404, detail="Training unit not found")
@@ -559,10 +565,10 @@ async def update_training_unit(unit_id: uuid.UUID, body: TrainingUnitUpdate, use
         for field, value in body.model_dump(exclude_unset=True).items():
             setattr(unit, field, value.strip() if field == "name" and isinstance(value, str) else value)
         if unit.name != old_name:
-            exercises = (await session.execute(select(Exercise).where(Exercise.user_id == USER_ID, Exercise.training_type == old_name))).scalars().all()
+            exercises = (await session.execute(select(Exercise).where(Exercise.account_id == _account_id(), Exercise.training_type == old_name))).scalars().all()
             for exercise in exercises:
                 exercise.training_type = unit.name
-            rotations = (await session.execute(select(TrainingRotation).where(TrainingRotation.user_id == USER_ID, TrainingRotation.training_type == old_name))).scalars().all()
+            rotations = (await session.execute(select(TrainingRotation).where(TrainingRotation.account_id == _account_id(), TrainingRotation.training_type == old_name))).scalars().all()
             for rotation in rotations:
                 rotation.training_type = unit.name
         await session.commit()
@@ -573,11 +579,11 @@ async def update_training_unit(unit_id: uuid.UUID, body: TrainingUnitUpdate, use
 @units_router.delete("/{unit_id}", response_model=TrainingUnitResponse)
 async def archive_training_unit(unit_id: uuid.UUID, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        unit = (await session.execute(select(TrainingUnit).where(TrainingUnit.id == unit_id, TrainingUnit.user_id == USER_ID))).scalars().first()
+        unit = (await session.execute(select(TrainingUnit).where(TrainingUnit.id == unit_id, TrainingUnit.account_id == _account_id()))).scalars().first()
         if unit is None:
             raise HTTPException(status_code=404, detail="Training unit not found")
         unit.is_active = False
-        rotations = (await session.execute(select(TrainingRotation).where(TrainingRotation.user_id == USER_ID, TrainingRotation.training_type == unit.name))).scalars().all()
+        rotations = (await session.execute(select(TrainingRotation).where(TrainingRotation.account_id == _account_id(), TrainingRotation.training_type == unit.name))).scalars().all()
         for rotation in rotations:
             rotation.weekday = None
         await session.commit()
@@ -598,7 +604,7 @@ rotation_router = APIRouter(prefix="/templates/rotation", tags=["rotation"])
 async def list_rotation(user: str = Depends(get_current_user)):
     async with async_session() as session:
         result = await session.execute(
-            select(TrainingRotation).where(TrainingRotation.user_id == USER_ID).order_by(TrainingRotation.slot)
+            select(TrainingRotation).where(TrainingRotation.account_id == _account_id()).order_by(TrainingRotation.slot)
         )
         entries = result.scalars().all()
         return [TrainingRotationResponse.model_validate(r) for r in entries]
@@ -612,8 +618,8 @@ async def create_rotation(body: TrainingRotationCreate, user: str = Depends(get_
         raise HTTPException(status_code=422, detail="frequency_weeks must be between 1 and 52")
     async with async_session() as session:
         await _require_active_training_unit(session, body.training_type)
-        max_slot = await session.scalar(select(func.max(TrainingRotation.slot)).where(TrainingRotation.user_id == USER_ID))
-        rotation = TrainingRotation(user_id=USER_ID, slot=(max_slot or 0) + 1, **body.model_dump(exclude={"user_id", "slot"}))
+        max_slot = await session.scalar(select(func.max(TrainingRotation.slot)).where(TrainingRotation.account_id == user))
+        rotation = TrainingRotation(account_id=user, slot=(max_slot or 0) + 1, **body.model_dump(exclude={"slot"}))
         session.add(rotation)
         await session.commit()
         await session.refresh(rotation)
@@ -630,7 +636,7 @@ async def update_rotation(slot: int, body: TrainingRotationUpdate, user: str = D
         raise HTTPException(status_code=422, detail="week_offset must not be negative")
     async with async_session() as session:
         result = await session.execute(
-            select(TrainingRotation).where(TrainingRotation.user_id == USER_ID, TrainingRotation.slot == slot)
+            select(TrainingRotation).where(TrainingRotation.account_id == _account_id(), TrainingRotation.slot == slot)
         )
         rot = result.scalars().first()
         if rot is None:
@@ -648,7 +654,7 @@ async def update_rotation(slot: int, body: TrainingRotationUpdate, user: str = D
 @rotation_router.delete("/{slot}", status_code=204)
 async def delete_rotation(slot: int, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        rotation = (await session.execute(select(TrainingRotation).where(TrainingRotation.user_id == USER_ID, TrainingRotation.slot == slot))).scalars().first()
+        rotation = (await session.execute(select(TrainingRotation).where(TrainingRotation.account_id == _account_id(), TrainingRotation.slot == slot))).scalars().first()
         if rotation is None:
             raise HTTPException(status_code=404, detail="Rotation slot not found")
         await session.delete(rotation)

@@ -5,7 +5,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -88,30 +88,6 @@ class DayEntryBulkResponse(_Base):
     entries: list[DayEntryResponse]
 
 
-# ---------------------------------------------------------------------------
-# Scale Sync (ESP32 → API)
-# ---------------------------------------------------------------------------
-class ScaleSyncRequest(_Base):
-    """Payload from ESP32 reading a Renpho BLE scale."""
-    date: Optional[str] = None  # YYYY-MM-DD, defaults to today (server time)
-    weight_kg: float
-    impedance: Optional[int] = None  # ohms — if scale provides it
-    # Pre-calculated body composition (if ESP did the math):
-    body_fat_pct: Optional[float] = None
-    muscle_mass_kg: Optional[float] = None
-    water_pct: Optional[float] = None
-    bone_mass_kg: Optional[float] = None
-    bmi: Optional[float] = None
-    basal_metabolism: Optional[int] = None
-    visceral_fat: Optional[int] = None
-    metabolic_age: Optional[int] = None
-    # User profile for server-side body comp calc (if impedance provided but not pre-calc):
-    height_cm: Optional[float] = None
-    age: Optional[int] = None
-    gender: Optional[str] = None  # 'male' | 'female'
-    device_id: Optional[str] = None  # ESP32 identifier
-
-
 class ScaleSyncV2Request(_Base):
     """Raw device-only payload. Extra fields are rejected deliberately."""
 
@@ -124,6 +100,13 @@ class ScaleSyncV2Request(_Base):
     impedance_ohm: Optional[int] = Field(default=None, ge=1, le=5000)
     protocol: str = Field(min_length=1, max_length=64)
     protocol_version: int = Field(ge=1, le=1000)
+
+    @field_validator("measured_at")
+    @classmethod
+    def measured_at_must_include_timezone(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("measured_at must include a timezone")
+        return value
 
 
 class BodyProfileUpdate(_Base):

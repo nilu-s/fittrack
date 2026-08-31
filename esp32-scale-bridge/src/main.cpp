@@ -13,7 +13,10 @@
 #include <NimBLEDevice.h>
 #include <string>
 #include <time.h>
+#if __has_include("config.h")
 #include "config.h"
+#endif
+#include "config_defaults.h"
 
 constexpr uint8_t COMPANY_ID_LOW = 0xFF;
 constexpr uint8_t COMPANY_ID_HIGH = 0xFF;
@@ -166,6 +169,12 @@ void setup() {
   Serial.begin(115200);
   delay(500);
   Serial.println("\n=== FitTrack Scale Bridge: RENPHO AABB Broadcast ===\n");
+  if (String(WIFI_SSID).isEmpty() || String(API_HOST).isEmpty() ||
+      String(DEVICE_ID).isEmpty() || String(DEVICE_KEY).isEmpty() ||
+      String(SCALE_BLE_ADDRESS).isEmpty()) {
+    Serial.println("Bridge is not configured; create local src/config.h from config.h.example.");
+    return;
+  }
   WiFi.mode(WIFI_STA);
   ensureWifi();
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");

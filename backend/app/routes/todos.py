@@ -29,7 +29,7 @@ async def list_todos(
     user: str = Depends(get_current_user),
 ):
     async with async_session() as session:
-        stmt = select(Todo).where(Todo.user_id == "luis", Todo.deleted == False)
+        stmt = select(Todo).where(Todo.account_id == user, Todo.deleted == False)
         if date is not None:
             stmt = stmt.where(Todo.due_date == date)
         if status is not None:

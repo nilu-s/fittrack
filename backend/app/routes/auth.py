@@ -112,6 +112,10 @@ async def get_current_user(request: Request):
         account_id = uuid.UUID(claims["account_id"])
     except (TypeError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid session account")
+    async with async_session() as session:
+        account = await session.get(Account, account_id)
+    if account is None or account.google_subject != claims["sub"]:
+        raise HTTPException(status_code=401, detail="Invalid session account")
     scope = set_current_account(account_id)
     try:
         yield account_id
@@ -179,6 +183,18 @@ async def _migrate_legacy_owner_rows(session, account: Account) -> None:
     if len(candidates) != 1 or candidates[0].id != account.id:
         raise HTTPException(status_code=409, detail="Legacy owner account is not uniquely resolved")
     from sqlalchemy import text
+    # Revision 021 removes the old column. Keeping this compatibility check
+    # lets the same release authenticate the owner between revisions 019 and
+    # 021 without leaving a post-cutover runtime dependency on that column.
+    has_legacy_column = await session.scalar(
+        text(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.columns "
+            "WHERE table_schema = current_schema() "
+            "AND table_name = 'day_entries' AND column_name = 'user_id')"
+        )
+    )
+    if not has_legacy_column:
+        return
     for table in LEGACY_OWNED_TABLES:
         await session.execute(
             text(f"UPDATE {table} SET account_id = :account_id WHERE account_id IS NULL AND user_id = 'luis'"),
@@ -406,6 +422,20 @@ async def logout(request: Request):
         samesite="lax",
     )
     return response
+
+
+@router.post("/initialize")
+async def initialize_account(user=Depends(get_current_user)):
+    """Idempotently create this account's own optional starter data.
+
+    Initialization is an explicit account action, never an application-startup
+    side effect and never a copy of another account's records.
+    """
+    from app.seed import seed_default_data
+
+    async with async_session() as session:
+        await seed_default_data(session, user)
+    return {"initialized": True}
 
 
 @router.post("/google/disconnect")

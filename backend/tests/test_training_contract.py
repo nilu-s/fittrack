@@ -154,8 +154,9 @@ class RotationContractTests(unittest.IsolatedAsyncioTestCase):
         session = Session()
 
         with patch("app.routes.training.async_session", return_value=Context(session)), patch("app.routes.training._require_active_training_unit", new=AsyncMock()):
-            first = await create_rotation(body, user="luis")
-            second = await create_rotation(body, user="luis")
+            account_id = uuid.uuid4()
+            first = await create_rotation(body, user=account_id)
+            second = await create_rotation(body, user=account_id)
 
         self.assertEqual([first.slot, second.slot], [1, 2])
 

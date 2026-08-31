@@ -109,7 +109,7 @@ async def sync_google_calendar(
             if event.get("status") == "cancelled":
                 result = await session.execute(
                     select(Todo).where(
-                        Todo.user_id == "luis",
+                        Todo.account_id == user,
                         Todo.external_id == external_id,
                         Todo.source == "google_calendar",
                     )
@@ -126,7 +126,7 @@ async def sync_google_calendar(
 
             result = await session.execute(
                 select(Todo).where(
-                    Todo.user_id == "luis",
+                    Todo.account_id == user,
                     Todo.external_id == external_id,
                     Todo.source == "google_calendar",
                 )
@@ -145,7 +145,7 @@ async def sync_google_calendar(
                 updated_count += 1
             else:
                 todo = Todo(
-                    user_id="luis",
+                    account_id=user,
                     title=title,
                     category="calendar",
                     due_date=event_date,

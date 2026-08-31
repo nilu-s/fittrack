@@ -55,3 +55,21 @@ export async function clearSyncQueue() {
   await db.syncQueue.where('synced').equals(1 as any).delete();
   await db.syncQueue.where('synced').equals(true as any).delete();
 }
+
+/** Clear private offline records before switching browser accounts. */
+export async function clearAccountData() {
+  await db.transaction(
+    'rw',
+    [
+      db.dayEntries, db.trainingRotation, db.trainingSets, db.exercises,
+      db.meals, db.todos, db.mealTemplates, db.syncQueue, db.photos,
+    ],
+    async () => {
+      await Promise.all([
+        db.dayEntries.clear(), db.trainingRotation.clear(), db.trainingSets.clear(),
+        db.exercises.clear(), db.meals.clear(), db.todos.clear(),
+        db.mealTemplates.clear(), db.syncQueue.clear(), db.photos.clear(),
+      ]);
+    },
+  );
+}

@@ -47,15 +47,14 @@ pio run -e diagnostic -t upload
 pio device monitor -b 115200
 ```
 
-Then wake the scale by stepping on it, perform one complete bare-foot
-measurement, and save the serial output from
+Then wake the scale and save the serial output from
 `FITTRACK_SCALE_DIAGNOSTIC_START` through the last `FRAME` line. The diagnostic
 prints advertisement data, every discovered GATT service/characteristic and
 all notification/indication frames; it never sends a measurement to FitTrack.
 
-Send that log back before flashing the normal `esp32dev` environment. We use it
-to implement and test the ES-CS20M-specific decoder rather than guessing a
-generic Renpho packet format.
+Use the log only to verify the AABB weight-frame decoder before flashing the
+normal `esp32dev` environment. This release is weight-only: no impedance or
+body-composition data is captured, inferred, or sent.
 
 ## Config (config.h)
 
@@ -68,17 +67,12 @@ generic Renpho packet format.
 | `DEVICE_KEY` | Dedicated device credential; never a user credential |
 | `SCALE_BLE_ADDRESS` | AABB broadcast address emitted by the diagnostic |
 
-## BLE Protocol
+## BLE protocol boundary
 
-The Renpho scale protocol has been reverse-engineered by the open-source community (openScale, wiecosystem projects). Key details:
-
-- **Service UUID**: `0000ffe1-0000-1000-8000-00805f9b34fb`
-- **Characteristic**: same UUID, sends notifications
-- **Weight packet**: header `0x01` + 16-bit little-endian weight value
-- **Impedance packet**: header `0x02` + 16-bit impedance value
-- **Weight encoding**: `weight_kg = raw_value / 200.0` (common factor — adjust if your scale differs)
-
-If your specific Renpho model uses a different encoding, watch the serial monitor's hex dump and adjust the parse logic in `main.cpp`.
+The bridge accepts only the configured scale's final AABB broadcast frame and
+extracts a stable weight. Other Renpho protocols and any future impedance
+support require a separately approved protocol and body-composition change;
+they are not part of this firmware.
 
 ## Manual entry still works
 
