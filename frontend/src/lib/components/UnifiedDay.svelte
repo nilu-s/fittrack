@@ -661,8 +661,8 @@
       </div>
       {#if item.type === 'meal' && !item.done}
         <div class="meal-row-actions">
-          <button class="meal-change-button" onclick={(e) => { e.stopPropagation(); toggleMealEdit(item); }}>Gericht ändern</button>
-          <button class="meal-photo-action" onclick={(e) => { e.stopPropagation(); photoForMeal(item); }} aria-label="Mahlzeit fotografieren"><Icon name="camera" size={16} /><span>Foto</span></button>
+          <button class="meal-action-icon" onclick={(e) => { e.stopPropagation(); toggleMealEdit(item); }} aria-label="Gericht manuell ändern" title="Gericht ändern"><Icon name="edit" size={16} /></button>
+          <button class="meal-action-icon" onclick={(e) => { e.stopPropagation(); photoForMeal(item); }} aria-label="Mahlzeit fotografieren" title="Foto analysieren"><Icon name="camera" size={16} /></button>
         </div>
       {/if}
       {#if item.type === 'metric'}
@@ -825,11 +825,11 @@
   .item-badges { display: flex; align-items: center; gap: 4px; }
   .item-time { font-size: 11px; color: var(--text-faint); font-weight: 500; }
   .item-prog { flex: 0 0 70px; }
-  .meal-row-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
-  .meal-change-button, .meal-photo-action { border: 1px solid var(--border-2); border-radius: 7px; background: var(--card-2); color: var(--text); cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; padding: 7px 9px; white-space: nowrap; }
-  .meal-photo-action { display: flex; align-items: center; gap: 4px; }
-  .meal-change-button:active { background: var(--border); }
-  .meal-photo-action:active { background: var(--border); }
+  .meal-row-actions { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+  .meal-action-icon { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--text-faint); cursor: pointer; }
+  .meal-action-icon:hover, .meal-action-icon:focus-visible { background: var(--card-2); color: var(--text-dim); }
+  .meal-action-icon:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .meal-action-icon:active { background: var(--border); color: var(--text); }
   .spark-row { padding: 0 14px 8px; }
   .train-inline { padding: 0 14px 8px; }
   .meal-inline { display: flex; flex-direction: column; gap: 12px; margin: 4px 10px 10px 54px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2); animation: inlineExpand 0.18s ease-out; }
