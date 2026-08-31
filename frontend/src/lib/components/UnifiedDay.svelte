@@ -30,7 +30,6 @@
 
   $: goals = $dailyGoals;
 
-  let expandedTraining = false;
   let expandedSleep = false;
   let expandedWeight = false;
   let weightEditing = false;
@@ -94,26 +93,20 @@
   let dishSearchQuery = '';
   let dishSearchResults: any[] = [];
   let dishSearching = false;
-  let mealDetails: Meal | null = null;
+  let detailItem: UnifiedItem | null = null;
 
   /** Only one task detail may be open in the daily list at a time. */
   function closeOpenTodoDetails() {
-    expandedTraining = false;
     closeMealEdit();
     actionSheetItem = null;
     editingTodo = null;
+    detailItem = null;
   }
 
   function toggleMealEdit(item: UnifiedItem) {
     if (mealEditItem?.id === item.id) { closeMealEdit(); return; }
     closeOpenTodoDetails();
     void openMealEdit(item);
-  }
-
-  function toggleTrainingDetail() {
-    const wasExpanded = expandedTraining;
-    closeOpenTodoDetails();
-    expandedTraining = !wasExpanded;
   }
 
   function toggleTodoActions(item: UnifiedItem) {
@@ -124,11 +117,10 @@
 
   function handleTouchStart(item: UnifiedItem, e: TouchEvent) {
     longPressTriggered = false;
-    if (item.type !== 'todo') return;
     longPressTimer = setTimeout(() => {
       longPressTriggered = true;
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-      toggleTodoActions(item);
+      openItemDetails(item);
     }, 500);
   }
   function handleTouchEnd() {
@@ -137,7 +129,7 @@
   function handleTouchMove() {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
   }
-  function handleContextMenu(item: UnifiedItem, e: MouseEvent) { if (item.type !== 'todo') return; e.preventDefault(); toggleTodoActions(item); }
+  function handleContextMenu(item: UnifiedItem, e: MouseEvent) { e.preventDefault(); openItemDetails(item); }
 
   function startEdit() {
     if (!actionSheetItem?.todoData) return;
@@ -163,15 +155,14 @@
 
   function handleTap(item: UnifiedItem, e: MouseEvent) {
     if (longPressTriggered) { longPressTriggered = false; return; }
-    if (item.type === 'training') { toggleTrainingDetail(); return; }
-    if (item.type === 'meal') return;
-    if (item.type === 'todo') { toggleTodoActions(item); return; }
+    if (item.type === 'training' || item.type === 'meal' || item.type === 'todo') return;
     if (item.id === 'metric-sleep') { expandedSleep = !expandedSleep; return; }
     if (item.id === 'metric-weight' && item.weightDetails) { expandedWeight = !expandedWeight; return; }
   }
 
   function handleItemKey(item: UnifiedItem, e: KeyboardEvent) {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
+    if (e.key === 'Enter') { e.preventDefault(); openItemDetails(item); return; }
+    if (e.key !== ' ') return;
     e.preventDefault();
     handleTap(item, e as unknown as MouseEvent);
   }
@@ -209,7 +200,7 @@
   }
 
   async function updateMetric(field: string, value: any) { if (!entry) return; entry = { ...entry, [field]: value }; if (field === 'weight_kg') { entry = { ...entry, weight_source: 'manual' }; } try { await api.upsertDayEntry({ ...entry, date: currentDate }); dispatch('update', { field, value }); } catch {} }
-  function handleTrainingComplete() { expandedTraining = false; if (entry) { entry = { ...entry, training_done: true }; dispatch('trainingtoggle', true); } }
+  function handleTrainingComplete() { if (entry) { entry = { ...entry, training_done: true }; dispatch('trainingtoggle', true); } }
 
   async function addQuick() { const title = quickAdd.trim(); if (!title) return; try { const n = await api.createTodo({ due_date: currentDate, title, status: 'open', priority: 2, source: 'manual' } as any); if (n) { todos = [...todos, n]; dispatch('todoadd', n); } quickAdd = ''; } catch {} }
   function handleKey(e: KeyboardEvent) { if (e.key === 'Enter') { e.preventDefault(); addQuick(); } }
@@ -274,8 +265,11 @@
   }
   function closeMealEdit() { mealEditItem = null; }
 
-  function openMealDetails(item: UnifiedItem) { mealDetails = getMealFromItem(item) ?? null; }
-  function closeMealDetails() { mealDetails = null; }
+  function openItemDetails(item: UnifiedItem) {
+    closeOpenTodoDetails();
+    detailItem = item;
+  }
+  function closeItemDetails() { detailItem = null; }
 
   function getMealFromItem(item: UnifiedItem): Meal | undefined {
     const id = String(item.id).replace('meal-', '');
@@ -667,14 +661,14 @@
   {#each manualItems as item (item.id)}
     <div class="item tap-area" class:done={item.done}
       onclick={(e) => handleTap(item, e)}
-      ondblclick={() => { if (item.type === 'meal') openMealDetails(item); }}
+      ondblclick={() => openItemDetails(item)}
       oncontextmenu={(e) => handleContextMenu(item, e)}
       ontouchstart={(e) => handleTouchStart(item, e)}
       ontouchend={handleTouchEnd}
       ontouchmove={handleTouchMove}
       ontouchcancel={() => handleTouchEnd()}
       onkeydown={(e) => handleItemKey(item, e)}
-      role="button" tabindex="0">
+      role="button" tabindex="0" aria-label={`${item.title}. Lange drücken oder Eingabetaste für Details.`}>
       <button class="item-check" class:done={item.done} onclick={(e) => handleCheck(item, e)} aria-label={item.done ? `${item.title} als offen markieren` : `${item.title} erledigen`}>
         {#if item.done}<Icon name="check" size={14} />{/if}
       </button>
@@ -685,7 +679,7 @@
           {#if item.type === 'meal' && item.kcal}<PillBadge value={Math.round(item.kcal)} unit="kcal" color="var(--amber)" />{/if}
           {#if item.type === 'meal' && item.protein}<PillBadge value={Math.round(item.protein)} unit="g P" color="var(--blue)" />{/if}
           {#if item.mealTime}<span class="item-time">{item.mealTime}</span>{/if}
-          {#if item.type === 'meal'}<span class="recipe-marker" title="Doppelklick öffnet die Mahlzeitendetails">Rezeptdetails</span>{/if}
+          {#if item.type === 'meal'}<span class="recipe-marker" title="Lange drücken für Rezeptdetails">Rezeptdetails</span>{/if}
         </div>
       </div>
       {#if item.type === 'meal' && !item.done && !getMealFromItem(item)?.meal_entry}
@@ -700,39 +694,6 @@
       {#if item.hasProgress}<div class="item-prog"><ProgressBar current={item.progressCurrent ?? 0} target={item.progressTarget ?? 1} color="var(--text-dim)" /></div>{/if}
     </div>
 
-    {#if item.type === 'meal' && mealEditItem?.id === item.id}
-      <div class="meal-inline">
-        <div class="meal-inline-heading"><div class="meal-inline-title">{SLOT_NAMES[getMealSlotFromItem(mealEditItem)] || `Slot ${getMealSlotFromItem(mealEditItem)}`} bearbeiten</div><button class="meal-collapse" onclick={closeMealEdit}>Einklappen</button></div>
-
-          {#if editDishesLoading}
-            <div class="modal-loading">Lade Empfehlungen…</div>
-          {:else}
-            {#if recommendResult?.default}
-              <div class="modal-section-label">Empfohlen</div>
-              <button class="dish-btn dish-default-highlight" onclick={() => selectDishForEdit(recommendResult.default)}>
-                <div class="dish-info"><span class="dish-name">{recommendResult.default.name}</span>{#if recommendResult.default.is_default}<span class="dish-badge">Standard</span>{/if}</div>
-                <span class="dish-summary">{Math.round(Number(recommendResult.default.kcal) || 0)} kcal · {Math.round(Number(recommendResult.default.protein_g) || 0)} g Protein</span>
-              </button>
-            {/if}
-            {#if recommendResult?.alternatives?.length > 0}
-              <div class="modal-section-label">Ähnliche Alternativen</div>
-              <div class="dish-list">{#each recommendResult.alternatives as dish (dish.id)}<button class="dish-btn" onclick={() => selectDishForEdit(dish)}><div class="dish-info"><span class="dish-name">{dish.name}</span></div><span class="dish-summary">{Math.round(Number(dish.kcal) || 0)} kcal · {Math.round(Number(dish.protein_g) || 0)} g Protein</span></button>{/each}</div>
-            {/if}
-            <div class="modal-section-label">Anderes Gericht suchen</div>
-            <input class="dish-search-input" type="text" placeholder="Gericht eingeben…" oninput={onDishSearch} value={dishSearchQuery} />
-            {#if dishSearchResults.length > 0}
-              <div class="dish-list">{#each dishSearchResults as dish (dish.id)}<button class="dish-btn" onclick={() => selectDishForEdit(dish)}><div class="dish-info"><span class="dish-name">{dish.name}</span>{#if dish.is_default}<span class="dish-badge">Standard</span>{/if}</div><span class="dish-summary">{Math.round(Number(dish.kcal) || 0)} kcal · {Math.round(Number(dish.protein_g) || 0)} g Protein</span></button>{/each}</div>
-            {:else if dishSearchQuery.trim().length >= 2}<div class="modal-empty">Keine Treffer</div>{/if}
-          {/if}
-          {#if editPhotoLoading}<div class="photo-progress modal-progress"><div class="photo-progress-bar"><div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div></div><span class="photo-progress-label">{editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' : editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' : editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}</span></div>{/if}
-      </div>
-    {/if}
-
-    {#if item.id === 'training' && expandedTraining}
-      <div class="train-inline" onclick={(e) => e.stopPropagation()}>
-        <TrainingDetail training_type={trainingSuggestion?.training_type ?? entry?.training_type ?? 'Training'} date={currentDate} oncomplete={handleTrainingComplete} onclose={() => (expandedTraining = false)} />
-      </div>
-    {/if}
   {/each}
 
   <div class="quickadd">
@@ -778,19 +739,30 @@
   </div>
 {/if}
 
-{#if mealDetails}
-  <div class="modal-overlay" role="presentation" onclick={closeMealDetails} onkeydown={(event) => { if (event.key === 'Escape') closeMealDetails(); }}>
-    <section class="modal-card meal-details" role="dialog" aria-modal="true" aria-labelledby="meal-details-title" tabindex="-1" onclick={(event) => event.stopPropagation()}>
-      <div class="modal-title" id="meal-details-title">{mealDetails.name || mealDetails.category_name || SLOT_NAMES[mealDetails.meal_slot] || 'Mahlzeit'}</div>
-      <p class="meal-details-hint">Nährwerte dieser geplanten Mahlzeit</p>
-      <div class="modal-pills">
-        {#if mealDetails.kcal != null}<PillBadge value={Math.round(Number(mealDetails.kcal))} unit="kcal" color="var(--amber)" />{/if}
-        {#if mealDetails.protein_g != null}<PillBadge value={Math.round(Number(mealDetails.protein_g))} unit="g Protein" color="var(--blue)" />{/if}
-        {#if mealDetails.carbs_g != null}<PillBadge value={Math.round(Number(mealDetails.carbs_g))} unit="g KH" color="var(--purple)" />{/if}
-        {#if mealDetails.fat_g != null}<PillBadge value={Math.round(Number(mealDetails.fat_g))} unit="g Fett" color="var(--pink)" />{/if}
-      </div>
-      <p class="meal-details-note">{mealDetails.meal_entry ? 'Diese geplante Mahlzeit stammt aus deinem aktiven Wochenplan.' : 'Diese Mahlzeit ist noch keinem Rezept zugeordnet.'}</p>
-      <button class="modal-secondary" autofocus onclick={closeMealDetails}>Schließen</button>
+{#if detailItem}
+  <div class="modal-overlay compact-overlay" role="presentation" onclick={closeItemDetails} onkeydown={(event) => { if (event.key === 'Escape') closeItemDetails(); }}>
+    <section class="modal-card compact-detail" role="dialog" aria-modal="true" aria-labelledby="detail-title" tabindex="-1" onclick={(event) => event.stopPropagation()}>
+      <header class="detail-header"><div><p class="detail-kind">{detailItem.type === 'meal' ? 'Mahlzeit' : detailItem.type === 'training' ? 'Training' : detailItem.type === 'todo' ? 'To-do' : 'Tageswert'}</p><h2 id="detail-title">{detailItem.title}</h2></div><button class="detail-close" type="button" aria-label="Details schließen" onclick={closeItemDetails}>×</button></header>
+      {#if detailItem.type === 'meal'}
+        {@const detailMeal = getMealFromItem(detailItem)}
+        <div class="modal-pills">
+          {#if detailMeal?.kcal != null}<PillBadge value={Math.round(Number(detailMeal.kcal))} unit="kcal" color="var(--amber)" />{/if}
+          {#if detailMeal?.protein_g != null}<PillBadge value={Math.round(Number(detailMeal.protein_g))} unit="g Protein" color="var(--blue)" />{/if}
+          {#if detailMeal?.carbs_g != null}<PillBadge value={Math.round(Number(detailMeal.carbs_g))} unit="g KH" color="var(--purple)" />{/if}
+          {#if detailMeal?.fat_g != null}<PillBadge value={Math.round(Number(detailMeal.fat_g))} unit="g Fett" color="var(--pink)" />{/if}
+        </div>
+        {#if detailMeal?.recipe_instructions?.length}
+          <div class="detail-section"><strong>Kochanleitung</strong><ol>{#each detailMeal.recipe_instructions as step}<li>{step}</li>{/each}</ol></div>
+        {:else}<p class="detail-empty">Für diese Mahlzeit ist noch keine Kochanleitung hinterlegt.</p>{/if}
+      {:else if detailItem.type === 'todo'}
+        {#if detailItem.todoData?.category}<p class="detail-meta">Kategorie: {detailItem.todoData.category}</p>{/if}
+        {#if detailItem.todoData?.due_time}<p class="detail-meta">Fällig um {detailItem.todoData.due_time}</p>{/if}
+        <button class="modal-secondary" onclick={() => { actionSheetItem = detailItem; closeItemDetails(); }}>Bearbeiten</button>
+      {:else if detailItem.type === 'training'}
+        <TrainingDetail training_type={trainingSuggestion?.training_type ?? entry?.training_type ?? 'Training'} date={currentDate} oncomplete={handleTrainingComplete} onclose={closeItemDetails} />
+      {:else}
+        <p class="detail-meta">{detailItem.metricValue ?? 'Noch kein Wert erfasst'}{detailItem.metricUnit ? ` ${detailItem.metricUnit}` : ''}</p>
+      {/if}
     </section>
   </div>
 {/if}
@@ -876,12 +848,6 @@
   .meal-action-icon:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   .meal-action-icon:active { background: var(--border); color: var(--text); }
   .spark-row { padding: 0 14px 8px; }
-  .train-inline { padding: 0 14px 8px; }
-  .meal-inline { display: flex; flex-direction: column; gap: 8px; margin: 3px 10px 8px 54px; padding: 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--card-2); animation: inlineExpand 0.18s ease-out; }
-  .meal-inline-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .meal-inline-title { color: var(--text); font-size: 15px; font-weight: 650; }
-  .meal-collapse { border: 0; background: transparent; color: var(--text-dim); cursor: pointer; font: inherit; font-size: 13px; padding: 4px; }
-  .meal-collapse:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
 
   .quality-stars { font-size: 11px; color: var(--amber); letter-spacing: 1px; }
 
@@ -985,31 +951,21 @@
   .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
   .modal-primary { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--green); color: #000; border: none; font-weight: 600; cursor: pointer; font-size: 14px; }
   .modal-secondary { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--card-2); color: var(--text-dim); border: 1px solid var(--border-2); font-weight: 500; cursor: pointer; font-size: 14px; }
-  .meal-details { display:flex; flex-direction:column; gap:14px; }
-  .meal-details .modal-title { margin-bottom:0; }
-  .meal-details-hint,.meal-details-note { margin:0; text-align:center; color:var(--text-dim); font-size:13px; line-height:1.45; }
-  .meal-details-note { padding:10px; border-radius:8px; background:var(--card-2); color:var(--text-faint); }
+  .compact-overlay { align-items:flex-end; padding:0 12px 16px; }
+  .compact-detail { width:min(100%, 420px); max-height:min(58dvh, 520px); overflow:auto; display:flex; flex-direction:column; gap:14px; padding:16px; border-radius:16px; }
+  .detail-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .detail-header h2,.detail-header p { margin:0; }
+  .detail-header h2 { font-size:17px; line-height:1.3; }
+  .detail-kind,.detail-meta,.detail-empty { color:var(--text-dim); font-size:13px; line-height:1.45; }
+  .detail-close { width:32px; min-height:32px; border:1px solid var(--border-2); border-radius:50%; background:var(--card-2); color:var(--text); font-size:20px; line-height:1; }
+  .detail-section { display:grid; gap:8px; color:var(--text); font-size:14px; line-height:1.45; }
+  .detail-section ol { display:grid; gap:7px; margin:0; padding-left:22px; color:var(--text-dim); }
+  @media (min-width: 700px) { .compact-overlay { align-items:center; justify-content:center; padding:24px; } .compact-detail { max-width:360px; } }
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  @keyframes inlineExpand { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-
-  /* Meal edit modal — additional classes (modal-overlay/card/title/actions/primary/secondary already defined above) */
-  .meal-inline .modal-section-label { font-size: 12px; color: var(--text-dim); margin: 2px 0 0; font-weight: 600; }
-  .meal-inline .modal-loading, .meal-inline .modal-empty { text-align: center; padding: 8px; color: var(--text-dim); font-size: 13px; }
-  .cam-action { display: flex; align-items: center; justify-content: center; gap: 8px; }
-  .meal-inline .dish-list { display: flex; flex-direction: column; gap: 4px; max-height: 144px; margin: 0; overflow-y: auto; }
-  .meal-inline .dish-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border-radius: 7px; background: var(--card); border: 1px solid var(--border); color: var(--text); cursor: pointer; transition: border-color 0.15s, background 0.15s; text-align: left; }
-  .dish-btn:active { background: #2a2b2e; }
-  .dish-btn.default { border-color: var(--green); }
-  .dish-info { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
-  .dish-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .dish-badge { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: var(--green); color: #000; font-weight: 600; flex-shrink: 0; }
-  .dish-summary { font-size: 12px; color: var(--text-dim); }
-
   /* Photo progress bar */
   .photo-progress { padding: 10px 14px; border-bottom: 1px solid var(--border); }
-  .modal-progress { padding: 0 0 8px; border: none; }
   .photo-progress-bar { height: 4px; border-radius: 2px; background: var(--card-2); overflow: hidden; margin-bottom: 6px; }
   .photo-progress-fill { height: 100%; border-radius: 2px; background: var(--blue); width: 0; animation: photoLoad 2s ease-in-out infinite; }
   .photo-progress-fill.animate-match { background: var(--amber); animation: photoLoad 1.5s ease-in-out infinite; }
@@ -1018,13 +974,4 @@
   @keyframes photoLoad { 0% { width: 0; } 50% { width: 65%; } 100% { width: 90%; } }
   @keyframes photoDone { from { width: 90%; } to { width: 100%; } }
 
-  /* Dish selection modal — new styles */
-  .meal-inline .dish-default-highlight { background: var(--card); border: 1px solid var(--green); margin: 0; }
-  .dish-default-highlight .dish-name { font-weight: 700; color: var(--green); }
-  .meal-inline .dish-search-input { width: 100%; padding: 8px 10px; border-radius: 7px; background: var(--card); border: 1px solid var(--border-2); color: var(--text); font-size: 13px; margin: 0; outline: none; }
-  .dish-search-input:focus { border-color: var(--green); }
-
-  @media (max-width: 520px) {
-    .meal-inline { margin-left: 10px; }
-  }
 </style>

@@ -10,7 +10,7 @@
   import { isAuthenticated, authEmail, checkAuth, logout } from '$lib/auth';
   import Icon from '$lib/components/Icon.svelte';
   import UiIconButton from '$lib/components/ui/UiIconButton.svelte';
-  import type { DayData, DayEntry, Meal, MealCategory, MealEntry, Todo, TrainingSuggestion } from '$lib/types';
+  import type { DayData, DayEntry, Meal, MealCategory, MealEntry, Recipe, Todo, TrainingSuggestion } from '$lib/types';
 
   let syncIcon = '✓';
   let syncClass = 'synced';
@@ -27,18 +27,21 @@
   async function loadDayData(date: string) {
     const fitSyncPromise = api.syncGoogleFit(date).catch(() => null);
     try {
-      const [dayEntry, mealEntries, categories, todos, trainingSuggestion] = await Promise.all([
+      const [dayEntry, mealEntries, categories, recipes, todos, trainingSuggestion] = await Promise.all([
         api.getDayEntry(date),
         // Project the active plan before reading it.  This is idempotent and
         // keeps the dashboard independent of the removed legacy meals table.
         api.instantiateMealEntries(date).catch(() => [] as MealEntry[]),
         api.getMealCategories().catch(() => [] as MealCategory[]),
+        api.getRecipes().catch(() => [] as Recipe[]),
         api.getTodos(date), api.getTraining(date)
       ]);
       const categoryById = new Map(categories.map((category) => [category.id, category]));
+      const recipeById = new Map(recipes.map((recipe) => [recipe.id, recipe]));
       const meals: Meal[] = mealEntries.map((entry, index) => {
         const category = categoryById.get(entry.category_id);
         const nutrition = entry.nutrition ?? {};
+        const recipeId = entry.items?.find((item) => item.recipe_id)?.recipe_id;
         return {
           id: entry.id, date: entry.date, name: entry.name ?? undefined,
           // The old component uses slots only for ordering. Category order is
@@ -50,6 +53,7 @@
           free_sugar_g: nutrition.free_sugar_g,
           is_done: entry.status === 'consumed', meal_entry: true,
           meal_entry_status: entry.status, category_name: category?.name,
+          recipe_instructions: recipeId ? recipeById.get(recipeId)?.instructions ?? [] : [],
           updated_at: entry.updated_at,
         };
       });

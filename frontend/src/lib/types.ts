@@ -56,6 +56,7 @@ export interface Meal {
   meal_entry?: boolean;
   meal_entry_status?: 'planned' | 'consumed' | 'skipped';
   category_name?: string;
+  recipe_instructions?: string[];
 }
 
 export interface Todo {
