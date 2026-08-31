@@ -300,6 +300,11 @@
   }
 
   function triggerEditPhoto() { editPhotoInput?.click(); }
+  function photoForMeal(item: UnifiedItem) {
+    closeOpenTodoDetails();
+    mealEditItem = item;
+    triggerEditPhoto();
+  }
 
   async function onEditPhotoSelected(e: Event) {
     const input = e.target as HTMLInputElement;
@@ -655,7 +660,10 @@
         </div>
       </div>
       {#if item.type === 'meal' && !item.done}
-        <button class="meal-change-button" onclick={(e) => { e.stopPropagation(); toggleMealEdit(item); }}>Gericht ändern</button>
+        <div class="meal-row-actions">
+          <button class="meal-change-button" onclick={(e) => { e.stopPropagation(); toggleMealEdit(item); }}>Gericht ändern</button>
+          <button class="meal-photo-action" onclick={(e) => { e.stopPropagation(); photoForMeal(item); }} aria-label="Mahlzeit fotografieren"><Icon name="camera" size={16} /><span>Foto</span></button>
+        </div>
       {/if}
       {#if item.type === 'metric'}
         <MetricRow icon="" label="" value={item.metricValue} unit={item.metricUnit ?? ''} editable={item.metricEditable ?? false} checkable={false} on:change={(e) => updateMetric(item.metricField!, e.detail)} />
@@ -689,7 +697,6 @@
           {/if}
           <div class="modal-actions">
             {#if editPhotoLoading}<div class="photo-progress modal-progress"><div class="photo-progress-bar"><div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div></div><span class="photo-progress-label">{editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' : editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' : editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}</span></div>{/if}
-            <button class="meal-photo-button" onclick={triggerEditPhoto} disabled={editPhotoLoading}>{#if editPhotoLoading}<Icon name="refresh" size={17} />{:else}<Icon name="camera" size={17} />{/if}<span>{editPhotoLoading ? 'Analysiere…' : 'Foto analysieren'}</span></button>
           </div>
       </div>
     {/if}
@@ -818,8 +825,11 @@
   .item-badges { display: flex; align-items: center; gap: 4px; }
   .item-time { font-size: 11px; color: var(--text-faint); font-weight: 500; }
   .item-prog { flex: 0 0 70px; }
-  .meal-change-button { flex: 0 0 auto; border: 1px solid var(--border-2); border-radius: 7px; background: var(--card-2); color: var(--text); cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; padding: 7px 9px; white-space: nowrap; }
+  .meal-row-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+  .meal-change-button, .meal-photo-action { border: 1px solid var(--border-2); border-radius: 7px; background: var(--card-2); color: var(--text); cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; padding: 7px 9px; white-space: nowrap; }
+  .meal-photo-action { display: flex; align-items: center; gap: 4px; }
   .meal-change-button:active { background: var(--border); }
+  .meal-photo-action:active { background: var(--border); }
   .spark-row { padding: 0 14px 8px; }
   .train-inline { padding: 0 14px 8px; }
   .meal-inline { display: flex; flex-direction: column; gap: 12px; margin: 4px 10px 10px 54px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2); animation: inlineExpand 0.18s ease-out; }
@@ -827,8 +837,6 @@
   .meal-inline-title { color: var(--text); font-size: 15px; font-weight: 650; }
   .meal-collapse { border: 0; background: transparent; color: var(--text-dim); cursor: pointer; font: inherit; font-size: 13px; padding: 4px; }
   .meal-collapse:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
-  .meal-photo-button { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 14px; border: 1px solid var(--border-2); border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
-  .meal-photo-button:disabled { opacity: 0.6; }
 
   .quality-stars { font-size: 11px; color: var(--amber); letter-spacing: 1px; }
 
