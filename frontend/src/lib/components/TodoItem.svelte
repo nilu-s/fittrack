@@ -68,12 +68,6 @@
     if (todo.source === 'training') { dispatch('expand', todo.id); return; }
   }
 
-  function openMealDetails(e: MouseEvent) {
-    if (!isMealRoutine) return;
-    e.preventDefault();
-    dispatch('openmeal', todo.id);
-  }
-
   function startEdit() {
     showActionSheet = false;
     expanded = true;
@@ -95,7 +89,6 @@
 
 <div class="ti tap-area" class:done={todo.status === 'done'} class:expanded={expanded}
   onclick={handleTap}
-  ondblclick={openMealDetails}
   oncontextmenu={handleContextMenu}
   ontouchstart={handleTouchStart}
   ontouchend={handleTouchEnd}
@@ -113,7 +106,7 @@
     {#if todo.category}<span class="ti-badge">{todo.category}</span>{/if}
     {#if todo.due_time}<span class="ti-time">{todo.due_time}</span>{/if}
     {#if todo.source === 'google_calendar'}<Icon name="calendar" size={14} />{/if}
-    {#if isMealRoutine}<span class="ti-recipe-marker" title="Doppelklick öffnet die Mahlzeitendetails">Rezeptdetails</span>{/if}
+    {#if isMealRoutine}<span class="ti-recipe-marker">Rezeptdetails</span>{/if}
   </div>
   {#if expanded}
     <div class="ti-edit slide-down" onclick={(e) => e.stopPropagation()}>

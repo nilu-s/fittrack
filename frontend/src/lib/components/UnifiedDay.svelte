@@ -661,7 +661,6 @@
   {#each manualItems as item (item.id)}
     <div class="item tap-area" class:done={item.done}
       onclick={(e) => handleTap(item, e)}
-      ondblclick={() => openItemDetails(item)}
       oncontextmenu={(e) => handleContextMenu(item, e)}
       ontouchstart={(e) => handleTouchStart(item, e)}
       ontouchend={handleTouchEnd}
