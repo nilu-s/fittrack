@@ -6,6 +6,7 @@ import hmac
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
+from statistics import median
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import select
@@ -15,7 +16,7 @@ from app.database import async_session
 from app.models import AccountWeightRange, BodyProfile, DayEntry, RegisteredDevice, ScaleMeasurement
 from app.routes.auth import get_current_user
 from app.schemas import BodyProfileResponse, BodyProfileUpdate, ScaleSyncV2Request
-from app.services.scale_assignment import AssignmentRange, choose_assignment
+from app.services.scale_assignment import AssignmentRange, advance_baseline, choose_assignment
 
 device_router = APIRouter(prefix="/scale-sync/v2", tags=["scale-sync"])
 browser_router = APIRouter(prefix="/scale-measurements", tags=["scale-measurements"])
@@ -89,6 +90,34 @@ async def ingest_scale_measurement(body: ScaleSyncV2Request, x_fittrack_device_k
         )
         session.add(measurement)
         await session.flush()
+        history = (await session.execute(
+            select(ScaleMeasurement.weight_kg)
+            .execution_options(include_all_accounts=True)
+            .where(ScaleMeasurement.account_id == assigned_account_id, ScaleMeasurement.status == "assigned")
+            .order_by(ScaleMeasurement.measured_at.desc())
+            .limit(28)
+        )).scalars().all()
+        own_range = next(row for row in rows if row.account_id == assigned_account_id)
+        candidate_baseline = Decimal(str(advance_baseline(
+            baseline_kg=float(own_range.baseline_kg),
+            target_kg=float(median(history)),
+            previous_updated_at=own_range.baseline_updated_at,
+            now=datetime.now(timezone.utc),
+        ))).quantize(Decimal("0.01"))
+        if candidate_baseline != own_range.baseline_kg:
+            candidate_ranges = [
+                AssignmentRange(
+                    account_id=str(row.account_id),
+                    minimum_kg=float((candidate_baseline if row.id == own_range.id else row.baseline_kg) + row.lower_offset_kg),
+                    maximum_kg=float((candidate_baseline if row.id == own_range.id else row.baseline_kg) + row.upper_offset_kg),
+                )
+                for row in rows
+            ]
+            # Calling the validator through assignment guarantees non-overlap
+            # before changing the persistent baseline.
+            choose_assignment(body.weight_kg, candidate_ranges)
+            own_range.baseline_kg = candidate_baseline
+            own_range.baseline_updated_at = datetime.now(timezone.utc)
         day = body.measured_at.astimezone(timezone.utc).date()
         entry = (await session.execute(select(DayEntry).where(DayEntry.account_id == measurement.account_id, DayEntry.date == day))).scalar_one_or_none()
         if entry is None:
