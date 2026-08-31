@@ -94,6 +94,32 @@
   let swipedMealId = '';
   let swipeStartX: number | null = null;
 
+  /** Only one task detail may be open in the daily list at a time. */
+  function closeOpenTodoDetails() {
+    expandedTraining = false;
+    closeMealEdit();
+    actionSheetItem = null;
+    editingTodo = null;
+  }
+
+  function toggleMealEdit(item: UnifiedItem) {
+    if (mealEditItem?.id === item.id) { closeMealEdit(); return; }
+    closeOpenTodoDetails();
+    void openMealEdit(item);
+  }
+
+  function toggleTrainingDetail() {
+    const wasExpanded = expandedTraining;
+    closeOpenTodoDetails();
+    expandedTraining = !wasExpanded;
+  }
+
+  function toggleTodoActions(item: UnifiedItem) {
+    if (actionSheetItem?.id === item.id) { actionSheetItem = null; return; }
+    closeOpenTodoDetails();
+    actionSheetItem = item;
+  }
+
   function handleTouchStart(item: UnifiedItem, e: TouchEvent) {
     swipeStartX = item.type === 'meal' ? e.touches[0]?.clientX ?? null : null;
     longPressTriggered = false;
@@ -102,9 +128,9 @@
       longPressTriggered = true;
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
       if (item.type === 'meal') {
-        openMealEdit(item);
+        toggleMealEdit(item);
       } else {
-        actionSheetItem = item;
+        toggleTodoActions(item);
       }
     }, 500);
   }
@@ -125,8 +151,8 @@
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
   }
   function closeMealActions() { swipedMealId = ''; }
-  function photoForMeal(item: UnifiedItem) { mealEditItem = item; editPhotoInput?.click(); }
-  function handleContextMenu(item: UnifiedItem, e: MouseEvent) { if (item.type !== 'todo' && item.type !== 'meal') return; e.preventDefault(); if (item.type === 'meal') { openMealEdit(item); } else { actionSheetItem = item; } }
+  function photoForMeal(item: UnifiedItem) { closeOpenTodoDetails(); mealEditItem = item; editPhotoInput?.click(); }
+  function handleContextMenu(item: UnifiedItem, e: MouseEvent) { if (item.type !== 'todo' && item.type !== 'meal') return; e.preventDefault(); if (item.type === 'meal') { toggleMealEdit(item); } else { toggleTodoActions(item); } }
 
   function startEdit() {
     if (!actionSheetItem?.todoData) return;
@@ -152,9 +178,9 @@
 
   function handleTap(item: UnifiedItem, e: MouseEvent) {
     if (longPressTriggered) { longPressTriggered = false; return; }
-    if (item.type === 'training') { expandedTraining = !expandedTraining; return; }
-    if (item.type === 'meal') { openMealEdit(item); return; }
-    if (item.type === 'todo') { actionSheetItem = item; return; }
+    if (item.type === 'training') { toggleTrainingDetail(); return; }
+    if (item.type === 'meal') { toggleMealEdit(item); return; }
+    if (item.type === 'todo') { toggleTodoActions(item); return; }
     if (item.id === 'metric-sleep') { expandedSleep = !expandedSleep; return; }
     if (item.id === 'metric-weight' && item.weightDetails) { expandedWeight = !expandedWeight; return; }
   }
@@ -636,7 +662,7 @@
     <div class="swipe-row" class:actions-open={swipedMealId === item.id}>
       {#if item.type === 'meal'}
         <div class="meal-actions" aria-label="Mahlzeit-Aktionen">
-          <button aria-label="Gericht oder Preset suchen" onclick={() => { closeMealActions(); openMealEdit(item); }}><Icon name="edit" size={17} /><span>Preset</span></button>
+          <button aria-label="Gericht oder Preset suchen" onclick={() => { closeMealActions(); toggleMealEdit(item); }}><Icon name="edit" size={17} /><span>Preset</span></button>
           <button aria-label="Mahlzeit fotografieren" onclick={() => { closeMealActions(); photoForMeal(item); }}><Icon name="camera" size={17} /><span>Foto</span></button>
         </div>
       {/if}
@@ -671,7 +697,7 @@
     {#if item.type === 'meal' && mealEditItem?.id === item.id}
       <div class="meal-inline">
         {#if !selectedDish}
-          <div class="meal-inline-title">{SLOT_NAMES[getMealSlotFromItem(mealEditItem)] || `Slot ${getMealSlotFromItem(mealEditItem)}`} bearbeiten</div>
+          <div class="meal-inline-heading"><div class="meal-inline-title">{SLOT_NAMES[getMealSlotFromItem(mealEditItem)] || `Slot ${getMealSlotFromItem(mealEditItem)}`} bearbeiten</div><button class="meal-collapse" onclick={closeMealEdit}>Einklappen</button></div>
 
           {#if editDishesLoading}
             <div class="modal-loading">Lade Empfehlungen…</div>
@@ -696,10 +722,9 @@
           <div class="modal-actions">
             {#if editPhotoLoading}<div class="photo-progress modal-progress"><div class="photo-progress-bar"><div class="photo-progress-fill" class:animate-match={editPhotoStatus === 'match'} class:animate-done={editPhotoStatus === 'done'}></div></div><span class="photo-progress-label">{editPhotoStatus === 'analyze' ? 'Vitaly analysiert das Gericht…' : editPhotoStatus === 'match' ? 'Gericht wird zugeordnet…' : editPhotoStatus === 'done' ? 'Fertig!' : 'Verarbeite…'}</span></div>{/if}
             <button class="modal-primary cam-action" onclick={triggerEditPhoto} disabled={editPhotoLoading}>{#if editPhotoLoading}<Icon name="refresh" size={18} />{:else}<Icon name="camera" size={18} />{/if}<span>{editPhotoLoading ? 'Analysiere…' : 'Foto analysieren'}</span></button>
-            <button class="modal-secondary" onclick={closeMealEdit}>Abbrechen</button>
           </div>
         {:else}
-          <div class="meal-inline-title">{selectedDish.name}</div>
+          <div class="meal-inline-heading"><div class="meal-inline-title">{selectedDish.name}</div><button class="meal-collapse" onclick={closeMealEdit}>Einklappen</button></div>
           <button class="modal-back" onclick={backToDishList}>← Zurück</button>
           <div class="portion-section"><div class="portion-label-row"><span class="portion-current">{portionDisplay}</span><span class="portion-hint">{selectedDish.is_scalable ? 'Skaliere mit dem Slider' : 'Feste Portion'}</span></div>{#if selectedDish.is_scalable}<div class="portion-slider-row"><span class="slider-end">0.5×</span><input class="portion-slider" type="range" min="0.5" max="3" step="0.1" bind:value={portionFactor} /><span class="slider-end">3×</span></div>{/if}<div class="portion-macros"><div class="macro"><span class="macro-l">Kcal</span><span class="macro-v">{scaledKcal}</span></div><div class="macro"><span class="macro-l">Protein</span><span class="macro-v">{scaledProtein}g</span></div><div class="macro"><span class="macro-l">Carbs</span><span class="macro-v">{scaledCarbs}g</span></div><div class="macro"><span class="macro-l">Fat</span><span class="macro-v">{scaledFat}g</span></div><div class="macro"><span class="macro-l">Ballaststoffe</span><span class="macro-v">{scaledFiber}g</span></div><div class="macro"><span class="macro-l">Zucker</span><span class="macro-v">{scaledSugar}g</span></div></div></div>
           <div class="modal-actions"><button class="modal-primary" onclick={confirmDishSelection}>Bestätigen</button><button class="modal-secondary" onclick={backToDishList}>Zurück</button></div>
@@ -840,7 +865,10 @@
   .spark-row { padding: 0 14px 8px; }
   .train-inline { padding: 0 14px 8px; }
   .meal-inline { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px 54px; border-bottom: 1px solid var(--border); background: var(--card); animation: inlineExpand 0.18s ease-out; }
+  .meal-inline-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .meal-inline-title { color: var(--text); font-size: 14px; font-weight: 600; }
+  .meal-collapse { border: 0; background: transparent; color: var(--text-dim); cursor: pointer; font: inherit; font-size: 12px; padding: 4px; }
+  .meal-collapse:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
 
   .quality-stars { font-size: 11px; color: var(--amber); letter-spacing: 1px; }
 
