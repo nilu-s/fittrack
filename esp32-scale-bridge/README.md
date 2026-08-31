@@ -16,7 +16,7 @@ ESP32 firmware that reads a Renpho BLE body fat scale and sends weight + impedan
 4. When you step on the scale:
    - Scale sends weight data → ESP32 parses it
    - Scale sends impedance data → ESP32 parses it
-5. ESP32 sends JSON POST to `https://fittrack.49.12.225.84.sslip.io/api/scale-sync`
+5. ESP32 sends JSON POST to `https://fittrack.49.12.225.84.sslip.io/api/scale-sync`, authenticated with `X-FitTrack-CLI-Key`
 6. API calculates body composition (BMI, body fat %, muscle mass, water %, bone mass, BMR, visceral fat, metabolic age) from weight + impedance + user profile
 7. UI shows weight in biometrics card with "Waage ✓" badge and expandable body composition details
 
@@ -113,5 +113,6 @@ pio run -t monitor
 | Scale not found in BLE scan | Check scale is in pairing mode (usually automatic when stepping on it) |
 | Wrong weight values | Adjust the weight encoding factor in `parseScaleData()` |
 | API auth failed | Check `API_KEY` matches `FITTRACK_CLI_KEY` on server |
+| `401 Not authenticated` | `API_KEY` is missing or does not match `FITTRACK_CLI_KEY` |
 | HTTPS connection failed | Ensure ESP32 has internet access (not just LAN) |
 | No impedance | Some scales don't send impedance if feet aren't planted correctly — weight-only still works |

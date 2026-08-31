@@ -6,18 +6,19 @@
     reverse_proxy fittrack-api:8000
   }
 
+  # The ESP32 cannot complete browser basic auth.  This endpoint stays
+  # protected by the X-FitTrack-CLI-Key that the API validates.
+  @scale_sync path /api/scale-sync
+  handle @scale_sync {
+    reverse_proxy fittrack-api:8000
+  }
+
   @api path /api/*
   handle @api {
-    basic_auth {
-      {$FITTRACK_CADDY_AUTH_USER} {$FITTRACK_CADDY_AUTH_HASH}
-    }
     reverse_proxy fittrack-api:8000
   }
 
   handle {
-    basic_auth {
-      {$FITTRACK_CADDY_AUTH_USER} {$FITTRACK_CADDY_AUTH_HASH}
-    }
     reverse_proxy fittrack-web:3000
   }
 }

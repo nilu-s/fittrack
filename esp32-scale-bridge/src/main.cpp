@@ -1,375 +1,181 @@
 /*
- * FitTrack Scale Bridge — ESP32 Main Firmware
+ * FitTrack Scale Bridge -- RENPHO ES-CS20M AABB broadcast variant.
  *
- * Reads weight + impedance from a Renpho BLE body fat scale,
- * sends data to FitTrack API via HTTPS.
- *
- * Protocol: The Renpho scale sends data via BLE notifications on
- * service 0xFFE1. The payload format (reverse-engineered by the
- * open-source community, notably openScale and wiecosystem projects):
- *
- * - First packet: header + weight (when measurement stabilizes)
- * - Second packet: impedance (after the user stands still long enough)
- *
- * Weight encoding: The scale sends a few bytes. The weight value is
- * typically encoded as a 16-bit integer with a factor depending on
- * the scale firmware. Common encoding: weight_kg = raw_value / 100.0
- * or weight_kg = raw_value / 200.0.
- *
- * This firmware uses the widely-documented Renpho protocol. If your
- * specific scale model uses a different encoding, adjust the parse
- * functions accordingly.
+ * This hardware revision is not GATT-connectable. It broadcasts a 0xAABB
+ * manufacturer-data frame; final frames contain weight only. The ESP32 scans
+ * passively and never writes to or pairs with the scale.
  */
 
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <BLEDevice.h>
-#include <BLEClient.h>
-#include <BLERemoteService.h>
-#include <BLERemoteCharacteristic.h>
 #include <ArduinoJson.h>
+#include <NimBLEDevice.h>
+#include <string>
 #include "config.h"
 
-// --- State machine ---
-enum ScaleState {
-  STATE_IDLE,         // waiting for user to step on scale
-  STATE_SCANNING,     // BLE scanning for scale
-  STATE_CONNECTED,    // connected to scale, waiting for data
-  STATE_GOT_WEIGHT,   // received weight, waiting for impedance
-  STATE_GOT_IMPEDANCE,// received impedance, ready to send
-  STATE_SENDING,      // sending data to API
-  STATE_DONE,         // sent successfully, back to idle
-  STATE_ERROR         // error, will retry
-};
+constexpr uint8_t COMPANY_ID_LOW = 0xFF;
+constexpr uint8_t COMPANY_ID_HIGH = 0xFF;
+constexpr uint8_t AABB_MAGIC_0 = 0xAA;
+constexpr uint8_t AABB_MAGIC_1 = 0xBB;
+constexpr size_t COMPANY_ID_BYTES = 2;
+constexpr size_t AABB_MIN_PAYLOAD_LENGTH = 19;
+constexpr size_t STATUS_OFFSET = 15;
+constexpr size_t WEIGHT_OFFSET = 17;
+constexpr uint8_t FINAL_FRAME_FLAG = 0x01;
+constexpr unsigned long WIFI_RETRY_MS = 15000;
+constexpr unsigned long SEND_RETRY_MS = 10000;
+constexpr unsigned long MEASUREMENT_COOLDOWN_MS = 10000;
 
-static ScaleState state = STATE_IDLE;
-static BLEClient* pClient = nullptr;
-static BLERemoteCharacteristic* pDataChar = nullptr;
+static portMUX_TYPE measurementLock = portMUX_INITIALIZER_UNLOCKED;
+static bool measurementPending = false;
+static float pendingWeightKg = 0.0f;
+static unsigned long lastMeasurementAt = 0;
+static unsigned long lastWifiAttemptAt = 0;
+static unsigned long lastSendAttemptAt = 0;
+static bool wifiConnectedReported = false;
 
-// Parsed measurement data
-static float measuredWeight = 0.0;
-static int measuredImpedance = 0;
-static bool weightReceived = false;
-static bool impedanceReceived = false;
-static unsigned long lastDataTime = 0;
+static bool sendToApi(float weightKg);
 
-// --- Forward declarations ---
-static void notifyCallback(BLERemoteCharacteristic*, uint8_t*, size_t);
-static bool connectToScale();
-static bool sendToApi();
-static void resetMeasurement();
-static void enterState(ScaleState newState);
-
-// ============================================================
-// BLE notification callback — called when scale sends data
-// ============================================================
-static void notifyCallback(
-  BLERemoteCharacteristic* pChar,
-  uint8_t* pData,
-  size_t length
-) {
-  if (length < 2) return;
-
-  Serial.print("BLE data (");
-  Serial.print(length);
-  Serial.print(" bytes): ");
-  for (size_t i = 0; i < length; i++) {
-    Serial.printf("%02X ", pData[i]);
-  }
-  Serial.println();
-
-  lastDataTime = millis();
-
-  // Renpho protocol parsing (simplified — based on openScale/wiecosystem)
-  // The first byte is typically a control/header byte:
-  //   0x01 = weight measurement
-  //   0x02 = impedance measurement
-  //   0x00 = start/ack
-
-  uint8_t header = pData[0];
-
-  if (header == 0x01 && length >= 4) {
-    // Weight data — extract from bytes 1-2 (little-endian)
-    // Common encoding: weight_kg = raw / 200.0 or raw / 100.0
-    // The exact factor depends on the scale model — adjust if needed
-    uint16_t rawWeight = (pData[2] << 8) | pData[1];
-    measuredWeight = rawWeight / 200.0;
-    weightReceived = true;
-    Serial.printf("  → Weight: %.1f kg (raw: %d)\n", measuredWeight, rawWeight);
-    enterState(STATE_GOT_WEIGHT);
-
-  } else if (header == 0x02 && length >= 3) {
-    // Impedance data
-    measuredImpedance = (pData[2] << 8) | pData[1];
-    impedanceReceived = true;
-    Serial.printf("  → Impedance: %d ohm\n", measuredImpedance);
-    enterState(STATE_GOT_IMPEDANCE);
-
-  } else if (header == 0x00) {
-    // Scale started measuring
-    Serial.println("  → Scale measurement started");
-  }
+static bool isTargetScale(const NimBLEAdvertisedDevice* device) {
+  const String address(device->getAddress().toString().c_str());
+  if (!address.equalsIgnoreCase(SCALE_BLE_ADDRESS)) return false;
+  const std::string manufacturer = device->getManufacturerData();
+  return manufacturer.size() >= COMPANY_ID_BYTES + AABB_MIN_PAYLOAD_LENGTH &&
+      static_cast<uint8_t>(manufacturer[0]) == COMPANY_ID_LOW &&
+      static_cast<uint8_t>(manufacturer[1]) == COMPANY_ID_HIGH &&
+      static_cast<uint8_t>(manufacturer[2]) == AABB_MAGIC_0 &&
+      static_cast<uint8_t>(manufacturer[3]) == AABB_MAGIC_1;
 }
 
-// ============================================================
-// Connect to the Renpho BLE scale
-// ============================================================
-static bool connectToScale() {
-  Serial.println("Scanning for BLE scale...");
+static bool parseFinalWeight(const std::string& manufacturer, float* weightKg) {
+  if (manufacturer.size() < COMPANY_ID_BYTES + AABB_MIN_PAYLOAD_LENGTH) return false;
+  const auto* payload = reinterpret_cast<const uint8_t*>(manufacturer.data() + COMPANY_ID_BYTES);
+  if (payload[0] != AABB_MAGIC_0 || payload[1] != AABB_MAGIC_1) return false;
+  if ((payload[STATUS_OFFSET] & FINAL_FRAME_FLAG) == 0) return false;
 
-  BLEScan* pScan = BLEDevice::getScan();
-  pScan->setActiveScan(true);
-  BLEScanResults results = pScan->start(BLE_SCAN_DURATION);
-
-  BLEAdvertisedDevice* scaleDevice = nullptr;
-  for (int i = 0; i < results.getCount(); i++) {
-    BLEAdvertisedDevice dev = results.getDevice(i);
-    String name = dev.getName().c_str();
-    Serial.printf("  Found: %s (addr: %s)\n", name.c_str(), dev.getAddress().toString().c_str());
-
-    if (name.startsWith(SCALE_NAME_PREFIX) ||
-        name.indexOf("RENPHO") >= 0 ||
-        name.indexOf("QNB") >= 0) {
-      // Found a scale — clone it (BLEAdvertisedDevice from scan results is transient)
-      static BLEAdvertisedDevice foundDevice;
-      foundDevice = dev;
-      scaleDevice = &foundDevice;
-      break;
-    }
-  }
-
-  if (!scaleDevice) {
-    Serial.println("Scale not found in scan.");
-    return false;
-  }
-
-  Serial.printf("Connecting to scale: %s\n", scaleDevice->getName().c_str());
-
-  if (pClient == nullptr) {
-    pClient = BLEDevice::createClient();
-  }
-
-  if (!pClient->connect(scaleDevice)) {
-    Serial.println("Failed to connect to scale.");
-    return false;
-  }
-
-  Serial.println("Connected. Subscribing to notifications...");
-
-  BLERemoteService* pService = pClient->getService(BLEUUID(SCALE_SERVICE_UUID));
-  if (!pService) {
-    Serial.println("Scale service not found.");
-    pClient->disconnect();
-    return false;
-  }
-
-  pDataChar = pService->getCharacteristic(BLEUUID(SCALE_CHAR_UUID));
-  if (!pDataChar) {
-    Serial.println("Data characteristic not found.");
-    pClient->disconnect();
-    return false;
-  }
-
-  pDataChar->registerForNotify(notifyCallback);
-
-  // Enable notifications
-  uint8_t enable[] = {0x01, 0x00};
-  BLERemoteDescriptor* pDesc = pDataChar->getDescriptor(BLEUUID((uint16_t)0x2902));
-  if (pDesc) {
-    pDesc->writeValue(enable, 2, true);
-  }
-
-  Serial.println("Subscribed. Waiting for measurement...");
+  const uint16_t weightRaw = static_cast<uint16_t>(payload[WEIGHT_OFFSET]) |
+      (static_cast<uint16_t>(payload[WEIGHT_OFFSET + 1]) << 8);
+  const float parsedWeight = weightRaw / 100.0f;
+  if (parsedWeight < 0.5f || parsedWeight > 300.0f) return false;
+  *weightKg = parsedWeight;
   return true;
 }
 
-// ============================================================
-// Send measurement to FitTrack API
-// ============================================================
-static bool sendToApi() {
-  Serial.println("Sending to FitTrack API...");
+class ScaleScanCallbacks final : public NimBLEScanCallbacks {
+  void onResult(const NimBLEAdvertisedDevice* device) override {
+    if (!isTargetScale(device)) return;
+    const std::string manufacturer = device->getManufacturerData();
+    float weightKg = 0.0f;
+    if (!parseFinalWeight(manufacturer, &weightKg)) return;
 
+    const unsigned long now = millis();
+    portENTER_CRITICAL(&measurementLock);
+    const bool withinCooldown = now - lastMeasurementAt < MEASUREMENT_COOLDOWN_MS;
+    if (!measurementPending && !withinCooldown) {
+      pendingWeightKg = weightKg;
+      measurementPending = true;
+      lastMeasurementAt = now;
+      Serial.printf("RENPHO AABB final measurement: %.2f kg\n", weightKg);
+    }
+    portEXIT_CRITICAL(&measurementLock);
+  }
+};
+
+static ScaleScanCallbacks scanCallbacks;
+
+static void ensureWifi() {
+  if (WiFi.status() == WL_CONNECTED) {
+    if (!wifiConnectedReported) {
+      Serial.printf("WiFi connected. IP: %s\n", WiFi.localIP().toString().c_str());
+      wifiConnectedReported = true;
+    }
+    return;
+  }
+  wifiConnectedReported = false;
+  const unsigned long now = millis();
+  if (lastWifiAttemptAt != 0 && now - lastWifiAttemptAt < WIFI_RETRY_MS) return;
+  lastWifiAttemptAt = now;
+  Serial.printf("Connecting to WiFi: %s\n", WIFI_SSID);
+  WiFi.disconnect();
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+}
+
+static bool sendToApi(float weightKg) {
+  if (WiFi.status() != WL_CONNECTED) return false;
   WiFiClientSecure client;
-  client.setInsecure();  // skip cert verification (self-signed sslip.io)
+  client.setInsecure();
   client.setTimeout(HTTP_TIMEOUT / 1000);
-
   if (!client.connect(API_HOST, API_PORT)) {
     Serial.println("HTTPS connection failed.");
     return false;
   }
 
-  // Build JSON payload
-  StaticJsonDocument<512> doc;
-  doc["weight_kg"] = measuredWeight;
-  if (impedanceReceived && measuredImpedance > 0) {
-    doc["impedance"] = measuredImpedance;
-  }
+  StaticJsonDocument<384> doc;
+  doc["weight_kg"] = weightKg;
   doc["height_cm"] = USER_HEIGHT_CM;
   doc["age"] = USER_AGE;
   doc["gender"] = USER_GENDER;
-  doc["device_id"] = "esp32-scale-bridge";
+  doc["device_id"] = "esp32-renpho-aabb-bridge";
 
   String json;
   serializeJson(doc, json);
-
-  // Build HTTP request
   String request = "POST " + String(API_PATH) + " HTTP/1.1\r\n";
   request += "Host: " + String(API_HOST) + "\r\n";
   request += "X-FitTrack-CLI-Key: " + String(API_KEY) + "\r\n";
   request += "Content-Type: application/json\r\n";
   request += "Content-Length: " + String(json.length()) + "\r\n";
-  request += "Connection: close\r\n";
-  request += "\r\n";
+  request += "Connection: close\r\n\r\n";
   request += json;
-
   client.print(request);
 
-  // Read response
-  String response = "";
+  String response;
   while (client.connected() || client.available()) {
-    if (client.available()) {
-      response += client.readString();
-    }
+    if (client.available()) response += client.readString();
     delay(10);
   }
-
-  // Check for 200
-  if (response.indexOf("200") > 0 || response.indexOf("201") > 0) {
-    Serial.println("API: OK ✓");
+  if (response.indexOf("HTTP/1.1 200") >= 0 || response.indexOf("HTTP/1.1 201") >= 0) {
+    Serial.printf("FitTrack API: OK (%.2f kg)\n", weightKg);
     return true;
-  } else {
-    Serial.print("API error: ");
-    Serial.println(response.substring(0, 200));
-    return false;
   }
+  Serial.printf("FitTrack API error: %s\n", response.substring(0, 200).c_str());
+  return false;
 }
 
-// ============================================================
-// State machine helpers
-// ============================================================
-static void resetMeasurement() {
-  measuredWeight = 0.0;
-  measuredImpedance = 0;
-  weightReceived = false;
-  impedanceReceived = false;
-}
-
-static void enterState(ScaleState newState) {
-  if (newState != state) {
-    Serial.printf("State: %d → %d\n", state, newState);
-    state = newState;
-  }
-}
-
-// ============================================================
-// Setup
-// ============================================================
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("\n=== FitTrack Scale Bridge ===\n");
-
-  // Connect WiFi
-  Serial.printf("Connecting to WiFi: %s", WIFI_SSID);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.printf("\nWiFi connected. IP: %s\n", WiFi.localIP().toString().c_str());
-
-  // Init BLE
-  Serial.println("Initializing BLE...");
-  BLEDevice::init("FitTrack-Scale-Bridge");
-
-  enterState(STATE_IDLE);
-  Serial.println("Ready. Step on scale to measure.\n");
+  Serial.println("\n=== FitTrack Scale Bridge: RENPHO AABB Broadcast ===\n");
+  WiFi.mode(WIFI_STA);
+  ensureWifi();
+  NimBLEDevice::init("FitTrack-Scale-Bridge");
+  NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+  NimBLEScan* scan = NimBLEDevice::getScan();
+  scan->setScanCallbacks(&scanCallbacks, true);
+  scan->setActiveScan(true);
+  scan->setInterval(100);
+  scan->setWindow(99);
+  scan->start(0, false, true);
+  Serial.printf("Listening for RENPHO AABB broadcasts from %s\n", SCALE_BLE_ADDRESS);
 }
 
-// ============================================================
-// Main loop
-// ============================================================
 void loop() {
-  switch (state) {
-
-    case STATE_IDLE:
-      // Start scanning when idle
-      enterState(STATE_SCANNING);
-      resetMeasurement();
-      break;
-
-    case STATE_SCANNING:
-      if (connectToScale()) {
-        enterState(STATE_CONNECTED);
-        lastDataTime = millis();
-      } else {
-        Serial.println("Retrying in 30s...");
-        delay(30000);
-        enterState(STATE_IDLE);
-      }
-      break;
-
-    case STATE_CONNECTED:
-      // Wait for weight data, with timeout
-      if (weightReceived) {
-        // Weight received, waiting for impedance
-      } else if (millis() - lastDataTime > 60000) {
-        Serial.println("Timeout: no weight received in 60s. Disconnecting.");
-        pClient->disconnect();
-        delay(1000);
-        enterState(STATE_IDLE);
-      }
-      break;
-
-    case STATE_GOT_WEIGHT:
-      // Wait for impedance (if scale supports it)
-      if (impedanceReceived) {
-        enterState(STATE_GOT_IMPEDANCE);
-      } else if (millis() - lastDataTime > 15000) {
-        // No impedance after 15s — send weight only
-        Serial.println("No impedance received, sending weight only.");
-        enterState(STATE_SENDING);
-      }
-      break;
-
-    case STATE_GOT_IMPEDANCE:
-      enterState(STATE_SENDING);
-      break;
-
-    case STATE_SENDING:
-      if (sendToApi()) {
-        enterState(STATE_DONE);
-      } else {
-        Serial.println("API send failed. Retrying in 10s...");
-        delay(10000);
-        // Retry once more
-        if (sendToApi()) {
-          enterState(STATE_DONE);
-        } else {
-          enterState(STATE_ERROR);
-        }
-      }
-      // Disconnect from scale
-      if (pClient && pClient->isConnected()) {
-        pClient->disconnect();
-        delay(500);
-      }
-      break;
-
-    case STATE_DONE:
-      Serial.println("\n✓ Measurement complete. Back to idle in 10s.\n");
-      delay(10000);
-      enterState(STATE_IDLE);
-      break;
-
-    case STATE_ERROR:
-      Serial.println("\n✗ Error. Retrying in 30s.\n");
-      delay(30000);
-      enterState(STATE_IDLE);
-      break;
+  ensureWifi();
+  float weightToSend = 0.0f;
+  bool shouldSend = false;
+  const unsigned long now = millis();
+  portENTER_CRITICAL(&measurementLock);
+  if (measurementPending && now - lastSendAttemptAt >= SEND_RETRY_MS) {
+    weightToSend = pendingWeightKg;
+    lastSendAttemptAt = now;
+    shouldSend = true;
   }
+  portEXIT_CRITICAL(&measurementLock);
 
-  // Small delay to prevent busy-looping
+  if (shouldSend && sendToApi(weightToSend)) {
+    portENTER_CRITICAL(&measurementLock);
+    measurementPending = false;
+    portEXIT_CRITICAL(&measurementLock);
+  }
   delay(100);
 }

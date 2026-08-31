@@ -22,12 +22,10 @@
 #define USER_AGE        30    // your age
 #define USER_GENDER     "male"  // "male" or "female"
 
-// --- BLE Scale ---
-// Renpho scales typically advertise with service UUID 0xFFE1
-// The scale name usually starts with "QNB-Scale" or "RENPHO"
-#define SCALE_NAME_PREFIX  "QN-Scale"  // common Renpho BLE name prefix
-#define SCALE_SERVICE_UUID "0000ffe1-0000-1000-8000-00805f9b34fb"
-#define SCALE_CHAR_UUID    "0000ffe1-0000-1000-8000-00805f9b34fb"
+// --- RENPHO ES-CS20M AABB broadcast scale ---
+// The AABB variant does not accept GATT connections. Copy the address emitted
+// by the diagnostic, for example "ed:67:39:73:66:35".
+#define SCALE_BLE_ADDRESS "ed:67:39:73:66:35"
 
 // --- Timing ---
 #define BLE_SCAN_DURATION  30    // seconds to scan for scale
