@@ -115,7 +115,8 @@
     actionSheetItem = item;
   }
 
-  function handleTouchStart(item: UnifiedItem, e: TouchEvent) {
+  function handlePressStart(item: UnifiedItem, event: PointerEvent) {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
     longPressTriggered = false;
     longPressTimer = setTimeout(() => {
       longPressTriggered = true;
@@ -123,10 +124,10 @@
       openItemDetails(item);
     }, 500);
   }
-  function handleTouchEnd() {
+  function handlePressEnd() {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
   }
-  function handleTouchMove() {
+  function handlePressMove() {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
   }
   function handleContextMenu(item: UnifiedItem, e: MouseEvent) { e.preventDefault(); openItemDetails(item); }
@@ -662,10 +663,11 @@
     <div class="item tap-area" class:done={item.done}
       onclick={(e) => handleTap(item, e)}
       oncontextmenu={(e) => handleContextMenu(item, e)}
-      ontouchstart={(e) => handleTouchStart(item, e)}
-      ontouchend={handleTouchEnd}
-      ontouchmove={handleTouchMove}
-      ontouchcancel={() => handleTouchEnd()}
+      onpointerdown={(e) => handlePressStart(item, e)}
+      onpointerup={handlePressEnd}
+      onpointermove={handlePressMove}
+      onpointerleave={handlePressEnd}
+      onpointercancel={handlePressEnd}
       onkeydown={(e) => handleItemKey(item, e)}
       role="button" tabindex="0" aria-label={`${item.title}. Lange drücken oder Eingabetaste für Details.`}>
       <button class="item-check" class:done={item.done} onclick={(e) => handleCheck(item, e)} aria-label={item.done ? `${item.title} als offen markieren` : `${item.title} erledigen`}>
@@ -950,7 +952,7 @@
   .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
   .modal-primary { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--green); color: #000; border: none; font-weight: 600; cursor: pointer; font-size: 14px; }
   .modal-secondary { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--card-2); color: var(--text-dim); border: 1px solid var(--border-2); font-weight: 500; cursor: pointer; font-size: 14px; }
-  .compact-overlay { align-items:flex-end; padding:0 12px 16px; }
+  .compact-overlay { align-items:center; justify-content:center; padding:16px; }
   .compact-detail { width:min(100%, 420px); max-height:min(58dvh, 520px); overflow:auto; display:flex; flex-direction:column; gap:14px; padding:16px; border-radius:16px; }
   .detail-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
   .detail-header h2,.detail-header p { margin:0; }
@@ -959,7 +961,7 @@
   .detail-close { width:32px; min-height:32px; border:1px solid var(--border-2); border-radius:50%; background:var(--card-2); color:var(--text); font-size:20px; line-height:1; }
   .detail-section { display:grid; gap:8px; color:var(--text); font-size:14px; line-height:1.45; }
   .detail-section ol { display:grid; gap:7px; margin:0; padding-left:22px; color:var(--text-dim); }
-  @media (min-width: 700px) { .compact-overlay { align-items:center; justify-content:center; padding:24px; } .compact-detail { max-width:360px; } }
+  @media (min-width: 700px) { .compact-overlay { padding:24px; } .compact-detail { max-width:360px; } }
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
