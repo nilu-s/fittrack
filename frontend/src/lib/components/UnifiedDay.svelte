@@ -121,7 +121,7 @@
   }
 
   function handleTouchStart(item: UnifiedItem, e: TouchEvent) {
-    swipeStartX = item.type === 'meal' ? e.touches[0]?.clientX ?? null : null;
+    swipeStartX = item.type === 'meal' && !item.done ? e.touches[0]?.clientX ?? null : null;
     longPressTriggered = false;
     if (item.type !== 'todo' && item.type !== 'meal') return;
     longPressTimer = setTimeout(() => {
@@ -136,7 +136,7 @@
   }
   function handleTouchEnd(item?: UnifiedItem, e?: TouchEvent) {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-    if (item?.type === 'meal' && swipeStartX != null && e?.changedTouches[0]) {
+    if (item?.type === 'meal' && !item.done && swipeStartX != null && e?.changedTouches[0]) {
       const moved = e.changedTouches[0].clientX - swipeStartX;
       if (moved < -36) swipedMealId = item.id;
       if (moved > 24) swipedMealId = '';
@@ -193,6 +193,7 @@
 
   function handleCheck(item: UnifiedItem, e: MouseEvent) {
     e.stopPropagation();
+    if (item.type === 'meal') closeMealActions();
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(25);
     toggleDone(item);
   }
@@ -659,8 +660,8 @@
   {/if}
 
   {#each manualItems as item (item.id)}
-    <div class="swipe-row" class:actions-open={swipedMealId === item.id}>
-      {#if item.type === 'meal'}
+    <div class="swipe-row" class:actions-open={item.type === 'meal' && !item.done && swipedMealId === item.id}>
+      {#if item.type === 'meal' && !item.done}
         <div class="meal-actions" aria-label="Mahlzeit-Aktionen">
           <button aria-label="Gericht oder Preset suchen" onclick={() => { closeMealActions(); toggleMealEdit(item); }}><Icon name="edit" size={17} /><span>Preset</span></button>
           <button aria-label="Mahlzeit fotografieren" onclick={() => { closeMealActions(); photoForMeal(item); }}><Icon name="camera" size={17} /><span>Foto</span></button>
@@ -864,7 +865,7 @@
   .item-prog { flex: 0 0 70px; }
   .spark-row { padding: 0 14px 8px; }
   .train-inline { padding: 0 14px 8px; }
-  .meal-inline { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px 54px; border-bottom: 1px solid var(--border); background: var(--card); animation: inlineExpand 0.18s ease-out; }
+  .meal-inline { display: flex; flex-direction: column; gap: 8px; margin: 4px 10px 10px 54px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2); animation: inlineExpand 0.18s ease-out; }
   .meal-inline-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .meal-inline-title { color: var(--text); font-size: 14px; font-weight: 600; }
   .meal-collapse { border: 0; background: transparent; color: var(--text-dim); cursor: pointer; font: inherit; font-size: 12px; padding: 4px; }
@@ -978,11 +979,11 @@
   @keyframes inlineExpand { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
   /* Meal edit modal — additional classes (modal-overlay/card/title/actions/primary/secondary already defined above) */
-  .modal-section-label { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .modal-loading, .modal-empty { text-align: center; padding: 20px; color: var(--text-faint); font-size: 14px; }
+  .meal-inline .modal-section-label { font-size: 10px; color: var(--text-faint); margin: 4px 0 0; text-transform: uppercase; letter-spacing: 0.5px; }
+  .meal-inline .modal-loading, .meal-inline .modal-empty { text-align: center; padding: 10px; color: var(--text-faint); font-size: 12px; }
   .cam-action { display: flex; align-items: center; justify-content: center; gap: 8px; }
-  .dish-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-  .dish-btn { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-radius: 10px; background: var(--card-2); border: 1px solid var(--border); color: var(--text); cursor: pointer; transition: border-color 0.15s, background 0.15s; text-align: left; }
+  .meal-inline .dish-list { display: flex; flex-direction: column; gap: 4px; max-height: 176px; margin: 0; overflow-y: auto; }
+  .meal-inline .dish-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 9px; border-radius: 7px; background: var(--card); border: 1px solid var(--border); color: var(--text); cursor: pointer; transition: border-color 0.15s, background 0.15s; text-align: left; }
   .dish-btn:active { background: #2a2b2e; }
   .dish-btn.default { border-color: var(--green); }
   .dish-info { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
@@ -1003,25 +1004,25 @@
   @keyframes photoDone { from { width: 90%; } to { width: 100%; } }
 
   /* Dish selection modal — new styles */
-  .dish-default-highlight { background: var(--card-2); border: 2px solid var(--green); margin-bottom: 8px; }
+  .meal-inline .dish-default-highlight { background: var(--card); border: 1px solid var(--green); margin: 0; }
   .dish-default-highlight .dish-name { font-weight: 700; color: var(--green); }
   .dish-portion { font-size: 11px; color: var(--text-dim); padding: 2px 6px; background: var(--card-2); border-radius: 4px; }
-  .dish-search-input { width: 100%; padding: 10px 12px; border-radius: 8px; background: var(--card-2); border: 1px solid var(--border-2); color: var(--text); font-size: 14px; margin-bottom: 8px; outline: none; }
+  .meal-inline .dish-search-input { width: 100%; padding: 8px 10px; border-radius: 7px; background: var(--card); border: 1px solid var(--border-2); color: var(--text); font-size: 13px; margin: 0; outline: none; }
   .dish-search-input:focus { border-color: var(--green); }
   .modal-back { background: none; border: none; color: var(--text-dim); font-size: 13px; cursor: pointer; margin-bottom: 12px; padding: 0; }
-  .portion-section { padding: 16px 0; }
-  .portion-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-  .portion-current { font-size: 24px; font-weight: 700; color: var(--green); }
+  .meal-inline .portion-section { padding: 4px 0; }
+  .meal-inline .portion-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .meal-inline .portion-current { font-size: 20px; font-weight: 700; color: var(--green); }
   .portion-hint { font-size: 12px; color: var(--text-dim); }
-  .portion-slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+  .meal-inline .portion-slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   .slider-end { font-size: 11px; color: var(--text-dim); min-width: 28px; text-align: center; }
   .portion-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; background: var(--border-2); outline: none; }
   .portion-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: var(--green); cursor: pointer; border: none; }
   .portion-slider::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: var(--green); cursor: pointer; border: none; }
-  .portion-macros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px; background: var(--card-2); border: 1px solid var(--border-2); border-radius: 8px; }
+  .meal-inline .portion-macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 7px; }
   .portion-macros .macro { display: flex; flex-direction: column; gap: 3px; text-align: center; }
   .portion-macros .macro-l { font-size: 11px; text-transform: uppercase; font-weight: 600; color: var(--text-dim); }
-  .portion-macros .macro-v { font-size: 16px; font-weight: 700; color: var(--text); }
+  .meal-inline .portion-macros .macro-v { font-size: 14px; font-weight: 700; color: var(--text); }
 
   @media (max-width: 520px) {
     .meal-inline { padding-left: 14px; }
