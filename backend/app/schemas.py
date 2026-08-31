@@ -361,11 +361,25 @@ class RecipeCreate(_Base):
     servings: Decimal = Field(default=Decimal("1"), gt=0, max_digits=10, decimal_places=3)
     notes: Optional[str] = Field(default=None, max_length=5000)
     ingredients: list[RecipeIngredientInput] = Field(default_factory=list)
+    instructions: list[str] = Field(default_factory=list, max_length=100)
+
+    @field_validator("instructions")
+    @classmethod
+    def valid_instructions(cls, instructions: list[str] | None) -> list[str] | None:
+        if instructions is None:
+            return None
+        cleaned = [step.strip() for step in instructions]
+        if any(not step for step in cleaned):
+            raise ValueError("instructions may not contain blank steps")
+        if any(len(step) > 2000 for step in cleaned):
+            raise ValueError("each instruction must not exceed 2000 characters")
+        return cleaned
 
 
 class RecipeUpdate(RecipeCreate):
     name: Optional[str] = Field(default=None, min_length=1, max_length=200)
     ingredients: Optional[list[RecipeIngredientInput]] = None
+    instructions: Optional[list[str]] = None
     expected_updated_at: Optional[datetime] = None
 
 
@@ -379,6 +393,7 @@ class RecipeResponse(_Base):
     status: str
     servings: Decimal
     notes: Optional[str]
+    instructions: list[str]
     ingredients: list[RecipeIngredientResponse]
     nutrition: Nutrition
     updated_at: datetime

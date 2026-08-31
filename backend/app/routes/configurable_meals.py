@@ -174,9 +174,34 @@ async def _replace_recipe_ingredients(session, recipe: Recipe, inputs: list[Reci
         session.add(RecipeIngredient(account_id=account_id, recipe_id=recipe.id, **data.model_dump()))
 
 
+async def _validate_active_recipe(session, recipe: Recipe, account_id: uuid.UUID) -> None:
+    """Ensure published recipes have auditable, complete direct ingredients.
+
+    Drafts intentionally remain flexible so a recipe can be composed over
+    time.  Once active, every direct food must be verified and contain every
+    nutrient used by the totals endpoint; otherwise a displayed value could be
+    mistaken for a validated result.
+    """
+    ingredients = (await session.execute(select(RecipeIngredient).where(
+        RecipeIngredient.recipe_id == recipe.id,
+        RecipeIngredient.account_id == account_id,
+    ))).scalars().all()
+    if not ingredients:
+        raise HTTPException(422, "An active recipe requires at least one ingredient")
+    for ingredient in ingredients:
+        if ingredient.food_id is None:
+            continue
+        food = await _owned(session, Food, ingredient.food_id, account_id)
+        if food.confidence != "verified" or any(getattr(food, f"{key}_per_100g") is None for key in _NUTRIENTS):
+            raise HTTPException(422, "Active recipe foods require verified, complete nutrient values")
+    nutrition = await _recipe_nutrition(session, recipe, account_id)
+    if any(value is None for value in nutrition.values()):
+        raise HTTPException(422, "Active recipes require complete nutrient values, including nested recipes")
+
+
 async def _recipe_response(session, recipe: Recipe, account_id: uuid.UUID):
     ingredients = (await session.execute(select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe.id, RecipeIngredient.account_id == account_id).order_by(RecipeIngredient.sort_order))).scalars().all()
-    return RecipeResponse(id=recipe.id, name=recipe.name, status=recipe.status, servings=recipe.servings, notes=recipe.notes,
+    return RecipeResponse(id=recipe.id, name=recipe.name, status=recipe.status, servings=recipe.servings, notes=recipe.notes, instructions=recipe.instructions,
         ingredients=[RecipeIngredientResponse.model_validate(item) for item in ingredients],
         nutrition=Nutrition(**await _recipe_nutrition(session, recipe, account_id)), updated_at=recipe.updated_at)
 
@@ -284,6 +309,7 @@ async def create_recipe(body: RecipeCreate, account_id: uuid.UUID = Depends(get_
     async with async_session() as session:
         data = body.model_dump(exclude={"ingredients"}); row = Recipe(account_id=account_id, **data); session.add(row); await session.flush()
         await _replace_recipe_ingredients(session, row, body.ingredients, account_id)
+        if row.status == "active": await _validate_active_recipe(session, row, account_id)
         try: await session.commit()
         except IntegrityError: await session.rollback(); raise HTTPException(409, "A recipe with this name already exists")
         await session.refresh(row); return await _recipe_response(session, row, account_id)
@@ -298,6 +324,7 @@ async def update_recipe(recipe_id: uuid.UUID, body: RecipeUpdate, account_id: uu
         row = await _owned(session, Recipe, recipe_id, account_id); _conflict(row, body.expected_updated_at)
         for key, value in body.model_dump(exclude_unset=True, exclude={"ingredients", "expected_updated_at"}).items(): setattr(row, key, value)
         if body.ingredients is not None: await _replace_recipe_ingredients(session, row, body.ingredients, account_id)
+        if row.status == "active": await _validate_active_recipe(session, row, account_id)
         await session.commit(); await session.refresh(row); return await _recipe_response(session, row, account_id)
 
 @router.delete("/recipes/{recipe_id}", status_code=204)

@@ -94,6 +94,7 @@
   let dishSearchQuery = '';
   let dishSearchResults: any[] = [];
   let dishSearching = false;
+  let mealDetails: Meal | null = null;
 
   /** Only one task detail may be open in the daily list at a time. */
   function closeOpenTodoDetails() {
@@ -254,6 +255,9 @@
     editDishesLoading = false;
   }
   function closeMealEdit() { mealEditItem = null; }
+
+  function openMealDetails(item: UnifiedItem) { mealDetails = getMealFromItem(item) ?? null; }
+  function closeMealDetails() { mealDetails = null; }
 
   function getMealFromItem(item: UnifiedItem): Meal | undefined {
     const id = String(item.id).replace('meal-', '');
@@ -645,6 +649,7 @@
   {#each manualItems as item (item.id)}
     <div class="item tap-area" class:done={item.done}
       onclick={(e) => handleTap(item, e)}
+      ondblclick={() => { if (item.type === 'meal') openMealDetails(item); }}
       oncontextmenu={(e) => handleContextMenu(item, e)}
       ontouchstart={(e) => handleTouchStart(item, e)}
       ontouchend={handleTouchEnd}
@@ -662,6 +667,7 @@
           {#if item.type === 'meal' && item.kcal}<PillBadge value={Math.round(item.kcal)} unit="kcal" color="var(--amber)" />{/if}
           {#if item.type === 'meal' && item.protein}<PillBadge value={Math.round(item.protein)} unit="g P" color="var(--blue)" />{/if}
           {#if item.mealTime}<span class="item-time">{item.mealTime}</span>{/if}
+          {#if item.type === 'meal'}<span class="recipe-marker" title="Doppelklick öffnet die Mahlzeitendetails">Rezeptdetails</span>{/if}
         </div>
       </div>
       {#if item.type === 'meal' && !item.done}
@@ -754,6 +760,23 @@
   </div>
 {/if}
 
+{#if mealDetails}
+  <div class="modal-overlay" role="presentation" onclick={closeMealDetails} onkeydown={(event) => { if (event.key === 'Escape') closeMealDetails(); }}>
+    <section class="modal-card meal-details" role="dialog" aria-modal="true" aria-labelledby="meal-details-title" tabindex="-1" onclick={(event) => event.stopPropagation()}>
+      <div class="modal-title" id="meal-details-title">{mealDetails.name || SLOT_NAMES[mealDetails.meal_slot] || 'Mahlzeit'}</div>
+      <p class="meal-details-hint">Nährwerte dieser geplanten Mahlzeit</p>
+      <div class="modal-pills">
+        {#if mealDetails.kcal != null}<PillBadge value={Math.round(Number(mealDetails.kcal))} unit="kcal" color="var(--amber)" />{/if}
+        {#if mealDetails.protein_g != null}<PillBadge value={Math.round(Number(mealDetails.protein_g))} unit="g Protein" color="var(--blue)" />{/if}
+        {#if mealDetails.carbs_g != null}<PillBadge value={Math.round(Number(mealDetails.carbs_g))} unit="g KH" color="var(--purple)" />{/if}
+        {#if mealDetails.fat_g != null}<PillBadge value={Math.round(Number(mealDetails.fat_g))} unit="g Fett" color="var(--pink)" />{/if}
+      </div>
+      <p class="meal-details-note">Diese Legacy-Mahlzeit ist noch keinem Rezept zugeordnet. Eine Kochanleitung erscheint hier, sobald ein verknüpftes Rezept hinterlegt ist.</p>
+      <button class="modal-secondary" autofocus onclick={closeMealDetails}>Schließen</button>
+    </section>
+  </div>
+{/if}
+
 {#if actionSheetItem}
   <div class="action-overlay" onclick={() => (actionSheetItem = null)} ontouchstart={(e) => { e.preventDefault(); actionSheetItem = null; }}>
     <div class="action-sheet" onclick={(e) => e.stopPropagation()} ontouchstart={(e) => e.stopPropagation()}>
@@ -827,6 +850,7 @@
   .item-title.strike { text-decoration: line-through; }
   .item-badges { display: flex; align-items: center; gap: 4px; }
   .item-time { font-size: 11px; color: var(--text-faint); font-weight: 500; }
+  .recipe-marker { font-size:10px; color:var(--green); border:1px solid color-mix(in srgb, var(--green) 55%, var(--border-2)); border-radius:999px; padding:2px 6px; white-space:nowrap; }
   .item-prog { flex: 0 0 70px; }
   .meal-row-actions { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
   .meal-action-icon { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--text-faint); cursor: pointer; }
@@ -943,6 +967,10 @@
   .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
   .modal-primary { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--green); color: #000; border: none; font-weight: 600; cursor: pointer; font-size: 14px; }
   .modal-secondary { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--card-2); color: var(--text-dim); border: 1px solid var(--border-2); font-weight: 500; cursor: pointer; font-size: 14px; }
+  .meal-details { display:flex; flex-direction:column; gap:14px; }
+  .meal-details .modal-title { margin-bottom:0; }
+  .meal-details-hint,.meal-details-note { margin:0; text-align:center; color:var(--text-dim); font-size:13px; line-height:1.45; }
+  .meal-details-note { padding:10px; border-radius:8px; background:var(--card-2); color:var(--text-faint); }
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }

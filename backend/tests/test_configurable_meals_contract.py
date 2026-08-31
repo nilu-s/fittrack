@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from fastapi import HTTPException
 
 from app.routes.configurable_meals import _MAX_PHOTO_BYTES, _image_metadata, _sum, _vision_proposal
-from app.schemas import MealCategoryReorder, MealEntryItemInput, MealPhotoAnalysisAccept, MealEntryStatusCommand, RecipeIngredientInput
+from app.schemas import MealCategoryReorder, MealEntryItemInput, MealPhotoAnalysisAccept, MealEntryStatusCommand, RecipeCreate, RecipeIngredientInput, RecipeUpdate
 from app.main import app
 
 
@@ -31,6 +31,13 @@ class ConfigurableMealsContractTests(unittest.TestCase):
             MealEntryItemInput(quantity=Decimal("10"), unit="g")
         with self.assertRaises(ValidationError):
             RecipeIngredientInput(food_id="00000000-0000-0000-0000-000000000001", nested_recipe_id="00000000-0000-0000-0000-000000000002", quantity=Decimal("10"))
+
+    def test_recipe_instructions_are_ordered_nonblank_steps(self):
+        recipe = RecipeCreate(name="Porridge", instructions=[" Hafer kochen ", "Servieren"])
+        self.assertEqual(recipe.instructions, ["Hafer kochen", "Servieren"])
+        with self.assertRaises(ValidationError):
+            RecipeCreate(name="Porridge", instructions=[" "])
+        self.assertIsNone(RecipeUpdate(instructions=None).instructions)
 
     def test_reorder_rejects_duplicate_resource_ids(self):
         duplicate = "00000000-0000-0000-0000-000000000001"

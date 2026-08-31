@@ -230,6 +230,10 @@ class Recipe(AccountOwned, Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, default="draft")
     servings: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False, default=Decimal("1"))
     notes: Mapped[str | None] = mapped_column(Text)
+    # Ordered, human-authored cooking directions.  Ingredients remain the
+    # nutritional source of truth; directions must never contain nutrition
+    # values that the API would be unable to validate.
+    instructions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

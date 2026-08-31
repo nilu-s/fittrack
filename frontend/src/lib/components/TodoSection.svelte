@@ -32,6 +32,7 @@
   let editDishData: any[] = [];
   let editPhotoInput: HTMLInputElement;
   let editPhotoLoading = false;
+  let mealDetails: Meal | null = null;
   const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abendessen' };
   $: sortedMeals = [...(meals ?? [])].sort((a, b) => (a.meal_slot ?? 99) - (b.meal_slot ?? 99));
   $: virtualTodos = buildRoutineTodos(dayEntry, meals, trainingSuggestion);
@@ -120,6 +121,13 @@
 
   function closeMealEdit() { mealEditModal = null; }
 
+  function openMealDetails(todoId: string | number) {
+    const mealId = String(todoId).replace('routine-meal-', '');
+    mealDetails = meals.find((meal) => String(meal.id) === mealId || String(meal.meal_slot) === mealId) ?? null;
+  }
+
+  function closeMealDetails() { mealDetails = null; }
+
   async function selectEditDish(dish: any) {
     if (!mealEditModal || !dish.id) return;
     await patchMeal(mealEditModal.mealId, {
@@ -181,7 +189,7 @@
     </div>
   {/if}
   <div class="todo-list">
-    {#if filteredTodos.length > 0}{#each filteredTodos as todo (todo.id)}{@const macros = getMealMacros(todo)}<TodoItem {todo} kcal={macros.kcal} protein={macros.protein} fiber={macros.fiber} sugar={macros.sugar} on:done={(e) => markDone(e.detail)} on:expand={(e) => handleExpand(e.detail)} on:update={updateTodo} on:delete={(e) => deleteTodo(e.detail)} on:editmeal={(e) => openMealEdit(e.detail)} />{#if todo.id === 'routine-training' && expandedTraining}<div class="train-inline"><TrainingDetail training_type={trainingSuggestion?.training_type ?? dayEntry?.training_type ?? 'Training'} date={currentDate} oncomplete={handleTrainingComplete} onclose={() => (expandedTraining = false)} /></div>{/if}{/each}{:else}<div class="empty">Keine To-Dos</div>{/if}
+    {#if filteredTodos.length > 0}{#each filteredTodos as todo (todo.id)}{@const macros = getMealMacros(todo)}<TodoItem {todo} kcal={macros.kcal} protein={macros.protein} fiber={macros.fiber} sugar={macros.sugar} on:done={(e) => markDone(e.detail)} on:expand={(e) => handleExpand(e.detail)} on:update={updateTodo} on:delete={(e) => deleteTodo(e.detail)} on:editmeal={(e) => openMealEdit(e.detail)} on:openmeal={(e) => openMealDetails(e.detail)} />{#if todo.id === 'routine-training' && expandedTraining}<div class="train-inline"><TrainingDetail training_type={trainingSuggestion?.training_type ?? dayEntry?.training_type ?? 'Training'} date={currentDate} oncomplete={handleTrainingComplete} onclose={() => (expandedTraining = false)} /></div>{/if}{/each}{:else}<div class="empty">Keine To-Dos</div>{/if}
   </div>
   <div class="quickadd"><input placeholder="+ To-Do hinzufügen…" bind:value={quickAdd} onkeydown={handleKey} /><button onclick={addQuick} disabled={!quickAdd.trim()} aria-label="Hinzufügen"><Icon name="plus" size={16} /></button></div>
   <input bind:this={photoInput} type="file" accept="image/*" capture="environment" style="display:none" onchange={onStandalonePhotoSelected} />
@@ -225,6 +233,22 @@
       </div>
     </div>
   {/if}
+  {#if mealDetails}
+    <div class="modal-overlay" role="presentation" onclick={closeMealDetails} onkeydown={(event) => { if (event.key === 'Escape') closeMealDetails(); }}>
+      <section class="modal-card meal-details" role="dialog" aria-modal="true" aria-labelledby="meal-details-title" tabindex="-1" onclick={(event) => event.stopPropagation()}>
+        <div class="modal-title" id="meal-details-title">{mealDetails.name || SLOT_NAMES[mealDetails.meal_slot] || 'Mahlzeit'}</div>
+        <p class="meal-details-hint">Nährwerte dieser geplanten Mahlzeit</p>
+        <div class="modal-pills">
+          {#if mealDetails.kcal != null}<PillBadge value={Math.round(Number(mealDetails.kcal))} unit="kcal" color="var(--amber)" />{/if}
+          {#if mealDetails.protein_g != null}<PillBadge value={Math.round(Number(mealDetails.protein_g))} unit="g Protein" color="var(--blue)" />{/if}
+          {#if mealDetails.carbs_g != null}<PillBadge value={Math.round(Number(mealDetails.carbs_g))} unit="g KH" color="var(--purple)" />{/if}
+          {#if mealDetails.fat_g != null}<PillBadge value={Math.round(Number(mealDetails.fat_g))} unit="g Fett" color="var(--pink)" />{/if}
+        </div>
+        <p class="meal-details-note">Diese Legacy-Mahlzeit ist noch keinem Rezept zugeordnet. Eine Kochanleitung erscheint hier, sobald ein verknüpftes Rezept hinterlegt ist.</p>
+        <button class="modal-secondary" autofocus onclick={closeMealDetails}>Schließen</button>
+      </section>
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -253,6 +277,10 @@
   .slot-t { font-size: 12px; color: var(--text-faint); }
   .modal-hint { text-align: center; font-size: 14px; color: var(--text-dim); }
   .modal-match { text-align: center; font-size: 13px; color: var(--green); margin-bottom: 4px; }
+  .meal-details { display:flex; flex-direction:column; gap:14px; }
+  .meal-details .modal-title { margin-bottom:0; }
+  .meal-details-hint,.meal-details-note { margin:0; text-align:center; color:var(--text-dim); font-size:13px; line-height:1.45; }
+  .meal-details-note { padding:10px; border-radius:8px; background:var(--card-2); color:var(--text-faint); }
   .modal-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
   .modal-card { background: var(--card); border: 1px solid var(--border-2); border-radius: 16px; padding: 20px; max-width: 420px; width: 100%; max-height: 80vh; overflow-y: auto; }

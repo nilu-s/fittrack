@@ -1,4 +1,4 @@
-"""Seed default data: meal templates, training rotation, exercises, goals."""
+"""Seed default data for a newly initialized account."""
 from __future__ import annotations
 
 import logging
@@ -8,45 +8,9 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Dish, Exercise, Goal, MealTemplate, TrainingRotation, TrainingUnit
+from app.models import Exercise, Goal, TrainingRotation, TrainingUnit
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Meal templates
-# Total: 2480 kcal, 194g P, 258g KH, 78g F  → derive KH and F per meal
-# ---------------------------------------------------------------------------
-# Slot 1: Cheesecake-Bowl       610 kcal, 52g P
-# Slot 2: Teriyaki-Tofu-Bowl    790 kcal, 51g P
-# Slot 3: Banana-Whey-Cream     280 kcal, 34g P
-# Slot 4: Smoky Loaded Potatoes 800 kcal, 57g P
-# Totals:                       2480     194g P, 258g KH, 78g F
-#
-# kcal = 4*P + 4*KH + 9*F  →  KH + F derived: 4*KH + 9*F = kcal - 4*P
-# We distribute KH and F proportional to remaining kcal after protein.
-# Remaining kcal per meal = kcal - 4*P. Total remaining = 2480 - 4*194 = 2480-776 = 1704
-# Total KH kcal = 4*258 = 1032; Total F kcal = 9*78 = 702; sum = 1734 — close to 1704 (rounding)
-# We'll just distribute proportionally to the meal's share of total remaining kcal.
-
-MEAL_TEMPLATES = [
-    # slot, name, kcal, protein_g
-    (1, "Cheesecake-Bowl", Decimal("610"), Decimal("52")),
-    (2, "Teriyaki-Tofu-Bowl", Decimal("790"), Decimal("51")),
-    (3, "Banana-Whey-Cream", Decimal("280"), Decimal("34")),
-    (4, "Smoky Loaded Potatoes", Decimal("800"), Decimal("57")),
-]
-
-NUTRITION_ESTIMATES = {
-    "Cheesecake-Bowl": {"fiber_g": Decimal("9"), "sugar_g": Decimal("24"), "free_sugar_g": Decimal("8")},
-    "Teriyaki-Tofu-Bowl": {"fiber_g": Decimal("11"), "sugar_g": Decimal("17"), "free_sugar_g": Decimal("10")},
-    "Banana-Whey-Cream": {"fiber_g": Decimal("4"), "sugar_g": Decimal("20"), "free_sugar_g": Decimal("0")},
-    "Smoky Loaded Potatoes": {"fiber_g": Decimal("12"), "sugar_g": Decimal("12"), "free_sugar_g": Decimal("5")},
-}
-
-TOTAL_KCAL = Decimal("2480")
-TOTAL_P = Decimal("194")
-TOTAL_KH = Decimal("258")
-TOTAL_F = Decimal("78")
 
 # Default daily/weekly goals (mirror app/routes/goals.py defaults)
 DEFAULT_GOALS = {
@@ -61,19 +25,6 @@ DEFAULT_GOALS = {
     "sleep_hours": Decimal("7"),
     "training_days_per_week": Decimal("4"),
 }
-
-
-def _derive_macros(kcal: Decimal, protein: Decimal) -> tuple[Decimal, Decimal]:
-    """Derive carbs and fat from kcal and protein, distributing remainder proportionally."""
-    protein_kcal = protein * 4
-    remainder = kcal - protein_kcal
-    total_remainder = TOTAL_KCAL - TOTAL_P * 4  # 2480 - 776 = 1704
-    if total_remainder == 0:
-        return Decimal("0"), Decimal("0")
-    share = remainder / total_remainder
-    kh = (TOTAL_KH * share).quantize(Decimal("0.1"))
-    fat = (TOTAL_F * share).quantize(Decimal("0.1"))
-    return kh, fat
 
 
 # ---------------------------------------------------------------------------
@@ -140,29 +91,6 @@ EXERCISES = [
 
 async def seed_default_data(session: AsyncSession, account_id) -> None:
     """Populate optional starter data for exactly one already-authenticated account."""
-    result = await session.execute(select(MealTemplate).where(MealTemplate.account_id == account_id))
-    if not result.scalars().first():
-        for slot, name, kcal, protein in MEAL_TEMPLATES:
-            kh, fat = _derive_macros(kcal, protein)
-            session.add(MealTemplate(
-                account_id=account_id, slot=slot, name=name,
-                kcal=kcal, protein_g=protein, carbs_g=kh, fat_g=fat,
-                **NUTRITION_ESTIMATES[name],
-            ))
-        logger.info("Seeded %d meal templates", len(MEAL_TEMPLATES))
-
-    # --- Dishes (new: replaces meal_templates as source of truth) ---
-    result = await session.execute(select(Dish).where(Dish.account_id == account_id))
-    if not result.scalars().first():
-        for slot, name, kcal, protein in MEAL_TEMPLATES:
-            kh, fat = _derive_macros(kcal, protein)
-            session.add(Dish(
-                account_id=account_id, slot=slot, name=name,
-                kcal=kcal, protein_g=protein, carbs_g=kh, fat_g=fat,
-                is_default=True, source="seed",
-            ))
-        logger.info("Seeded %d default dishes", len(MEAL_TEMPLATES))
-
     # --- Training units ---
     unit_names = sorted({entry[0] for entry in EXERCISES} | {entry[1] for entry in TRAINING_ROTATION} | {"Cardio"})
     cardio_unit_names = {name for _, name, cardio in TRAINING_ROTATION if cardio is not None} | {"Cardio"}

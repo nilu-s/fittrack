@@ -245,6 +245,8 @@ export interface Recipe {
   servings: number;
   ingredients: RecipeIngredient[];
   notes?: string | null;
+  /** Ordered cooking steps, kept separately from free-form notes. */
+  instructions?: string[];
   nutrition?: Nutrition;
   updated_at?: string;
   expected_updated_at?: string;

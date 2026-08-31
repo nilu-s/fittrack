@@ -59,10 +59,19 @@
 
   function handleTap() {
     if (longPressTriggered) { longPressTriggered = false; return; }
+    // Meal details use the native dblclick event below. This keeps that
+    // interaction distinct from the touch double-tap completion gesture.
+    if (isMealRoutine) return;
     const now = Date.now();
     if (now - lastTap < 300) { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); dispatch('done', todo.id); lastTap = 0; return; }
     lastTap = now;
     if (todo.source === 'training') { dispatch('expand', todo.id); return; }
+  }
+
+  function openMealDetails(e: MouseEvent) {
+    if (!isMealRoutine) return;
+    e.preventDefault();
+    dispatch('openmeal', todo.id);
   }
 
   function startEdit() {
@@ -86,6 +95,7 @@
 
 <div class="ti tap-area" class:done={todo.status === 'done'} class:expanded={expanded}
   onclick={handleTap}
+  ondblclick={openMealDetails}
   oncontextmenu={handleContextMenu}
   ontouchstart={handleTouchStart}
   ontouchend={handleTouchEnd}
@@ -103,6 +113,7 @@
     {#if todo.category}<span class="ti-badge">{todo.category}</span>{/if}
     {#if todo.due_time}<span class="ti-time">{todo.due_time}</span>{/if}
     {#if todo.source === 'google_calendar'}<Icon name="calendar" size={14} />{/if}
+    {#if isMealRoutine}<span class="ti-recipe-marker" title="Doppelklick öffnet die Mahlzeitendetails">Rezeptdetails</span>{/if}
   </div>
   {#if expanded}
     <div class="ti-edit slide-down" onclick={(e) => e.stopPropagation()}>
@@ -145,6 +156,7 @@
   .ti-title { flex: 1; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
   .ti-badge { font-size: 11px; padding: 2px 8px; border-radius: 6px; background: var(--card-2); color: var(--text-dim); white-space: nowrap; }
   .ti-time { font-size: 11px; color: var(--text-faint); font-weight: 500; }
+  .ti-recipe-marker { font-size: 10px; color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 55%, var(--border-2)); border-radius: 999px; padding: 2px 6px; white-space: nowrap; }
   .ti-edit { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
   .ti-edit input, .ti-edit select { flex: 1; padding: 8px 10px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border-2); color: var(--text); font-size: 14px; }
   .ti-edit input:focus, .ti-edit select:focus { border-color: var(--blue); }
