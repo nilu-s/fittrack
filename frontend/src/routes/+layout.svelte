@@ -21,6 +21,7 @@
   let isRefreshing = false;
   let touchStartY = 0;
   let mainEl: HTMLElement;
+  $: isMealSettings = $page?.url?.pathname === '/settings/meals';
 
 
   async function loadDayData(date: string) {
@@ -81,7 +82,7 @@
   async function onTouchEnd() { if (!isPulling || isRefreshing) return; isPulling = false; if (pullDistance >= pullThreshold) { isRefreshing = true; pullDistance = pullThreshold; await loadDayData($currentDate); if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30); isRefreshing = false; } pullDistance = 0; }
 </script>
 
-<div class="shell">
+<div class:wide-shell={isMealSettings} class="shell">
   <header class="hdr">
     <a href="/" class="hdr-title">FitTrack</a>
     <div class="hdr-spacer"></div>
@@ -113,5 +114,8 @@
   .hdr-btn:disabled { opacity: 0.4; }
   .main { flex: 1; padding: 0 12px calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; overscroll-behavior-y: contain; position: relative; }
   .ptr { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; z-index: 10; transition: opacity 0.15s; pointer-events: none; color: var(--text-dim); }
-  @media (min-width: 481px) { .shell { border-left: 1px solid var(--border); border-right: 1px solid var(--border); } }
+  @media (min-width: 481px) {
+    .shell { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+    .shell.wide-shell { max-width: 1180px; }
+  }
 </style>
