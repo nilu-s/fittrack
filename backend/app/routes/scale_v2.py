@@ -36,8 +36,8 @@ async def _require_device(body: ScaleSyncV2Request, device_key: str | None) -> N
 
 
 @device_router.post("")
-async def ingest_scale_measurement(body: ScaleSyncV2Request, x_fittrack_device_key: str | None = Header(default=None)):
-    await _require_device(body, x_fittrack_device_key)
+async def ingest_scale_measurement(body: ScaleSyncV2Request, x_app_device_key: str | None = Header(default=None)):
+    await _require_device(body, x_app_device_key)
     async with async_session() as session:
         existing = (await session.execute(
             select(ScaleMeasurement).execution_options(include_all_accounts=True).where(

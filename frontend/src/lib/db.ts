@@ -8,7 +8,7 @@ export interface TrainingSetRecord extends TrainingSet { localId?: number; serve
 export interface TrainingRotationRecord extends TrainingRotation { localId?: number; serverId?: string; }
 export interface PhotoRecord { localId?: number; serverId?: string; mealLocalId?: number; blob?: Blob; }
 
-export class FitTrackDB extends Dexie {
+export class AppDatabase extends Dexie {
   dayEntries!: Table<DayEntryRecord, number>;
   trainingRotation!: Table<TrainingRotationRecord, number>;
   trainingSets!: Table<TrainingSetRecord, number>;
@@ -18,7 +18,9 @@ export class FitTrackDB extends Dexie {
   photos!: Table<PhotoRecord, number>;
 
   constructor() {
-    super('fittrack');
+    // This is a stable technical namespace, deliberately independent of the
+    // visible product name. Rebrands therefore never mix account-private data.
+    super('personal-organizer');
     this.version(2).stores({
       dayEntries: '++localId, serverId, date, rotation_slot, updated_at',
       trainingRotation: '++localId, serverId, slot',
@@ -35,7 +37,7 @@ export class FitTrackDB extends Dexie {
   }
 }
 
-export const db = new FitTrackDB();
+export const db = new AppDatabase();
 
 // Helper: queue a sync change
 export async function queueSync(entityType: string, entityLocalId: number, action: 'create' | 'update' | 'delete') {

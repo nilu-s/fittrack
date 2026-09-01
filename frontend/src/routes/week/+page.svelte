@@ -5,34 +5,37 @@
   import Sparkline from '$lib/components/Sparkline.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import type { WeekStats } from '$lib/types';
+  import type { TrendPoint, WeekStats } from '$lib/types';
 
   let weekStats: WeekStats | null = null;
-  let weightData: number[] = [];
-  let kcalData: number[] = [];
-  let stepsData: number[] = [];
+  let weightData: TrendPoint[] = [];
+  let kcalData: TrendPoint[] = [];
+  let stepsData: TrendPoint[] = [];
+  let trendEndDate = '';
 
   function goBack() { if (typeof window !== 'undefined') window.history.back(); }
+  function localDateString(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
 
   onMount(async () => {
     try {
-      weekStats = await api.getStatsWeek($currentDate);
-      const [wt, kt, st] = await Promise.all([api.getStatsTrend('weight', 7), api.getStatsTrend('kcal', 7), api.getStatsTrend('steps', 7)]);
-      weightData = (wt?.points ?? []).map((p) => p.value ?? 0).filter((v) => v !== null && v > 0);
-      kcalData = (kt?.points ?? []).map((p) => p.value ?? 0).filter((v) => v !== null && v > 0);
-      stepsData = (st?.points ?? []).map((p) => p.value ?? 0).filter((v) => v !== null && v > 0);
+      trendEndDate = localDateString(new Date());
+      weekStats = await api.getStatsWeek(trendEndDate, 7);
+      const [wt, kt, st] = await Promise.all([api.getStatsTrend('weight', 365), api.getStatsTrend('kcal', 365), api.getStatsTrend('steps', 365)]);
+      weightData = wt?.points ?? [];
+      kcalData = kt?.points ?? [];
+      stepsData = st?.points ?? [];
     } catch {}
   });
 </script>
 
-<svelte:head><title>FitTrack - Woche</title></svelte:head>
+<svelte:head><title>Chronickel - Woche</title></svelte:head>
 
 <div class="page">
-  <div class="hdr"><button class="back" onclick={goBack} aria-label="Zurück"><Icon name="chevron-left" size={20} /></button><div><p class="eyebrow">Rückblick</p><h1>Deine Woche</h1></div></div>
+  <div class="hdr"><button class="back" onclick={goBack} aria-label="Zurück"><Icon name="chevron-left" size={20} /></button><div><p class="eyebrow">Rückblick</p><h1>Letzte 7 Tage</h1></div></div>
   {#if weekStats}
-    <section class="section-card"><div class="section-header"><span>Gewicht</span><span class="avg">{weekStats.avg_weight ? Number(weekStats.avg_weight).toFixed(1) : '—'} kg Ø</span></div><div class="body"><div class="chart">{#if weightData.length > 0}<Sparkline data={weightData} color="var(--status-info)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
-    <section class="section-card"><div class="section-header"><span>Kalorien</span><span class="avg">{weekStats.avg_kcal ? Math.round(Number(weekStats.avg_kcal)) : '—'} kcal Ø</span></div><div class="body"><div class="chart">{#if kcalData.length > 0}<Sparkline data={kcalData} color="var(--status-warning)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
-    <section class="section-card"><div class="section-header"><span>Schritte</span><span class="avg">{weekStats.avg_steps ? Math.round(Number(weekStats.avg_steps)) : '—'} Ø</span></div><div class="body"><div class="chart">{#if stepsData.length > 0}<Sparkline data={stepsData} color="var(--status-success)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
+    <section class="section-card"><div class="section-header"><span>Gewicht</span><span class="avg">{weekStats.avg_weight ? Number(weekStats.avg_weight).toFixed(1) : '—'} kg Ø</span></div><div class="body"><div class="chart">{#if weightData.some((point) => point.value != null)}<Sparkline points={weightData} endDate={trendEndDate} height={90} width={300} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
+    <section class="section-card"><div class="section-header"><span>Kalorien</span><span class="avg">{weekStats.avg_kcal ? Math.round(Number(weekStats.avg_kcal)) : '—'} kcal Ø</span></div><div class="body"><div class="chart">{#if kcalData.some((point) => point.value != null)}<Sparkline points={kcalData} endDate={trendEndDate} height={90} width={300} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
+    <section class="section-card"><div class="section-header"><span>Schritte</span><span class="avg">{weekStats.avg_steps ? Math.round(Number(weekStats.avg_steps)) : '—'} Ø</span></div><div class="body"><div class="chart">{#if stepsData.some((point) => point.value != null)}<Sparkline points={stepsData} endDate={trendEndDate} height={90} width={300} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
     {#if weekStats.avg_protein != null || weekStats.avg_carbs != null || weekStats.avg_fat != null || weekStats.avg_fiber != null || weekStats.avg_sugar != null || weekStats.avg_free_sugar != null}
     <section class="section-card"><div class="section-header">Makros Ø</div><div class="body">
       <div class="stat-r"><span class="stat-l">Protein</span><span class="stat-v">{weekStats.avg_protein ? Math.round(Number(weekStats.avg_protein)) : '—'} g</span></div>

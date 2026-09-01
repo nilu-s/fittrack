@@ -1,7 +1,10 @@
-# Multi-stage build for FitTrack SvelteKit PWA frontend
+# Multi-stage build for Chronickel SvelteKit PWA frontend
 
 # Stage 1: Install dependencies and build
 FROM node:22-slim AS builder
+
+ARG PUBLIC_APP_NAME=Chronickel
+ENV PUBLIC_APP_NAME=${PUBLIC_APP_NAME}
 
 WORKDIR /app
 

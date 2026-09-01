@@ -1,5 +1,5 @@
-#ifndef FITTRACK_CONFIG_DEFAULTS_H
-#define FITTRACK_CONFIG_DEFAULTS_H
+#ifndef APP_CONFIG_DEFAULTS_H
+#define APP_CONFIG_DEFAULTS_H
 
 // Credential-free compile defaults. A local config.h overrides these values
 // for a flashed bridge and is deliberately ignored by Git.

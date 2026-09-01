@@ -22,6 +22,17 @@ def _to_response(todo: Todo) -> TodoResponse:
     return TodoResponse.model_validate(todo)
 
 
+def _validate_travel(todo: Todo) -> None:
+    """A monitor only makes sense for a deterministic, confirmed appointment."""
+    if todo.travel_monitoring_enabled and not (
+        todo.place_id and todo.due_date and todo.start_time and todo.travel_mode
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Travel monitoring requires an exact place, date, start time and travel mode",
+        )
+
+
 @router.get("", response_model=list[TodoResponse])
 async def list_todos(
     date: Optional[date_type] = Query(None),
@@ -52,6 +63,7 @@ async def create_todo(body: TodoCreate, user: str = Depends(get_current_user)):
         # Do not rely on the request-local ORM filter for ownership on writes:
         # workers and focused route tests may not install that context.
         todo = Todo(account_id=user, **body.model_dump())
+        _validate_travel(todo)
         session.add(todo)
         await session.commit()
         await session.refresh(todo)
@@ -69,6 +81,7 @@ async def update_todo(todo_id: uuid.UUID, body: TodoUpdate, user: str = Depends(
             raise HTTPException(status_code=404, detail="Todo not found")
         for field, value in body.model_dump(exclude_unset=True).items():
             setattr(todo, field, value)
+        _validate_travel(todo)
         await session.commit()
         await session.refresh(todo)
         return _to_response(todo)

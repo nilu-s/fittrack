@@ -1,4 +1,4 @@
-# FitTrack Design System
+# Chronickel Design System
 
 ## Transition status
 
@@ -10,7 +10,7 @@ layer between feature styles and the token source.
 
 ## Canonical reference
 
-The daily page (`/`) is FitTrack’s visual source of truth. Secondary routes inherit its hierarchy: current action/value first, contextual information second, optional detail on explicit expansion.
+The daily page (`/`) is Chronickel’s visual source of truth. Secondary routes inherit its hierarchy: current action/value first, contextual information second, optional detail on explicit expansion.
 
 ## Rules
 

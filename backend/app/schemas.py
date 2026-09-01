@@ -438,6 +438,12 @@ class TodoBase(_Base):
     is_all_day: bool = True
     source: str = "manual"
     external_id: Optional[str] = None
+    place_id: Optional[str] = Field(default=None, max_length=512)
+    place_name: Optional[str] = Field(default=None, max_length=300)
+    place_address: Optional[str] = Field(default=None, max_length=500)
+    travel_mode: Optional[Literal["drive", "bicycle", "walk", "transit"]] = None
+    travel_buffer_minutes: int = Field(default=10, ge=0, le=180)
+    travel_monitoring_enabled: bool = False
     deleted: bool = False
     sort_order: int = 0
 
@@ -458,6 +464,12 @@ class TodoUpdate(_Base):
     is_all_day: Optional[bool] = None
     source: Optional[str] = None
     external_id: Optional[str] = None
+    place_id: Optional[str] = Field(default=None, max_length=512)
+    place_name: Optional[str] = Field(default=None, max_length=300)
+    place_address: Optional[str] = Field(default=None, max_length=500)
+    travel_mode: Optional[Literal["drive", "bicycle", "walk", "transit"]] = None
+    travel_buffer_minutes: Optional[int] = Field(default=None, ge=0, le=180)
+    travel_monitoring_enabled: Optional[bool] = None
     sort_order: Optional[int] = None
     deleted: Optional[bool] = None
 
@@ -466,6 +478,51 @@ class TodoResponse(TodoBase):
     id: uuid.UUID
     completed_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    travel_last_checked_at: Optional[datetime] = None
+    travel_duration_seconds: Optional[int] = None
+    travel_depart_at: Optional[datetime] = None
+
+
+class TodoDraftRequest(_Base):
+    text: str = Field(min_length=1, max_length=2000)
+    date: date
+
+
+class AssistantRequest(_Base):
+    text: str = Field(min_length=1, max_length=2000)
+    date: date
+
+
+class AssistantResponse(_Base):
+    message: str
+
+
+class TodoDraftResponse(_Base):
+    title: str
+    due_date: date
+    start_time: Optional[time] = None
+    place_query: Optional[str] = None
+    travel_mode: Optional[Literal["drive", "bicycle", "walk", "transit"]] = None
+    needs_review: list[str] = Field(default_factory=list)
+
+
+class PlaceSuggestion(_Base):
+    place_id: str
+    name: str
+    address: Optional[str] = None
+
+
+class TravelEstimateRequest(_Base):
+    origin_latitude: float = Field(ge=-90, le=90)
+    origin_longitude: float = Field(ge=-180, le=180)
+
+
+class TravelEstimateResponse(_Base):
+    duration_seconds: int = Field(ge=0)
+    depart_at: datetime
+    arrival_at: datetime
+    checked_at: datetime
+    traffic_aware: bool
 
 
 class TodoRoutineBase(_Base):

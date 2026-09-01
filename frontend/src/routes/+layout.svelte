@@ -9,6 +9,7 @@
   import { db } from '$lib/db';
   import { isAuthenticated, authEmail, checkAuth, logout } from '$lib/auth';
   import Icon from '$lib/components/Icon.svelte';
+  import { APP_INITIAL, APP_NAME } from '$lib/brand';
   import UiIconButton from '$lib/components/ui/UiIconButton.svelte';
   import type { DayData, DayEntry, MealCategory, MealEntry, Todo, TrainingSuggestion } from '$lib/types';
 
@@ -109,7 +110,7 @@
 <div class:wide-shell={isMealSettings} class="shell">
   {#if !isLogin}<header class="hdr">
     {#if isHome}
-      <a href="/" class="hdr-title" aria-label="FitTrack Startseite"><span class="brand-mark">F</span><span>FitTrack</span></a>
+      <a href="/" class="hdr-title" aria-label={`${APP_NAME} Startseite`}><span class="brand-mark">{APP_INITIAL}</span><span>{APP_NAME}</span></a>
     {:else}
       <a href={backTarget} class="header-back" aria-label="Zurück"><Icon name="chevron-left" size={20} /><span>Zurück</span></a>
     {/if}

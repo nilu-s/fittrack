@@ -1,5 +1,5 @@
 /*
- * FitTrack Scale Bridge -- Renpho ES-CS20M protocol diagnostic
+ * Chronickel Scale Bridge -- Renpho ES-CS20M protocol diagnostic
  *
  * Flash with:  pio run -e diagnostic -t upload
  * Watch with:  pio device monitor -b 115200
@@ -124,7 +124,7 @@ bool connectAndInspect() {
   connected = true;
   Serial.println("CONNECT_OK");
   inspectGatt();
-  Serial.println("--- FITTRACK_SCALE_DIAGNOSTIC_READY: perform one full measurement ---");
+  Serial.println("--- CHRONICKEL_SCALE_DIAGNOSTIC_READY: perform one full measurement ---");
   return true;
 }
 
@@ -146,9 +146,9 @@ void scanForScale() {
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("\n--- FITTRACK_SCALE_DIAGNOSTIC_START ---");
+  Serial.println("\n--- CHRONICKEL_SCALE_DIAGNOSTIC_START ---");
   Serial.println("Target: RENPHO ES-CS20M. No network or API request will be made.");
-  BLEDevice::init("FitTrack-Scale-Diagnostic");
+  BLEDevice::init("Chronickel-Scale-Diagnostic");
   BLEDevice::getScan()->setAdvertisedDeviceCallbacks(new ScaleAdvertisedCallbacks());
 }
 

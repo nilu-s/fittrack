@@ -2,18 +2,69 @@
   import DateNav from '$lib/components/DateNav.svelte';
   import UnifiedDay from '$lib/components/UnifiedDay.svelte';
   import { dayData, currentDate, syncStatus, lastSync } from '$lib/stores';
+  import { api } from '$lib/api';
+  import TodoDetailsSheet from '$lib/components/TodoDetailsSheet.svelte';
+  import AssistantChatSheet from '$lib/components/AssistantChatSheet.svelte';
+  import { pageTitle } from '$lib/brand';
 
   $: data = $dayData;
+  let todoTitle = '';
+  let todoAdding = false;
+  let todoAddError = '';
+  let todoDetails: import('$lib/types').Todo | null = null;
+  let suggestedPlaceQuery = '';
+  let suggestedTravelMode: import('$lib/types').Todo['travel_mode'] = null;
+  let assistantOpen = false;
 
   function formatLastSync(ts: number | null): string { if (!ts) return ''; const d = new Date(ts); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
   function onUnifiedUpdate(e: CustomEvent) { if (!data) return; const { field, value } = e.detail; dayData.set({ ...data, dayEntry: { ...(data.dayEntry ?? { date: $currentDate }), [field]: value } }); }
   function onMealEntryChange(e: CustomEvent) { if (!data) return; const entry = e.detail.entry; dayData.set({ ...data, mealEntries: data.mealEntries.map((current) => current.id === entry.id ? { ...current, ...entry } : current) }); }
   function onTodoToggle(e: CustomEvent) { if (!data) return; const { id, status } = e.detail; dayData.set({ ...data, todos: (data.todos ?? []).map((t) => String(t.id) === String(id) ? { ...t, status: status ?? (t.status === 'open' ? 'done' : 'open') } : t) }); }
   function onTodoAdd(e: CustomEvent) { if (!data) return; dayData.set({ ...data, todos: [...(data.todos ?? []), e.detail] }); }
+  function routineFromText(text: string) {
+    const match = text.match(/\b(?:jeden|jede)\s+(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/i);
+    if (!match) return null;
+    const weekdays: Record<string, number> = { montag: 0, dienstag: 1, mittwoch: 2, donnerstag: 3, freitag: 4, samstag: 5, sonntag: 6 };
+    const time = text.match(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/);
+    const title = text.replace(match[0], '').replace(/\b\d{1,2}[:.]\d{2}\b/, '').trim().replace(/^[,\-–]+\s*/, '');
+    return title ? { title, weekdays: [weekdays[match[1].toLowerCase()]], due_time: time ? `${time[1].padStart(2, '0')}:${time[2]}` : null, priority: 2, is_active: true } : null;
+  }
+  async function addFooterTodo(event: CustomEvent<string>) {
+    const title = event.detail.trim();
+    if (!title || todoAdding) return;
+    todoAdding = true;
+    todoAddError = '';
+    try {
+      const routine = routineFromText(title);
+      if (routine) {
+        const createdRoutine = await api.createTodoRoutine(routine);
+        if (!createdRoutine) throw new Error('Routine konnte nicht erstellt werden.');
+        todoTitle = '';
+        todoAddError = 'Routine wurde angelegt.';
+        return;
+      }
+      const created = await api.createTodo({ due_date: $currentDate, title, status: 'open', priority: 2, source: 'manual' });
+      if (!created) throw new Error('To-do konnte nicht erstellt werden.');
+      onTodoAdd(new CustomEvent('todoadd', { detail: created }));
+      todoTitle = '';
+      suggestedPlaceQuery = ''; suggestedTravelMode = null;
+      todoDetails = created;
+    } catch {
+      todoAddError = 'To-do konnte nicht hinzugefügt werden. Bitte versuche es erneut.';
+    } finally {
+      todoAdding = false;
+    }
+  }
+
+  function onTodoDetailsUpdate(event: CustomEvent<import('$lib/types').Todo>) {
+    if (!data) return;
+    const updated = event.detail;
+    dayData.set({ ...data, todos: (data.todos ?? []).map((todo) => String(todo.id) === String(updated.id) ? updated : todo) });
+  }
 
 </script>
 
-<svelte:head><title>FitTrack</title></svelte:head>
+<svelte:head><title>{pageTitle()}</title></svelte:head>
 
 <div class="page">
   {#if data}
@@ -37,11 +88,13 @@
   {:else}
     <div class="loading"><div class="spinner"></div></div>
   {/if}
-  <DateNav />
+  <DateNav bind:todoTitle {todoAdding} {todoAddError} on:todoadd={addFooterTodo} on:aiplan={() => assistantOpen = true} />
+  <TodoDetailsSheet bind:todo={todoDetails} {suggestedPlaceQuery} {suggestedTravelMode} on:close={() => { todoDetails = null; suggestedPlaceQuery = ''; suggestedTravelMode = null; }} on:updated={onTodoDetailsUpdate} />
+  <AssistantChatSheet bind:open={assistantOpen} date={$currentDate} initialText={todoTitle} on:close={() => assistantOpen = false} />
 </div>
 
 <style>
-  .page { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+  .page { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; padding-bottom: calc(136px + env(safe-area-inset-bottom, 0px)); }
   .day-slide { animation: slideIn 0.32s cubic-bezier(0.22, 1, 0.36, 1); will-change: transform, opacity; }
 
   .loading { display: flex; justify-content: center; align-items: center; padding: 40px 16px; }

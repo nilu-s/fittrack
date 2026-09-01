@@ -1,7 +1,7 @@
-# FitTrack Scale Bridge — ESP32
+# Chronickel Scale Bridge — ESP32
 
 ESP32 firmware that reads a Renpho AABB broadcast scale and sends a raw,
-weight-only device event to the FitTrack API.
+weight-only device event to the Chronickel API.
 
 ## Hardware
 
@@ -14,7 +14,7 @@ weight-only device event to the FitTrack API.
 1. ESP32 passively scans the configured AABB broadcast address.
 2. A final weight frame creates one stable device event ID.
 3. ESP32 retries that exact event at `POST /api/scale-sync/v2` with
-   `X-FitTrack-Device-Key`.
+   `X-App-Device-Key`.
 4. The server, never the firmware, assigns an accepted event to an account.
 
 ## Setup
@@ -48,9 +48,9 @@ pio device monitor -b 115200
 ```
 
 Then wake the scale and save the serial output from
-`FITTRACK_SCALE_DIAGNOSTIC_START` through the last `FRAME` line. The diagnostic
+`CHRONICKEL_SCALE_DIAGNOSTIC_START` through the last `FRAME` line. The diagnostic
 prints advertisement data, every discovered GATT service/characteristic and
-all notification/indication frames; it never sends a measurement to FitTrack.
+all notification/indication frames; it never sends a measurement to Chronickel.
 
 Use the log only to verify the AABB weight-frame decoder before flashing the
 normal `esp32dev` environment. This release is weight-only: no impedance or
@@ -62,7 +62,7 @@ body-composition data is captured, inferred, or sent.
 |---|---|
 | `WIFI_SSID` | Your home WiFi name |
 | `WIFI_PASSWORD` | Your home WiFi password |
-| `API_HOST` | FitTrack server hostname |
+| `API_HOST` | Chronickel server hostname |
 | `DEVICE_ID` | Registered server-side bridge ID |
 | `DEVICE_KEY` | Dedicated device credential; never a user credential |
 | `SCALE_BLE_ADDRESS` | AABB broadcast address emitted by the diagnostic |

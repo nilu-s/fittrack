@@ -1,4 +1,4 @@
-# FitTrack Day Feed: Interaktionsvertrag
+# Chronickel Day Feed: Interaktionsvertrag
 
 ## Zweck
 

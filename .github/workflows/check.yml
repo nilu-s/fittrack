@@ -17,11 +17,11 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: fittrack
-          POSTGRES_USER: fittrack
-          POSTGRES_PASSWORD: fittrack
+          POSTGRES_DB: app
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
         options: >-
-          --health-cmd "pg_isready -U fittrack -d fittrack"
+          --health-cmd "pg_isready -U app -d app"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -31,11 +31,11 @@ jobs:
       run:
         working-directory: backend
     env:
-      DATABASE_URL: postgresql+asyncpg://fittrack:fittrack@localhost:5432/fittrack
-      FITTRACK_JWT_SECRET: ci-only-not-a-production-secret
+      DATABASE_URL: postgresql+asyncpg://app:app@localhost:5432/app
+      APP_JWT_SECRET: ci-only-not-a-production-secret
       ENVIRONMENT: test
-      FITTRACK_MIGRATION_REHEARSAL: "1"
-      FITTRACK_INTEGRATION_DATABASE: "1"
+      APP_MIGRATION_REHEARSAL: "1"
+      APP_INTEGRATION_DATABASE: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

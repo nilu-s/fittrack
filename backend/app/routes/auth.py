@@ -13,7 +13,7 @@ from google.oauth2 import id_token as google_id_token
 from jose import jwt as jose_jwt
 from sqlalchemy import delete, select
 
-from app.config import allowed_google_emails, settings
+from app.config import allowed_google_emails, google_redirect_uri, settings
 from app.database import async_session
 from app.models import Account, AccountWeightRange, GoogleToken
 from app.services.ownership import reset_current_account, set_current_account
@@ -47,7 +47,7 @@ def _create_state() -> str:
     """Create a self-verifying state token: random nonce + HMAC signature."""
     nonce = secrets.token_urlsafe(16)
     sig = hmac.new(
-        settings.FITTRACK_JWT_SECRET.encode(),
+        settings.APP_JWT_SECRET.encode(),
         nonce.encode(),
         hashlib.sha256,
     ).hexdigest()
@@ -58,7 +58,7 @@ def _verify_state(state: str) -> bool:
     try:
         nonce, sig = state.split(".", 1)
         expected = hmac.new(
-            settings.FITTRACK_JWT_SECRET.encode(),
+            settings.APP_JWT_SECRET.encode(),
             nonce.encode(),
             hashlib.sha256,
         ).hexdigest()
@@ -69,7 +69,7 @@ def _verify_state(state: str) -> bool:
 
 # --- JWT session helpers ---
 
-SESSION_COOKIE_NAME = "fittrack_session"
+SESSION_COOKIE_NAME = "app_session"
 SESSION_TTL_DAYS = 7
 
 
@@ -82,12 +82,12 @@ def _create_session_jwt(account: Account) -> str:
         "iat": now,
         "exp": now + timedelta(days=SESSION_TTL_DAYS),
     }
-    return jose_jwt.encode(payload, settings.FITTRACK_JWT_SECRET, algorithm="HS256")
+    return jose_jwt.encode(payload, settings.APP_JWT_SECRET, algorithm="HS256")
 
 
 def _verify_session_jwt(token: str) -> dict | None:
     try:
-        payload = jose_jwt.decode(token, settings.FITTRACK_JWT_SECRET, algorithms=["HS256"])
+        payload = jose_jwt.decode(token, settings.APP_JWT_SECRET, algorithms=["HS256"])
         return payload if payload.get("account_id") and payload.get("sub") else None
     except Exception:
         return None
@@ -178,7 +178,7 @@ async def google_login(request: Request):
         raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID not configured")
 
     # The redirect URI must match what's in Google Cloud Console
-    redirect_uri = settings.GOOGLE_REDIRECT_URI
+    redirect_uri = google_redirect_uri()
 
     state = _create_state()
 
@@ -222,7 +222,7 @@ async def google_callback(request: Request):
             content={"detail": "Invalid state parameter"},
         )
 
-    redirect_uri = settings.GOOGLE_REDIRECT_URI
+    redirect_uri = google_redirect_uri()
 
     # Exchange authorization code for tokens
     async with httpx.AsyncClient() as client:
@@ -293,12 +293,11 @@ async def google_callback(request: Request):
             account.display_name = identity.get("name") or account.display_name
         range_row = (await session.execute(select(AccountWeightRange).where(AccountWeightRange.account_id == account.id))).scalar_one_or_none()
         if range_row is None:
-            is_legacy_owner = email == settings.LEGACY_OWNER_EMAIL.casefold()
             range_row = AccountWeightRange(
                 account_id=account.id,
-                baseline_kg=117.5 if is_legacy_owner else 65.0,
-                lower_offset_kg=-27.5 if is_legacy_owner else -20.0,
-                upper_offset_kg=27.5 if is_legacy_owner else 20.0,
+                baseline_kg=65.0,
+                lower_offset_kg=-20.0,
+                upper_offset_kg=20.0,
             )
             session.add(range_row)
         result = await session.execute(select(GoogleToken).where(GoogleToken.account_id == account.id))
@@ -401,6 +400,16 @@ async def initialize_account(user=Depends(get_current_user)):
     async with async_session() as session:
         await seed_default_data(session, user)
     return {"initialized": True}
+
+
+@router.post("/development-preset")
+async def development_preset(user=Depends(get_current_user)):
+    """Populate only the authenticated account with explicit demo data."""
+    from app.seed import seed_development_preset
+
+    async with async_session() as session:
+        summary = await seed_development_preset(session, user)
+    return {"preset": "development", **summary}
 
 
 @router.post("/google/disconnect")

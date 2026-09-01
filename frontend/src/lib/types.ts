@@ -1,4 +1,4 @@
-// FitTrack TypeScript Types — aligned with backend schemas (snake_case)
+// App TypeScript Types — aligned with backend schemas (snake_case)
 
 export interface DayEntry {
   id?: string;
@@ -42,10 +42,42 @@ export interface Todo {
   is_all_day?: boolean;
   source?: string;
   external_id?: string | null;
+  place_id?: string | null;
+  place_name?: string | null;
+  place_address?: string | null;
+  travel_mode?: "drive" | "bicycle" | "walk" | "transit" | null;
+  travel_buffer_minutes?: number;
+  travel_monitoring_enabled?: boolean;
+  travel_last_checked_at?: string | null;
+  travel_duration_seconds?: number | null;
+  travel_depart_at?: string | null;
   sort_order?: number;
   completed_at?: string | null;
   deleted?: boolean;
   updated_at?: string;
+}
+
+export interface TodoDraft {
+  title: string;
+  due_date: string;
+  start_time?: string | null;
+  place_query?: string | null;
+  travel_mode?: "drive" | "bicycle" | "walk" | "transit" | null;
+  needs_review: string[];
+}
+
+export interface PlaceSuggestion {
+  place_id: string;
+  name: string;
+  address?: string | null;
+}
+
+export interface TravelEstimate {
+  duration_seconds: number;
+  depart_at: string;
+  arrival_at: string;
+  checked_at: string;
+  traffic_aware: boolean;
 }
 
 export interface TodoRoutine {

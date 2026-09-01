@@ -1,4 +1,4 @@
-# FitTrack PWA
+# Chronickel
 
 Offline-first PWA für Fitness-, Ernährungs- und To-Do-Tracking.
 
@@ -16,19 +16,18 @@ docker compose -f docker-compose.dev.yml up -d
 # Frontend: http://localhost:3000
 ```
 
-Run `cd backend && alembic upgrade head` only after following the account
-cutover runbook when a legacy database is involved. The developer Compose file
-does not mount production credentials or expose Caddy.
+Run `cd backend && alembic upgrade head` against a fresh local database. The
+developer Compose file does not mount production credentials or expose Caddy.
 
 ## Production
-- API: `https://fittrack.49.12.225.84.sslip.io/api`
-- Web: `https://fittrack.49.12.225.84.sslip.io`
+- API: `${APP_PUBLIC_ORIGIN}/api`
+- Web: `${APP_PUBLIC_ORIGIN}`
 
 ## ESP32 scale bridge
 
 The ESP32 bridge posts raw measurements to `POST /api/scale-sync/v2`. This
 device-only route is excluded from browser authentication and instead requires
-its registered `X-FitTrack-Device-Key`; it cannot select an account.
+its registered `X-App-Device-Key`; it cannot select an account.
 
 For the device setup, copy
 [`esp32-scale-bridge/src/config.h.example`](esp32-scale-bridge/src/config.h.example)
@@ -37,10 +36,8 @@ flash the firmware as described in
 [`esp32-scale-bridge/README.md`](esp32-scale-bridge/README.md).  Do not commit
 the generated `config.h`.
 
-## Multi-account release
+## Datenbankstart
 
-The account and shared-scale cutover is an Alembic maintenance-window release.
-Use the checked-in [cutover runbook](docs/runbooks/multi-account-cutover.md): it
-requires a verified backup, an allow-list, and a uniquely resolved legacy
-owner before finalizing ownership. Browser offline data is cleared whenever a
-different account signs in on the same browser profile.
+Chronickel wird mit einer leeren Datenbank und der einzelnen Baseline-Migration
+gestartet. Kontodaten entstehen erst nach der Google-Anmeldung; Browserdaten
+werden bei einem Konto-Wechsel im selben Browserprofil gelöscht.

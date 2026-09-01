@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { isAuthenticated, checkAuth, googleLogin } from '$lib/auth';
+  import { APP_INITIAL, APP_NAME, pageTitle } from '$lib/brand';
 
   let loading = true;
 
@@ -15,11 +16,11 @@
   function handleGoogleLogin() { googleLogin(); }
 </script>
 
-<svelte:head><title>FitTrack - Anmelden</title></svelte:head>
+<svelte:head><title>{pageTitle('Anmelden')}</title></svelte:head>
 
 <div class="login">
   <div class="login-card">
-    <div class="brand-mark">F</div><div class="logo">FitTrack</div>
+    <div class="brand-mark">{APP_INITIAL}</div><div class="logo">{APP_NAME}</div>
     <p class="eyebrow">Privat für deinen Alltag</p><h1>Willkommen zurück</h1>
     <p class="sub">Melde dich mit deinem freigegebenen Google-Konto an, um deine persönlichen Daten zu öffnen.</p>
     {#if loading}

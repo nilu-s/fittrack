@@ -1,4 +1,4 @@
-// FitTrack Scale Bridge — Configuration
+// Chronickel Scale Bridge — Configuration
 // Copy this file to config.h and fill in your values.
 // NEVER commit config.h with real credentials.
 
@@ -9,14 +9,14 @@
 #define WIFI_SSID       "YOUR_HOME_WIFI"
 #define WIFI_PASSWORD   "YOUR_WIFI_PASSWORD"
 
-// --- FitTrack API ---
+// --- Chronickel API ---
 // Use the public URL since networks are separate
-#define API_HOST        "fittrack.49.12.225.84.sslip.io"
+#define API_HOST        "chronickel.example.com"
 #define API_PORT        443
 #define API_PATH        "/api/scale-sync/v2"
 #define DEVICE_ID       "esp32-renpho-aabb-bridge"
-#define DEVICE_KEY      "YOUR_FITTRACK_DEVICE_KEY"
-// DEVICE_KEY is sent as X-FitTrack-Device-Key and is never a user credential.
+#define DEVICE_KEY      "YOUR_APP_DEVICE_KEY"
+// DEVICE_KEY is sent as X-App-Device-Key and is never a user credential.
 
 // --- RENPHO ES-CS20M AABB broadcast scale ---
 // The AABB variant does not accept GATT connections. Copy the address emitted

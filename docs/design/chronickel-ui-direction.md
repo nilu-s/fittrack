@@ -1,4 +1,4 @@
-# FitTrack UI Direction
+# Chronickel UI Direction
 
 ## Leitidee
 

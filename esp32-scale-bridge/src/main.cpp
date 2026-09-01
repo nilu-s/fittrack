@@ -1,5 +1,5 @@
 /*
- * FitTrack Scale Bridge -- RENPHO ES-CS20M AABB broadcast variant.
+ * Chronickel Scale Bridge -- RENPHO ES-CS20M AABB broadcast variant.
  *
  * This hardware revision is not GATT-connectable. It broadcasts a 0xAABB
  * manufacturer-data frame; final frames contain weight only. The ESP32 scans
@@ -145,7 +145,7 @@ static bool sendToApi(float weightKg, const String& eventId, const String& measu
   serializeJson(doc, json);
   String request = "POST " + String(API_PATH) + " HTTP/1.1\r\n";
   request += "Host: " + String(API_HOST) + "\r\n";
-  request += "X-FitTrack-Device-Key: " + String(DEVICE_KEY) + "\r\n";
+  request += "X-App-Device-Key: " + String(DEVICE_KEY) + "\r\n";
   request += "Content-Type: application/json\r\n";
   request += "Content-Length: " + String(json.length()) + "\r\n";
   request += "Connection: close\r\n\r\n";
@@ -158,17 +158,17 @@ static bool sendToApi(float weightKg, const String& eventId, const String& measu
     delay(10);
   }
   if (response.indexOf("HTTP/1.1 200") >= 0 || response.indexOf("HTTP/1.1 201") >= 0) {
-    Serial.printf("FitTrack API: OK (%.2f kg)\n", weightKg);
+    Serial.printf("Chronickel API: OK (%.2f kg)\n", weightKg);
     return true;
   }
-  Serial.printf("FitTrack API error: %s\n", response.substring(0, 200).c_str());
+  Serial.printf("Chronickel API error: %s\n", response.substring(0, 200).c_str());
   return false;
 }
 
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("\n=== FitTrack Scale Bridge: RENPHO AABB Broadcast ===\n");
+  Serial.println("\n=== Chronickel Scale Bridge: RENPHO AABB Broadcast ===\n");
   if (String(WIFI_SSID).isEmpty() || String(API_HOST).isEmpty() ||
       String(DEVICE_ID).isEmpty() || String(DEVICE_KEY).isEmpty() ||
       String(SCALE_BLE_ADDRESS).isEmpty()) {
@@ -178,7 +178,7 @@ void setup() {
   WiFi.mode(WIFI_STA);
   ensureWifi();
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-  NimBLEDevice::init("FitTrack-Scale-Bridge");
+  NimBLEDevice::init("Chronickel-Scale-Bridge");
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
   NimBLEScan* scan = NimBLEDevice::getScan();
   scan->setScanCallbacks(&scanCallbacks, true);

@@ -1,7 +1,7 @@
-/* FitTrack Service Worker */
-const CACHE_NAME = 'fittrack-v2';
-const STATIC_CACHE = 'fittrack-static-v2';
-const API_CACHE = 'fittrack-api-v2';
+/* Chronickel Service Worker */
+const CACHE_NAME = 'chronickel-v1';
+const STATIC_CACHE = 'chronickel-static-v1';
+const API_CACHE = 'chronickel-api-v1';
 
 const STATIC_ASSETS = [
   '/',

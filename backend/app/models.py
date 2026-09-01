@@ -137,6 +137,17 @@ class Todo(AccountOwned, Base):
     is_all_day: Mapped[bool] = mapped_column(Boolean, default=True)
     source: Mapped[str] = mapped_column(Text, default="manual")
     external_id: Mapped[str | None] = mapped_column(Text)
+    # A Google Place ID is the durable, unique destination reference. Display
+    # strings are snapshots and never substitute for the identifier.
+    place_id: Mapped[str | None] = mapped_column(Text)
+    place_name: Mapped[str | None] = mapped_column(Text)
+    place_address: Mapped[str | None] = mapped_column(Text)
+    travel_mode: Mapped[str | None] = mapped_column(Text)
+    travel_buffer_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    travel_monitoring_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    travel_last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    travel_duration_seconds: Mapped[int | None] = mapped_column(Integer)
+    travel_depart_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sort_order: Mapped[int] = mapped_column(Integer, default=0)

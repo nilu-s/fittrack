@@ -1,12 +1,12 @@
-# FitTrack: Multi-account, shared scale and body-composition specification
+# Chronickel: Multi-account, shared scale and body-composition specification
 
-**Status:** approved planning baseline — no implementation in this change  
-**Owner:** FitTrack household  
+**Status:** approved
+**Owner:** Chronickel household
 **Last updated:** 2026-08-31
 
 ## 1. Intent and outcome
 
-FitTrack becomes a private, two-person application.  Each person signs in with
+Chronickel becomes a private, two-person application.  Each person signs in with
 their own approved Google account and sees only their own fitness, nutrition,
 training, integration and scale data.  The shared Renpho scale continues to
 send measurements through one ESP32 bridge.  The backend assigns a measurement
@@ -24,7 +24,7 @@ available only if the scale protocol supplies genuine BIA impedance data.
 - Google OAuth accounts, restricted to an allow-list maintained in server
   configuration.
 - Strict data ownership for all existing account-owned models and integrations.
-- Migration of existing `luis` data to the owner’s newly created account.
+- A fresh Chronickel baseline schema; no predecessor data is carried forward.
 - Shared-scale ingestion with automatic, privacy-preserving weight-range
   assignment and an owner-only removal workflow for wrongly assigned events.
 - Per-account body-profile settings and BMI.
@@ -61,7 +61,7 @@ state that the result is reference-only, not medical advice.
 
 ### Accounts and access
 
-1. A FitTrack account is created on the first successful Google login from an
+1. A Chronickel account is created on the first successful Google login from an
    allowed Google identity.  The persistent external identity is the OIDC
    `sub`, not email; email is display/contact data and may change.
 2. The session carries the internal `account_id`, OIDC `sub` and expiry.  The
@@ -73,9 +73,8 @@ state that the result is reference-only, not medical advice.
    to day entries, meals, templates, dishes, todos, training units, rotations,
    exercises, progress, goals, photos, sync log, Google tokens, Google Fit,
    Calendar imports and scale events.
-5. The first migration maps all existing `user_id = 'luis'` rows to the
-   designated owner account.  A migration must fail safely if the target cannot
-   be uniquely identified.
+5. Chronickel starts from an empty database. There is no compatibility account,
+   legacy user identifier or data backfill path.
 
 ### Shared scale
 
@@ -149,24 +148,16 @@ Renpho BLE -> ESP32 bridge -> raw scale event -> assignment service
 - Replace singular `ALLOWED_EMAIL` with `ALLOWED_GOOGLE_EMAILS`, a comma-
   separated allow-list.  Empty allow-lists are not permitted in production.
 - CLI/device credentials must authenticate a device principal only; they must
-  not resolve to the legacy account `luis`.
+  not resolve to any account.
 - `GET /api/auth/me` returns a minimal account DTO: ID, display name and email.
 
-### 5.2 Ownership migration
+### 5.2 Clean-slate baseline
 
-Use UUID `account_id` foreign keys for new tables.  Existing tables currently
-have string `user_id`; migrate them in a controlled compatibility sequence:
-
-1. Create `accounts`, create owner account(s), and add nullable `account_id`.
-2. Backfill legacy `luis` rows to the designated owner account.
-3. Update every query, insert, uniqueness constraint and foreign-key-like
-   relation to use `account_id` from authentication.
-4. Verify no null/orphan rows remain, make `account_id` non-null, and remove
-   public `user_id` fields/defaults in a later cleanup migration.
-
-Do not switch only `day_entries`; partial ownership would still leak data via
-other routes.  Seed data must run only when a new account is explicitly
-initialized, never globally at application startup for all users.
+Chronickel has one baseline migration that creates the current schema against
+an empty database. Every account-owned table uses a non-null UUID `account_id`
+from its first version; no browser-visible compatibility owner or `user_id`
+column exists. Seed data runs only when a new account is explicitly initialized,
+never globally at application startup.
 
 ### 5.3 Scale storage
 
@@ -234,9 +225,6 @@ APIs.
 - Response: event ID and status for an accepted event, or `discarded` for an
   unmatched event; never include account identity or health profile data.
 - The bridge must retry the exact same event ID after a network failure.
-- Legacy `/api/scale-sync` may be kept only during migration, with a deprecation
-  date.  It must stop accepting profile fields and stop writing directly to
-  `luis` before a second account can use the app.
 
 Browser endpoints:
 
@@ -253,14 +241,11 @@ hidden from the ordinary account feed and retained only as an audit record.
 
 ### Phase A — account isolation (blocking prerequisite)
 
-1. Inventory every literal `luis`, `USER_ID`, `body.user_id` and user-id
-   default in routes, models, schemas, seed code and frontend calls.
-2. Add account models, Google subject handling, allow-list configuration and
-   account-scoped Google tokens.
-3. Create and test the migration/backfill for existing data.
-4. Convert all routes and service queries to `current_account`.
-5. Remove owner fields from browser-write schemas and frontend requests.
-6. Make seed initialization explicit per account.
+1. Establish one clean-slate baseline with account models, Google subject
+   handling, allow-list configuration and account-scoped Google tokens.
+2. Convert all routes and service queries to `current_account`.
+3. Remove owner fields from browser-write schemas and frontend requests.
+4. Make seed initialization explicit per account.
 
 **Exit criterion:** two browser sessions cannot observe or modify each other’s
 records through any API route or integration.
@@ -351,8 +336,6 @@ cd frontend && npm run check && npm run lint:design && npm run build
 ## 8. Implementation decisions still intentionally deferred
 
 - Which Google addresses belong in the production allow-list.
-- Which account is the owner of legacy `luis` data (must be confirmed before
-  the migration is executed).
 - Whether an administrative recovery workflow is necessary for cross-account
   measurement transfers.
 - Whether the Renpho hardware actually exposes usable impedance in the current

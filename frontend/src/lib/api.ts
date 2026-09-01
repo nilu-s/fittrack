@@ -22,6 +22,9 @@ import type {
   BodyProfile,
   ScaleMeasurement,
   TodoRoutine,
+  TodoDraft,
+  PlaceSuggestion,
+  TravelEstimate,
 } from "./types";
 import { db, queueSync, type DayEntryRecord, type TodoRecord } from "./db";
 
@@ -370,6 +373,27 @@ class ApiClient {
     }
   }
 
+  async draftTodo(text: string, date: string): Promise<TodoDraft | null> {
+    return this.request<TodoDraft>("/todo-planning/draft", {
+      method: "POST", body: JSON.stringify({ text, date }),
+    });
+  }
+
+  async askAssistant(text: string, date: string): Promise<string | null> {
+    const response = await this.request<{ message: string }>("/todo-planning/assistant", { method: "POST", body: JSON.stringify({ text, date }) });
+    return response?.message ?? null;
+  }
+
+  async searchTodoPlaces(query: string): Promise<PlaceSuggestion[]> {
+    return (await this.request<PlaceSuggestion[]>(`/todo-planning/places?query=${encodeURIComponent(query)}`)) ?? [];
+  }
+
+  async estimateTodoTravel(id: string, latitude: number, longitude: number): Promise<TravelEstimate | null> {
+    return this.request<TravelEstimate>(`/todo-planning/${id}/estimate`, {
+      method: "POST", body: JSON.stringify({ origin_latitude: latitude, origin_longitude: longitude }),
+    });
+  }
+
   // Recurring todos are deliberately online-only: they configure server-side
   // schedule rules and must not be replayed as offline todo mutations.
   async getTodoRoutines(): Promise<TodoRoutine[]> {
@@ -552,19 +576,25 @@ class ApiClient {
   }
 
   // Stats
-  async getStatsWeek(date: string): Promise<WeekStats | null> {
-    return this.request<WeekStats>(`/stats/week?date=${date}`);
+  async getStatsWeek(date: string, rollingDays?: number): Promise<WeekStats | null> {
+    const rollingDaysQuery = rollingDays ? `&rolling_days=${rollingDays}` : "";
+    return this.request<WeekStats>(`/stats/week?date=${date}${rollingDaysQuery}`);
   }
 
-  async getStatsTrend(metric: string, days: number): Promise<TrendData | null> {
+  async getStatsTrend(metric: string, days: number, endDate?: string): Promise<TrendData | null> {
+    const endDateQuery = endDate ? `&end_date=${encodeURIComponent(endDate)}` : "";
     return this.request<TrendData>(
-      `/stats/trend?metric=${encodeURIComponent(metric)}&days=${days}`,
+      `/stats/trend?metric=${encodeURIComponent(metric)}&days=${days}${endDateQuery}`,
     );
   }
 
   // Google Auth
   async getGoogleStatus(): Promise<any | null> {
     return this.request<any>(`/auth/google/status`);
+  }
+
+  async applyDevelopmentPreset(): Promise<{ preset: string; days: number; todos: number; foods: number; recipes: number; meal_entries: number } | null> {
+    return this.request(`/auth/development-preset`, { method: "POST" });
   }
 
   // Google Fit sync — fetches steps + sleep details from Google Fit, updates DayEntry in DB

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, Session, mapped_column, with_loader_criteria
 from sqlalchemy.dialects.postgresql import UUID
 
 _current_account_id: contextvars.ContextVar[uuid.UUID | None] = contextvars.ContextVar(
-    "fittrack_current_account_id", default=None
+    "app_current_account_id", default=None
 )
 
 

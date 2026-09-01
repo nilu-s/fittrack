@@ -19,7 +19,7 @@ from app.routes.auth import SESSION_COOKIE_NAME, _create_session_jwt
 
 
 @unittest.skipUnless(
-    os.environ.get("FITTRACK_INTEGRATION_DATABASE") == "1",
+    os.environ.get("APP_INTEGRATION_DATABASE") == "1",
     "requires a disposable PostgreSQL integration database",
 )
 class BrowserAccountIsolationIntegrationTests(unittest.IsolatedAsyncioTestCase):
@@ -58,7 +58,10 @@ class BrowserAccountIsolationIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(anonymous.status_code, 401)
 
         async with self.client_for(self.account_a) as client_a:
-            created = await client_a.post("/api/todos", json={"title": "private A todo"})
+            created = await client_a.post("/api/todos", json={
+                "title": "private A todo", "place_id": "test-private-place",
+                "place_name": "Private destination", "travel_mode": "drive",
+            })
         self.assertEqual(created.status_code, 201, created.text)
         todo_id = created.json()["id"]
 

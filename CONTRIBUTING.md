@@ -1,4 +1,4 @@
-# Contributing to FitTrack
+# Contributing to Chronickel
 
 Use a separate branch or worktree for each implementation task. Before editing,
 record the following in the pull request or task description:
@@ -23,7 +23,7 @@ authorization boundary, sync behavior, or browser flow, run the additional
 mapped checks and report the result. Do not modify an approved spec merely to
 make an implementation pass; make a separately reviewed spec revision.
 
-For an Alembic change, run `FITTRACK_MIGRATION_REHEARSAL=1 DATABASE_URL=... \
+For an Alembic change, run `APP_MIGRATION_REHEARSAL=1 DATABASE_URL=... \
 python backend/scripts/verify_migrations.py` only against a disposable
-PostgreSQL database. The rehearsal proves the legacy-owner cutover rather than
-silently bypassing it.
+PostgreSQL database. The rehearsal proves that the current schema can be
+created from the single baseline.

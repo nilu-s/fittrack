@@ -1,10 +1,9 @@
-# FitTrack agent guide
+# Chronickel agent guide
 
 ## Product intent
 
-FitTrack is a private, household fitness tracker.  It is moving from a
-single-user prototype to a multi-account application: each approved Google
-account owns and can access only its own data.  A shared ESP32/Renpho scale is
+Chronickel is a private household organizer with fitness tracking. Each approved
+Google account owns and can access only its own data. A shared ESP32/Renpho scale is
 an untrusted device source; it must never select or impersonate an account.
 
 The authoritative implementation specification is
@@ -29,7 +28,7 @@ body-composition code.
    browser request must never choose a `user_id`, account ID, or Google token
    owner in its body, query string, or route.
 2. Every account-owned query and mutation is scoped to that account.  No
-   literal `"luis"`, module-level `USER_ID`, or default account may remain in
+   module-level `USER_ID` or default account may remain in
    production request handling.
 3. The ESP can submit only a raw scale event.  It sends no personal profile
    data and cannot assign an event to a person.  Assignment happens server-side
@@ -57,8 +56,16 @@ body-composition code.
 - Revalidate the governing artifact when its declared touchpoint changes. Use
   `.agents/skills/fittrack-artifact-lifecycle/` for the evidence-based
   `confirmed`, `revise`, `supersede`, or `retire` outcome.
-- Use Alembic for persistent-schema changes.  Do not rely on
-  `Base.metadata.create_all()` for migrations or edit existing migration files.
+- Use Alembic for persistent-schema changes. Do not rely on
+  `Base.metadata.create_all()` for ordinary migrations. A deliberate clean
+  slate may replace the active migration history when the product owner has
+  explicitly approved data retirement and no supported deployment needs the
+  old chain. In that case, create and verify one fresh baseline against an
+  empty database, record the retirement decision and removal condition, then
+  remove superseded migrations, contracts, tests and compatibility code in the
+  same change. Keep only the short decision record and the schema/version
+  needed to explain the live system; do not retain obsolete concepts merely
+  because they are historical.
 - Make backwards-compatible API changes deliberately.  If a temporary legacy
   endpoint is needed, document its removal condition in the PR/change notes.
 - Keep profile data out of firmware and out of frontend-controlled identity
@@ -81,7 +88,6 @@ body-composition code.
   account.
 - New-account seeding creates only that account’s intended defaults and never
   copies another account’s records.
-- Existing `luis` records have an explicit, tested migration target.
 - Backend tests cover the isolation case and frontend checks pass.
 
 ## Commands

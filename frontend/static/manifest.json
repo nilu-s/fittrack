@@ -1,7 +1,7 @@
 {
-  "name": "FitTrack",
-  "short_name": "FitTrack",
-  "description": "Fitness, Ernährung und To-Dos in einer Ansicht",
+  "name": "Chronickel",
+  "short_name": "Chronickel",
+  "description": "Dein Alltag, Orte und Routinen in einer Ansicht",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#c9cbc0",

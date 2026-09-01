@@ -1,25 +1,25 @@
-{$FITTRACK_CADDY_SITE} {
+{$APP_CADDY_SITE} {
   encode gzip zstd
 
   @google_public path /api/google/callback /api/auth/google/login
   handle @google_public {
-    reverse_proxy fittrack-api:8000
+    reverse_proxy api:8000
   }
 
   # The bridge cannot use a browser session; the API validates its dedicated
   # device credential and never resolves an account from it.
   @scale_sync path /api/scale-sync/v2
   handle @scale_sync {
-    reverse_proxy fittrack-api:8000
+    reverse_proxy api:8000
   }
 
   @api path /api/*
   handle @api {
-    reverse_proxy fittrack-api:8000
+    reverse_proxy api:8000
   }
 
   handle {
-    reverse_proxy fittrack-web:3000
+    reverse_proxy web:3000
   }
 }
 

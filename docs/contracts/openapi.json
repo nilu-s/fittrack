@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "FitTrack API",
+    "title": "Chronickel API",
     "version": "1.0.0"
   },
   "paths": {
@@ -109,6 +109,26 @@
         "summary": "Initialize Account",
         "description": "Idempotently create this account's own optional starter data.\n\nInitialization is an explicit account action, never an application-startup\nside effect and never a copy of another account's records.",
         "operationId": "initialize_account_api_auth_initialize_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/development-preset": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Development Preset",
+        "description": "Populate only the authenticated account with explicit demo data.",
+        "operationId": "development_preset_api_auth_development_preset_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1549,7 +1569,7 @@
           "stats"
         ],
         "summary": "Week Summary",
-        "description": "Summary for the week containing `date` (defaults to Berlin today).",
+        "description": "Calendar-week summary, or a rolling window ending at ``date``.",
         "operationId": "week_summary_api_stats_week_get",
         "parameters": [
           {
@@ -1567,6 +1587,24 @@
                 }
               ],
               "title": "Date"
+            }
+          },
+          {
+            "name": "rolling_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 365,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rolling Days"
             }
           }
         ],
@@ -1625,6 +1663,25 @@
               "default": 30,
               "title": "Days"
             }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive end date; defaults to today in Europe/Berlin",
+              "title": "End Date"
+            },
+            "description": "Inclusive end date; defaults to today in Europe/Berlin"
           }
         ],
         "responses": {
@@ -2363,6 +2420,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meal-entries/enrich-historical-nutrients": {
+      "post": {
+        "tags": [
+          "configurable-meals"
+        ],
+        "summary": "Enrich Historical Nutrients",
+        "description": "Explicitly enrich old snapshots from current, owned food nutrient data.",
+        "operationId": "enrich_historical_nutrients_api_meal_entries_enrich_historical_nutrients_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalNutrientEnrichmentResponse"
                 }
               }
             }
@@ -3416,7 +3495,7 @@
         "operationId": "ingest_scale_measurement_api_scale_sync_v2_post",
         "parameters": [
           {
-            "name": "x-fittrack-device-key",
+            "name": "x-app-device-key",
             "in": "header",
             "required": false,
             "schema": {
@@ -3428,7 +3507,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Fittrack-Device-Key"
+              "title": "X-App-Device-Key"
             }
           }
         ],
@@ -3665,6 +3744,147 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/todo-planning/draft": {
+      "post": {
+        "tags": [
+          "todo-planning"
+        ],
+        "summary": "Draft Todo",
+        "operationId": "draft_todo_api_todo_planning_draft_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TodoDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoDraftResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/todo-planning/places": {
+      "get": {
+        "tags": [
+          "todo-planning"
+        ],
+        "summary": "Search Places",
+        "operationId": "search_places_api_todo_planning_places_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 200,
+              "title": "Query"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlaceSuggestion"
+                  },
+                  "title": "Response Search Places Api Todo Planning Places Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/todo-planning/{todo_id}/estimate": {
+      "post": {
+        "tags": [
+          "todo-planning"
+        ],
+        "summary": "Estimate Travel",
+        "operationId": "estimate_travel_api_todo_planning__todo_id__estimate_post",
+        "parameters": [
+          {
+            "name": "todo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Todo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TravelEstimateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravelEstimateResponse"
+                }
               }
             }
           },
@@ -5243,6 +5463,198 @@
             ],
             "title": "Free Sugar G"
           },
+          "saturated_fat_g": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saturated Fat G"
+          },
+          "sodium_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sodium Mg"
+          },
+          "potassium_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Potassium Mg"
+          },
+          "calcium_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calcium Mg"
+          },
+          "magnesium_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Magnesium Mg"
+          },
+          "iron_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iron Mg"
+          },
+          "zinc_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zinc Mg"
+          },
+          "vitamin_a_ug": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin A Ug"
+          },
+          "vitamin_c_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin C Mg"
+          },
+          "vitamin_d_ug": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin D Ug"
+          },
+          "vitamin_b12_ug": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin B12 Ug"
+          },
+          "folate_ug": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folate Ug"
+          },
           "name": {
             "type": "string",
             "maxLength": 200,
@@ -5369,6 +5781,150 @@
               }
             ],
             "title": "Free Sugar G"
+          },
+          "saturated_fat_g": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saturated Fat G"
+          },
+          "sodium_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sodium Mg"
+          },
+          "potassium_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Potassium Mg"
+          },
+          "calcium_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calcium Mg"
+          },
+          "magnesium_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Magnesium Mg"
+          },
+          "iron_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iron Mg"
+          },
+          "zinc_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zinc Mg"
+          },
+          "vitamin_a_ug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin A Ug"
+          },
+          "vitamin_c_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin C Mg"
+          },
+          "vitamin_d_ug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin D Ug"
+          },
+          "vitamin_b12_ug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin B12 Ug"
+          },
+          "folate_ug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folate Ug"
           },
           "name": {
             "type": "string",
@@ -5541,6 +6097,198 @@
               }
             ],
             "title": "Free Sugar G"
+          },
+          "saturated_fat_g": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saturated Fat G"
+          },
+          "sodium_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sodium Mg"
+          },
+          "potassium_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Potassium Mg"
+          },
+          "calcium_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calcium Mg"
+          },
+          "magnesium_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Magnesium Mg"
+          },
+          "iron_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iron Mg"
+          },
+          "zinc_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zinc Mg"
+          },
+          "vitamin_a_ug": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin A Ug"
+          },
+          "vitamin_c_mg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin C Mg"
+          },
+          "vitamin_d_ug": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin D Ug"
+          },
+          "vitamin_b12_ug": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin B12 Ug"
+          },
+          "folate_ug": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folate Ug"
           },
           "name": {
             "anyOf": [
@@ -5722,6 +6470,19 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HistoricalNutrientEnrichmentResponse": {
+        "properties": {
+          "updated_item_count": {
+            "type": "integer",
+            "title": "Updated Item Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "updated_item_count"
+        ],
+        "title": "HistoricalNutrientEnrichmentResponse"
       },
       "MealCategoryCreate": {
         "properties": {
@@ -6771,10 +7532,183 @@
               }
             ],
             "title": "Free Sugar G"
+          },
+          "saturated_fat_g": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saturated Fat G"
+          },
+          "sodium_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sodium Mg"
+          },
+          "potassium_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Potassium Mg"
+          },
+          "calcium_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calcium Mg"
+          },
+          "magnesium_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Magnesium Mg"
+          },
+          "iron_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iron Mg"
+          },
+          "zinc_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zinc Mg"
+          },
+          "vitamin_a_ug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin A Ug"
+          },
+          "vitamin_c_mg": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin C Mg"
+          },
+          "vitamin_d_ug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin D Ug"
+          },
+          "vitamin_b12_ug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin B12 Ug"
+          },
+          "folate_ug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folate Ug"
           }
         },
         "type": "object",
         "title": "Nutrition"
+      },
+      "PlaceSuggestion": {
+        "properties": {
+          "place_id": {
+            "type": "string",
+            "title": "Place Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "place_id",
+          "name"
+        ],
+        "title": "PlaceSuggestion"
       },
       "RecipeCreate": {
         "properties": {
@@ -7486,6 +8420,71 @@
             ],
             "title": "External Id"
           },
+          "place_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Id"
+          },
+          "place_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Name"
+          },
+          "place_address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Address"
+          },
+          "travel_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "drive",
+                  "bicycle",
+                  "walk",
+                  "transit"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Mode"
+          },
+          "travel_buffer_minutes": {
+            "type": "integer",
+            "maximum": 180.0,
+            "minimum": 0.0,
+            "title": "Travel Buffer Minutes",
+            "default": 10
+          },
+          "travel_monitoring_enabled": {
+            "type": "boolean",
+            "title": "Travel Monitoring Enabled",
+            "default": false
+          },
           "deleted": {
             "type": "boolean",
             "title": "Deleted",
@@ -7502,6 +8501,93 @@
           "title"
         ],
         "title": "TodoCreate"
+      },
+      "TodoDraftRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "date"
+        ],
+        "title": "TodoDraftRequest"
+      },
+      "TodoDraftResponse": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Due Date"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          },
+          "place_query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Query"
+          },
+          "travel_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "drive",
+                  "bicycle",
+                  "walk",
+                  "transit"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Mode"
+          },
+          "needs_review": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Needs Review"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "due_date"
+        ],
+        "title": "TodoDraftResponse"
       },
       "TodoResponse": {
         "properties": {
@@ -7599,6 +8685,71 @@
             ],
             "title": "External Id"
           },
+          "place_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Id"
+          },
+          "place_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Name"
+          },
+          "place_address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Address"
+          },
+          "travel_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "drive",
+                  "bicycle",
+                  "walk",
+                  "transit"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Mode"
+          },
+          "travel_buffer_minutes": {
+            "type": "integer",
+            "maximum": 180.0,
+            "minimum": 0.0,
+            "title": "Travel Buffer Minutes",
+            "default": 10
+          },
+          "travel_monitoring_enabled": {
+            "type": "boolean",
+            "title": "Travel Monitoring Enabled",
+            "default": false
+          },
           "deleted": {
             "type": "boolean",
             "title": "Deleted",
@@ -7637,6 +8788,41 @@
               }
             ],
             "title": "Updated At"
+          },
+          "travel_last_checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Last Checked At"
+          },
+          "travel_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Duration Seconds"
+          },
+          "travel_depart_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Depart At"
           }
         },
         "type": "object",
@@ -7959,6 +9145,83 @@
               }
             ],
             "title": "External Id"
+          },
+          "place_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Id"
+          },
+          "place_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Name"
+          },
+          "place_address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Address"
+          },
+          "travel_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "drive",
+                  "bicycle",
+                  "walk",
+                  "transit"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Mode"
+          },
+          "travel_buffer_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 180.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Buffer Minutes"
+          },
+          "travel_monitoring_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Monitoring Enabled"
           },
           "sort_order": {
             "anyOf": [
@@ -8628,6 +9891,65 @@
         },
         "type": "object",
         "title": "TrainingUnitUpdate"
+      },
+      "TravelEstimateRequest": {
+        "properties": {
+          "origin_latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Origin Latitude"
+          },
+          "origin_longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Origin Longitude"
+          }
+        },
+        "type": "object",
+        "required": [
+          "origin_latitude",
+          "origin_longitude"
+        ],
+        "title": "TravelEstimateRequest"
+      },
+      "TravelEstimateResponse": {
+        "properties": {
+          "duration_seconds": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Duration Seconds"
+          },
+          "depart_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Depart At"
+          },
+          "arrival_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Arrival At"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "traffic_aware": {
+            "type": "boolean",
+            "title": "Traffic Aware"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duration_seconds",
+          "depart_at",
+          "arrival_at",
+          "checked_at",
+          "traffic_aware"
+        ],
+        "title": "TravelEstimateResponse"
       },
       "TrendPoint": {
         "properties": {

@@ -1,7 +1,7 @@
-# FitTrack: Konfigurierbare Mahlzeiten
+# Chronickel: Konfigurierbare Mahlzeiten
 
 **Status:** implemented (online-first)  
-**Owner:** FitTrack household  
+**Owner:** Chronickel household
 **Last updated:** 2026-09-01
 
 ## 1. Zielbild

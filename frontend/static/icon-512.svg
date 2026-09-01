@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="64" fill="#1a1a1a"/>
   <path d="M128 256 L192 192 L256 320 L320 128 L384 256" stroke="#22c55e" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <text x="256" y="448" font-family="-apple-system, sans-serif" font-size="48" fill="#e0e0e0" text-anchor="middle">FitTrack</text>
+  <text x="256" y="448" font-family="-apple-system, sans-serif" font-size="48" fill="#e0e0e0" text-anchor="middle">Chronickel</text>
 </svg>

@@ -8,6 +8,7 @@
   import Icon from './Icon.svelte';
   import { api } from '$lib/api';
   import { dailyGoals } from '$lib/stores';
+  import { buildTrendLine, trendSegmentPaths } from '$lib/trend-lines';
   import type { DayEntry, Todo, TrainingSuggestion, DayData, TrendPoint, MealEntry, Nutrition } from '$lib/types';
 
   export let dayData: DayData;
@@ -28,9 +29,8 @@
   let expandedSleep = false;
   let expandedWeight = false;
   let weightEditing = false;
-  let quickAdd = '';
 
-  type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; fiber?: number | null; sugar?: number | null; mealTime?: string | null; entryData?: MealEntry; todoData?: Todo; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bmi: number | null }; };
+  type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; fiber?: number | null; sugar?: number | null; mealTime?: string | null; entryData?: MealEntry; todoData?: Todo; travelLabel?: string | null; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bmi: number | null }; weightEstimate?: { value: number; beforeDate: string; afterDate: string }; };
 
   $: unifiedItems = buildUnifiedItems(entry, mealEntries, todos, trainingSuggestion);
 
@@ -39,7 +39,8 @@
     if (!entry) return items;
     // Weight: biometric — automated from ESP32 scale, but manually editable too
     const hasBmi = entry.bmi != null;
-    items.push({ id: 'metric-weight', type: 'metric', icon: 'weight', title: 'Gewicht', done: false, sortKey: '00-00', metricField: 'weight_kg', metricValue: entry.weight_kg ?? null, metricUnit: 'kg', metricEditable: true, biometric: true, weightSource: entry.weight_source ?? null, weightDetails: hasBmi ? { bmi: Number(entry.bmi) } : undefined });
+    const weightEstimate = entry.weight_kg == null ? estimatedWeight : null;
+    items.push({ id: 'metric-weight', type: 'metric', icon: 'weight', title: 'Gewicht', done: false, sortKey: '00-00', metricField: 'weight_kg', metricValue: entry.weight_kg ?? weightEstimate?.value ?? null, metricUnit: 'kg', metricEditable: true, biometric: true, weightSource: entry.weight_source ?? null, weightDetails: hasBmi ? { bmi: Number(entry.bmi) } : undefined, weightEstimate: weightEstimate ?? undefined });
     // Steps: biometric — automated from Google Fit, not manually checkable
     items.push({ id: 'metric-steps', type: 'metric', icon: 'steps', title: 'Schritte', done: false, sortKey: '00-01', metricField: 'steps', metricValue: entry.steps ?? null, hasProgress: true, progressCurrent: entry.steps ?? 0, progressTarget: goals.steps, stepsConfirmed: entry.steps_confirmed ?? false, biometric: true });
     // Sleep: biometric — automated from Google Fit, shows quality score and details instead
@@ -55,13 +56,41 @@
     if (trainingType && trainingType !== 'Ruhetag') {
       items.push({ id: 'training', type: 'training', icon: 'training', title: trainingType, done: entry.training_done ?? false, sortKey: '02-00' });
     }
-    for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.due_time ?? '99:99'}`, todoData: t }); }
+    for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.start_time ?? t.due_time ?? '99:99'}`, todoData: t, travelLabel: travelSummary(t) }); }
     // Alles, was abgehakt ist, wird im Tagesfluss ans Ende verschoben.
     // Innerhalb der offenen bzw. erledigten Gruppe bleibt die Tagesreihenfolge erhalten.
     return items.sort((a, b) => {
       const completionOrder = Number(a.done) - Number(b.done);
       return completionOrder || a.sortKey.localeCompare(b.sortKey);
     });
+  }
+
+  function travelSummary(todo: Todo): string | null {
+    if (!todo.place_name) return null;
+    const place = `📍 ${todo.place_name}`;
+    if (!todo.travel_monitoring_enabled) return place;
+    if (!todo.travel_depart_at) return `${place} · Anreise aktiv`;
+    const departure = new Date(todo.travel_depart_at);
+    const time = Number.isNaN(departure.getTime()) ? null : departure.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    const minutes = todo.travel_duration_seconds ? Math.round(todo.travel_duration_seconds / 60) : null;
+    return `${place} · ${time ? `Los ${time}` : 'Anreise aktiv'}${minutes ? ` · ${minutes} Min.` : ''}`;
+  }
+
+  function todoTime(todo: Todo): number {
+    const value = todo.travel_depart_at ?? (todo.due_date && (todo.start_time ?? todo.due_time)
+      ? `${todo.due_date}T${todo.start_time ?? todo.due_time}`
+      : null);
+    const timestamp = value ? new Date(value).getTime() : Number.POSITIVE_INFINITY;
+    return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
+  }
+
+  function openNavigation(todo: Todo) {
+    if (!todo.place_id && !todo.place_name) return;
+    const travelmode = { drive: 'driving', bicycle: 'bicycling', walk: 'walking', transit: 'transit' }[todo.travel_mode ?? 'drive'];
+    const params = new URLSearchParams({ api: '1', travelmode });
+    if (todo.place_id) params.set('destination_place_id', todo.place_id);
+    params.set('destination', todo.place_name ?? todo.place_address ?? '');
+    window.open(`https://www.google.com/maps/dir/?${params.toString()}`, '_blank', 'noopener,noreferrer');
   }
 
   let longPressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -82,6 +111,8 @@
   let metricTrendCloseButton: HTMLButtonElement | null = null;
   let metricTrendOverlay: HTMLDialogElement | null = null;
   let metricTrendOverlayTop: number | null = null;
+  let estimatedWeight: { value: number; beforeDate: string; afterDate: string } | null = null;
+  let estimateRequest = 0;
   let nutritionDetailsOpen = false;
   let nutritionDetailsTrigger: HTMLElement | null = null;
   let nutritionDetailsCloseButton: HTMLButtonElement | null = null;
@@ -90,6 +121,7 @@
   let detailItemTrigger: HTMLElement | null = null;
   let detailItemOverlay: HTMLDialogElement | null = null;
   let detailItemOverlayTop: number | null = null;
+  let travelUpdateError = '';
 
   /** Only one task detail may be open in the daily list at a time. */
   function closeOpenTodoDetails() {
@@ -178,6 +210,38 @@
   }
   function cancelEdit() { editingTodo = null; }
 
+  async function updateTravel(todo: Todo) {
+    if (!todo.id || !navigator.geolocation) { travelUpdateError = 'Der aktuelle Standort ist auf diesem Gerät nicht verfügbar.'; return; }
+    travelUpdateError = '';
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const estimate = await api.estimateTodoTravel(todo.id!, position.coords.latitude, position.coords.longitude);
+      if (!estimate) { travelUpdateError = 'Die Reisezeit konnte nicht aktualisiert werden.'; return; }
+      todos = todos.map((item) => item.id === todo.id ? { ...item, travel_duration_seconds: estimate.duration_seconds, travel_depart_at: estimate.depart_at, travel_last_checked_at: estimate.checked_at } : item);
+      detailItem = detailItem ? { ...detailItem, todoData: { ...todo, travel_duration_seconds: estimate.duration_seconds, travel_depart_at: estimate.depart_at, travel_last_checked_at: estimate.checked_at } } : null;
+    }, () => { travelUpdateError = 'Bitte erlaube den Standortzugriff, um die Anreise zu aktualisieren.'; }, { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 });
+  }
+
+  async function refreshMonitoredTravel() {
+    const monitored = todos.filter((todo) => todo.travel_monitoring_enabled && todo.place_id && todo.start_time && todo.travel_mode && todo.status === 'open' && todo.id);
+    if (!monitored.length || !navigator.geolocation) return;
+    try {
+      const permission = await navigator.permissions?.query({ name: 'geolocation' as PermissionName });
+      if (permission?.state !== 'granted') return;
+    } catch {
+      // Browsers without the Permissions API must wait for an explicit update.
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const estimates = await Promise.all(monitored.map(async (todo) => ({ todo, estimate: await api.estimateTodoTravel(todo.id!, position.coords.latitude, position.coords.longitude) })));
+      const updates = new Map(estimates.filter((entry) => entry.estimate).map((entry) => [entry.todo.id, entry.estimate!]));
+      if (!updates.size) return;
+      todos = todos.map((todo) => {
+        const estimate = updates.get(todo.id);
+        return estimate ? { ...todo, travel_duration_seconds: estimate.duration_seconds, travel_depart_at: estimate.depart_at, travel_last_checked_at: estimate.checked_at } : todo;
+      });
+    }, () => {}, { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 });
+  }
+
   function handleTap(item: UnifiedItem, e: MouseEvent) {
     if (longPressTriggered) { longPressTriggered = false; return; }
     if (item.type === 'training' || item.type === 'meal' || item.type === 'todo') return;
@@ -236,10 +300,44 @@
   }
 
   async function updateMetric(field: string, value: any) { if (!entry) return; entry = { ...entry, [field]: value }; if (field === 'weight_kg') { entry = { ...entry, weight_source: 'manual' }; } try { await api.upsertDayEntry({ ...entry, date: currentDate }); dispatch('update', { field, value }); } catch {} }
+
+  async function loadWeightEstimate() {
+    const request = ++estimateRequest;
+    estimatedWeight = null;
+    if (entry?.weight_kg != null) return;
+
+    const selected = new Date(`${currentDate}T00:00`);
+    const end = new Date(selected);
+    end.setDate(end.getDate() + 30);
+    try {
+      const response = await api.getStatsTrend('weight', 61, localDateStr(end));
+      if (request !== estimateRequest || entry?.weight_kg != null) return;
+      const points = (response?.points ?? [])
+        .filter((point) => point.value != null)
+        .map((point) => ({ date: point.date, value: Number(point.value) }));
+      const before = points.filter((point) => point.date < currentDate).at(-1);
+      const after = points.find((point) => point.date > currentDate);
+      if (!before || !after) return;
+      const beforeDate = new Date(`${before.date}T00:00`);
+      const afterDate = new Date(`${after.date}T00:00`);
+      const spanDays = (afterDate.getTime() - beforeDate.getTime()) / 86_400_000;
+      const offsetDays = (selected.getTime() - beforeDate.getTime()) / 86_400_000;
+      if (spanDays <= 0 || offsetDays > 30 || spanDays - offsetDays > 30) return;
+      estimatedWeight = { value: Math.round((before.value + (after.value - before.value) * offsetDays / spanDays) * 10) / 10, beforeDate: before.date, afterDate: after.date };
+    } catch {
+      // An unavailable trend must never turn a missing measurement into a value.
+    }
+  }
+
+  function finishWeightEdit(value: string) {
+    const parsed = parseFloat(value);
+    if (!Number.isNaN(parsed) || entry.weight_kg != null) updateMetric('weight_kg', Number.isNaN(parsed) ? null : parsed);
+    weightEditing = false;
+  }
+
+  $: if (currentDate && entry?.weight_kg == null) loadWeightEstimate();
   function handleTrainingComplete() { if (entry) { entry = { ...entry, training_done: true }; dispatch('trainingtoggle', true); } }
 
-  async function addQuick() { const title = quickAdd.trim(); if (!title) return; try { const n = await api.createTodo({ due_date: currentDate, title, status: 'open', priority: 2, source: 'manual' } as any); if (n) { todos = [...todos, n]; dispatch('todoadd', n); } quickAdd = ''; } catch {} }
-  function handleKey(e: KeyboardEvent) { if (e.key === 'Enter') { e.preventDefault(); addQuick(); } }
 
   function openItemDetails(item: UnifiedItem, trigger?: HTMLElement) {
     if (item.id === 'metric-steps' || item.id === 'metric-sleep') {
@@ -265,7 +363,7 @@
     if (!trigger || !card || typeof window === 'undefined') return null;
     const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
     const headerBottom = document.querySelector<HTMLElement>('.hdr')?.getBoundingClientRect().bottom ?? 16;
-    const navTop = document.querySelector<HTMLElement>('.dnav')?.getBoundingClientRect().top ?? viewportHeight - 16;
+    const navTop = document.querySelector<HTMLElement>('.day-footer')?.getBoundingClientRect().top ?? viewportHeight - 16;
     const safeTop = Math.max(16, headerBottom + 12);
     const safeBottom = Math.min(viewportHeight - 16, navTop - 12);
     const triggerRect = trigger.getBoundingClientRect();
@@ -287,9 +385,12 @@
     };
     window.addEventListener('resize', reposition);
     window.visualViewport?.addEventListener('resize', reposition);
+    void refreshMonitoredTravel();
+    const travelTimer = window.setInterval(() => { if (document.visibilityState === 'visible') void refreshMonitoredTravel(); }, 5 * 60_000);
     return () => {
       window.removeEventListener('resize', reposition);
       window.visualViewport?.removeEventListener('resize', reposition);
+      window.clearInterval(travelTimer);
     };
   });
 
@@ -345,41 +446,65 @@
     setTimeout(() => trigger?.focus(), 0);
   }
 
-  function metricChart(points: TrendPoint[], numDays: number) {
+  function metricChart(points: TrendPoint[], numDays: number, item: UnifiedItem) {
     if (!points.length) return null;
-    const valuesByDate = new Map(points.filter((point) => point.value != null).map((point) => [point.date, Number(point.value)]));
     const anchor = new Date(); anchor.setHours(0, 0, 0, 0);
-    const days: { date: string; value: number; hasData: boolean }[] = [];
-    let lastKnown = Number(points[0].value) || 0;
-    for (let index = numDays - 1; index >= 0; index--) {
-      const date = new Date(anchor); date.setDate(anchor.getDate() - index);
-      const key = localDateStr(date);
-      if (valuesByDate.has(key)) lastKnown = valuesByDate.get(key)!;
-      days.push({ date: key, value: lastKnown, hasData: valuesByDate.has(key) });
-    }
-    const values = days.map((day) => day.value);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = max - min || 1;
+    const days = buildTrendLine(points, localDateStr(anchor), numDays);
+    if (!days.length) return null;
+    const displayDays = numDays === 365 ? aggregateWeeks(days) : days;
+    const values = displayDays.map((day) => day.value);
+    const actualValues = days.filter((day) => day.state === 'actual').map((day) => day.value);
+    const min = Math.min(...actualValues);
+    const max = Math.max(...actualValues);
+    const minimumRange = item.id === 'metric-weight' ? 5 : Math.max(Math.abs(max - min) * 1.5, Math.abs(max) * 0.2, 1);
+    const scaleMin = Math.floor(min - Math.max((minimumRange - (max - min)) / 2, minimumRange * 0.1));
+    const scaleMax = Math.ceil(max + Math.max((minimumRange - (max - min)) / 2, minimumRange * 0.1));
+    const range = scaleMax - scaleMin || 1;
     const width = 300;
     const height = 120;
+    const plotLeft = 42;
+    const plotRight = 8;
+    const plotTop = 8;
+    const plotBottom = 22;
+    const plotHeight = height - plotTop - plotBottom;
     const coords = values.map((value, index) => ({
-      x: points.length === 1 ? width / 2 : 8 + index * ((width - 16) / (points.length - 1)),
-      y: 8 + (height - 20) - ((value - min) / range) * (height - 20),
+      x: displayDays.length === 1 ? (plotLeft + width - plotRight) / 2 : plotLeft + index * ((width - plotLeft - plotRight) / (displayDays.length - 1)),
+      y: plotTop + plotHeight - ((value - scaleMin) / range) * plotHeight,
     }));
-    const verifiedPath = coords.slice(0, -1).flatMap((coord, index) => days[index].hasData && days[index + 1].hasData ? [`M${coord.x.toFixed(1)},${coord.y.toFixed(1)} L${coords[index + 1].x.toFixed(1)},${coords[index + 1].y.toFixed(1)}`] : []).join(' ');
-    const assumedPath = coords.slice(0, -1).flatMap((coord, index) => !(days[index].hasData && days[index + 1].hasData) ? [`M${coord.x.toFixed(1)},${coord.y.toFixed(1)} L${coords[index + 1].x.toFixed(1)},${coords[index + 1].y.toFixed(1)}`] : []).join(' ');
-    const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-    const labelStep = numDays <= 7 ? 1 : numDays <= 30 ? 5 : Math.floor(numDays / 12);
-    const labels = days.map((day, index) => {
-      if (index % labelStep !== 0 && index !== days.length - 1) return null;
+    const paths = trendSegmentPaths(displayDays, coords);
+    const average = actualValues.reduce((sum, value) => sum + value, 0) / actualValues.length;
+    const yTicks = Array.from({ length: 4 }, (_, index) => {
+      const value = scaleMax - index * range / 3;
+      return { value, y: plotTop + index * plotHeight };
+    });
+    const labelStep = numDays <= 7 ? 1 : numDays <= 30 ? 5 : Math.max(1, Math.floor(displayDays.length / 12));
+    const labels = displayDays.map((day, index) => {
+      if (index % labelStep !== 0 && index !== displayDays.length - 1) return null;
       const date = new Date(`${day.date}T00:00`);
-      return { date: day.date, label: numDays <= 7 ? date.toLocaleDateString('de-DE', { weekday: 'short' }).slice(0, 2) : date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }) };
+      return { date: day.date, label: numDays <= 7 ? date.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit' }).replace('.', '') : date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }) };
     }).filter((label) => label !== null) as { date: string; label: string }[];
-    return { verifiedPath, assumedPath, coords, days, labels, first: days[0].date, last: days[days.length - 1].date, min, max, average };
+    return { ...paths, coords, days: displayDays, labels, yTicks, plotLeft, plotRight, plotBottom, first: days[0].date, last: days[days.length - 1].date, min, max, average };
+  }
+
+  function aggregateWeeks(days: ReturnType<typeof buildTrendLine>) {
+    const weeks = [] as ReturnType<typeof buildTrendLine>;
+    for (let start = 0; start < days.length; start += 7) {
+      const week = days.slice(start, start + 7);
+      const measurements = week.filter((day) => day.state === 'actual');
+      const value = measurements.length
+        ? measurements.reduce((sum, day) => sum + day.value, 0) / measurements.length
+        : week.reduce((sum, day) => sum + day.value, 0) / week.length;
+      weeks.push({
+        date: week.at(-1)!.date,
+        value,
+        state: measurements.length ? 'actual' : week.some((day) => day.state === 'interpolated') ? 'interpolated' : 'baseline',
+      });
+    }
+    return weeks;
   }
 
   function formatTrendDate(value: string) { return new Date(`${value}T00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' }); }
+  function trendRangeLabel(days: number) { return days === 7 ? 'letzte 7 Tage' : days === 30 ? 'letzte 30 Tage' : 'letzte 365 Tage · Wochenwerte'; }
   function formatTrendValue(value: number, item: UnifiedItem) {
     if (item.id === 'metric-weight') return `${value.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`;
     if (item.id === 'metric-sleep') return `${value.toLocaleString('de-DE', { maximumFractionDigits: 1 })} h`;
@@ -394,6 +519,11 @@
   $: biometricItems = unifiedItems.filter((i) => i.biometric && i.id !== 'metric-weight');
   $: manualItems = unifiedItems.filter((i) => !i.biometric);
   $: openCount = manualItems.filter((i) => !i.done).length;
+  $: recommendedTodo = [...todos]
+    .filter((todo) => todo.status === 'open')
+    .sort((a, b) => todoTime(a) - todoTime(b) || b.priority - a.priority)[0] ?? null;
+  $: recommendedTodoItem = recommendedTodo ? unifiedItems.find((item) => item.type === 'todo' && item.todoData?.id === recommendedTodo?.id) ?? null : null;
+  $: recommendedTodoReadyForTravel = Boolean(recommendedTodo?.place_id && recommendedTodo?.start_time && recommendedTodo?.travel_mode);
   const NUTRIENT_GROUPS: Array<{ title: string; values: Array<{ key: keyof Nutrition; label: string; unit: string }> }> = [
     { title: 'Makronährstoffe', values: [
       { key: 'kcal', label: 'Energie', unit: 'kcal' }, { key: 'protein_g', label: 'Protein', unit: 'g' },
@@ -555,6 +685,7 @@
   }
 </script>
 
+<div class="daily-overview" aria-label="Tagesübersicht">
 <!-- Biometrics: Schritte + Schlaf nebeneinander -->
 {#if biometricItems.length > 0}
   <div class="biometrics-row">
@@ -643,7 +774,9 @@
     <div class="bio-hdr">
       <span class="bio-title"><Icon name={weightItem.icon} size={14} /> {weightItem.title}</span>
       <div class="bio-hdr-right">
-        {#if weightItem.weightSource === 'scale_esp'}
+        {#if weightItem.weightEstimate}
+          <span class="bio-source-estimate" aria-label="Geschätztes Gewicht, keine Messung">~ Schätzung</span>
+        {:else if weightItem.weightSource === 'scale_esp'}
           <span class="bio-source-badge">Waage ✓</span>
         {:else if weightItem.weightSource === 'manual'}
           <span class="bio-source-manual">manuell</span>
@@ -654,9 +787,9 @@
     <div class="weight-value-row">
       {#if weightEditing}
         <input class="weight-input" type="number" step="0.1" min="0" max="300"
-          value={weightItem.metricValue ?? ''}
+          value={entry.weight_kg ?? ''}
           placeholder="Gewicht eingeben"
-          onblur={(e) => { const v = parseFloat(e.currentTarget.value); updateMetric('weight_kg', isNaN(v) ? null : v); weightEditing = false; }}
+          onblur={(e) => finishWeightEdit(e.currentTarget.value)}
           onkeydown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } if (e.key === 'Escape') { weightEditing = false; } }}
           onclick={(e) => e.stopPropagation()}
         />
@@ -675,6 +808,9 @@
         {#if wd.bmi != null}<span class="wms"><b>{wd.bmi}</b> BMI</span>{/if}
       </div>
     {/if}
+    {#if weightItem.weightEstimate && !weightEditing}
+      <p class="weight-estimate-note">Interpoliert aus Messungen vom {formatTrendDate(weightItem.weightEstimate.beforeDate)} und {formatTrendDate(weightItem.weightEstimate.afterDate)}.</p>
+    {/if}
   </section>
 {/if}
   <section class="nutrition-section" aria-labelledby="nutrition-title">
@@ -691,6 +827,33 @@
     <p class="nutrition-status">{nutritionDayEntries.length ? 'Nährstoffbilanz der verzehrten Mahlzeiten' : 'Noch keine Mahlzeit verzehrt'}</p>
   </section>
 </div>
+
+</div>
+
+{#if recommendedTodo}
+  <section class="todo-highlight" aria-labelledby="todo-highlight-title">
+    <div class="todo-highlight-copy">
+      <p>NÄCHSTE AUFGABE</p>
+      <h2 id="todo-highlight-title">{recommendedTodo.title}</h2>
+      {#if recommendedTodoReadyForTravel}
+        <span>{recommendedTodo.start_time} · {recommendedTodo.place_name}{#if recommendedTodo.travel_depart_at} · los {new Date(recommendedTodo.travel_depart_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}{/if}</span>
+      {:else if recommendedTodo.start_time || recommendedTodo.due_time}
+        <span>{recommendedTodo.start_time ?? recommendedTodo.due_time} · Planung ergänzen</span>
+      {:else}
+        <span>Als nächste offene Aufgabe empfohlen</span>
+      {/if}
+    </div>
+    <div class="todo-highlight-actions">
+      {#if recommendedTodoReadyForTravel}
+        <button type="button" class="highlight-secondary" onclick={() => updateTravel(recommendedTodo)}>Anreise aktualisieren</button>
+        <button type="button" class="highlight-primary" onclick={() => openNavigation(recommendedTodo)}>Navigation</button>
+      {:else if recommendedTodoItem}
+        <button type="button" class="highlight-primary" onclick={(event) => openItemDetails(recommendedTodoItem!, event.currentTarget)}>Planung öffnen</button>
+      {/if}
+    </div>
+    {#if travelUpdateError}<p class="todo-highlight-error" role="alert">{travelUpdateError}</p>{/if}
+  </section>
+{/if}
 
 <!-- Day list -->
 <div class="daylist">
@@ -720,6 +883,7 @@
           {#if item.type === 'meal' && item.protein}<PillBadge value={Math.round(item.protein)} unit="g P" color="var(--data-nutrition-protein)" />{/if}
           {#if item.mealTime}<span class="item-time">{item.mealTime}</span>{/if}
           {#if item.type === 'meal'}<span class="recipe-marker" title="Lange drücken für Mahlzeitdetails">Mahlzeitdetails</span>{/if}
+          {#if item.type === 'todo' && item.travelLabel}<span class="item-travel">{item.travelLabel}</span>{/if}
         </div>
       </div>
       {#if item.type === 'meal' && !item.done}
@@ -739,10 +903,6 @@
 
   {/each}
 
-  <div class="quickadd">
-    <input placeholder="+ To-Do hinzufügen…" bind:value={quickAdd} onkeydown={handleKey} />
-    <button onclick={addQuick} disabled={!quickAdd.trim()} aria-label="Hinzufügen"><Icon name="plus" size={16} /></button>
-  </div>
 </div>
 
 <MealEntryEditorSheet meal={mealEntryEditorItem ? getMealFromItem(mealEntryEditorItem) ?? null : null} open={Boolean(mealEntryEditorItem)} autoOpenCamera={mealEntryEditorCamera} on:close={closeMealEntryEditor} on:saved={(event) => { applyMealEntryUpdate(event.detail.entry); closeMealEntryEditor(); }} />
@@ -767,11 +927,11 @@
 {/if}
 
 {#if metricTrendItem}
-  {@const chart = metricChart(metricTrend, metricTrendRange)}
+  {@const chart = metricChart(metricTrend, metricTrendRange, metricTrendItem)}
   <dialog bind:this={metricTrendOverlay} class="modal-overlay trend-overlay" class:overlay-positioned={metricTrendOverlayTop !== null} style={metricTrendOverlayTop === null ? undefined : `--overlay-offset-top: ${metricTrendOverlayTop}px`} open aria-labelledby="metric-trend-title" onclick={(event) => { if (event.target === event.currentTarget) closeMetricTrend(); }} oncancel={(event) => { event.preventDefault(); closeMetricTrend(); }}>
     <section class="modal-card trend-detail ui-dialog">
       <header class="detail-header ui-dialog__header">
-        <div><p class="detail-kind ui-dialog__eyebrow">Verlauf · letzte 365 Tage</p><h2 id="metric-trend-title">{metricTrendItem.title}</h2></div>
+        <div><p class="detail-kind ui-dialog__eyebrow">Verlauf · {trendRangeLabel(metricTrendRange)}</p><h2 id="metric-trend-title">{metricTrendItem.title}</h2></div>
         <button bind:this={metricTrendCloseButton} class="detail-close ui-dialog__close" type="button" aria-label="Verlauf schließen" onclick={closeMetricTrend}>×</button>
       </header>
       {#if metricTrendLoading}
@@ -789,12 +949,18 @@
           <span><b>{formatTrendValue(chart.min, metricTrendItem)}</b> min.</span>
           <span><b>{formatTrendValue(chart.max, metricTrendItem)}</b> max.</span>
         </div>
+        <p class="trend-legend"><span class="trend-key actual"></span>Messwert <span class="trend-key interpolated"></span>interpoliert <span class="trend-key baseline"></span>Baseline</p>
         <svg class="metric-trend-chart" viewBox="0 0 300 120" role="img" aria-label={`${metricTrendItem.title} von ${formatTrendDate(chart.first)} bis ${formatTrendDate(chart.last)}`}>
-          <line x1="8" y1="108" x2="292" y2="108" stroke="var(--border-default)" stroke-width="1" />
-          {#if chart.assumedPath}<path d={chart.assumedPath} fill="none" stroke="var(--text-tertiary)" stroke-width="1.5" stroke-dasharray="3 3" stroke-linecap="round" />{/if}
-          {#if chart.verifiedPath}<path d={chart.verifiedPath} fill="none" stroke={metricTrendColor(metricTrendItem)} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />{/if}
+          {#each chart.yTicks as tick}
+            <line x1={chart.plotLeft} y1={tick.y} x2={300 - chart.plotRight} y2={tick.y} stroke="var(--border-subtle)" stroke-width="1" />
+            <text x={chart.plotLeft - 6} y={tick.y + 3} text-anchor="end" fill="var(--text-tertiary)" font-size="9">{formatTrendValue(tick.value, metricTrendItem)}</text>
+          {/each}
+          <line x1={chart.plotLeft} y1={120 - chart.plotBottom} x2={300 - chart.plotRight} y2={120 - chart.plotBottom} stroke="var(--border-default)" stroke-width="1" />
+          {#if chart.baseline}<path d={chart.baseline} fill="none" stroke="var(--text-tertiary)" stroke-width="1.5" stroke-dasharray="3 3" stroke-linecap="round" />{/if}
+          {#if chart.interpolated}<path d={chart.interpolated} fill="none" stroke={metricTrendColor(metricTrendItem)} stroke-width="1.8" stroke-dasharray="3 3" stroke-linecap="round" stroke-linejoin="round" />{/if}
+          {#if chart.actual}<path d={chart.actual} fill="none" stroke={metricTrendColor(metricTrendItem)} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />{/if}
           {#each chart.coords as point, index}
-            {#if chart.days[index].hasData}<circle cx={point.x} cy={point.y} r={metricTrendRange === 365 ? 0 : 2.5} fill={metricTrendColor(metricTrendItem)}><title>{formatTrendDate(chart.days[index].date)}: {formatTrendValue(chart.days[index].value, metricTrendItem)}</title></circle>{/if}
+            {#if chart.days[index].state === 'actual'}<circle cx={point.x} cy={point.y} r={metricTrendRange === 365 ? 0 : 2.5} fill={metricTrendColor(metricTrendItem)}><title>{formatTrendDate(chart.days[index].date)}: {formatTrendValue(chart.days[index].value, metricTrendItem)}</title></circle>{/if}
           {/each}
         </svg>
         <div class="trend-axis">{#each chart.labels as label}<span>{label.label}</span>{/each}</div>
@@ -821,9 +987,15 @@
       {:else if detailItem.type === 'todo'}
         <div class="detail-section ui-dialog__section">
           {#if detailItem.todoData?.category}<p class="detail-meta">Kategorie: {detailItem.todoData.category}</p>{/if}
-          {#if detailItem.todoData?.due_time}<p class="detail-meta">Fällig um {detailItem.todoData.due_time}</p>{/if}
-          {#if !detailItem.todoData?.category && !detailItem.todoData?.due_time}<p class="detail-meta">Keine zusätzlichen Angaben.</p>{/if}
+          {#if detailItem.todoData?.due_time || detailItem.todoData?.start_time}<p class="detail-meta">{detailItem.todoData.start_time ? `Beginn um ${detailItem.todoData.start_time}` : `Fällig um ${detailItem.todoData?.due_time}`}</p>{/if}
+          {#if detailItem.todoData?.place_name}<p class="detail-meta">Ort: {detailItem.todoData.place_name}{#if detailItem.todoData.place_address} · {detailItem.todoData.place_address}{/if}</p>{/if}
+          {#if detailItem.todoData?.travel_monitoring_enabled}<p class="detail-meta">Anreise aktiv{#if detailItem.todoData.travel_last_checked_at} · zuletzt geprüft {new Date(detailItem.todoData.travel_last_checked_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}{/if}</p>{/if}
+          {#if !detailItem.todoData?.category && !detailItem.todoData?.due_time && !detailItem.todoData?.start_time && !detailItem.todoData?.place_name}<p class="detail-meta">Keine zusätzlichen Angaben.</p>{/if}
         </div>
+        {#if detailItem.todoData?.place_id && detailItem.todoData?.travel_mode && detailItem.todoData?.start_time}
+          <div class="travel-actions"><button class="modal-secondary" onclick={() => updateTravel(detailItem!.todoData!)}>Anreise aktualisieren</button><button class="modal-primary" onclick={() => openNavigation(detailItem!.todoData!)}>Navigation</button></div>
+        {/if}
+        {#if travelUpdateError}<p class="detail-meta detail-error" role="alert">{travelUpdateError}</p>{/if}
         <button class="modal-secondary" onclick={() => { actionSheetItem = detailItem; closeItemDetails(); }}>Bearbeiten</button>
       {:else if detailItem.type === 'training'}
         <TrainingDetail training_type={trainingSuggestion?.training_type ?? entry?.training_type ?? 'Training'} date={currentDate} oncomplete={handleTrainingComplete} onclose={closeItemDetails} showClose={false} />
@@ -877,6 +1049,22 @@
 {/if}
 
 <style>
+  .daily-overview { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; overflow-x:auto; padding-bottom:3px; scrollbar-width:thin; }
+  .daily-overview > .biometrics-row,.daily-overview > .feature-card-row { display:contents; }
+  .daily-overview .bio-section,.daily-overview .weight-section,.daily-overview .nutrition-section { min-width:0; scroll-snap-align:start; }
+  .daily-overview .sleep-legend-col { display:none; }
+  .daily-overview .sleep-donut { width:44px; height:44px; }
+  .todo-highlight { display:grid; gap:10px; padding:12px; border:1px solid var(--border-default); border-radius:var(--radius-surface); background:var(--surface-accent); }
+  .todo-highlight-copy { display:grid; gap:3px; min-width:0; }
+  .todo-highlight-copy p { margin:0; color:var(--text-secondary); font-size:10px; font-weight:750; letter-spacing:.06em; }
+  .todo-highlight-copy h2 { margin:0; overflow:hidden; color:var(--text-primary); font-size:16px; line-height:1.25; text-overflow:ellipsis; white-space:nowrap; }
+  .todo-highlight-copy span,.todo-highlight-error { color:var(--text-secondary); font-size:12px; line-height:1.35; }
+  .todo-highlight-actions,.travel-actions { display:flex; flex-wrap:wrap; gap:6px; }
+  .todo-highlight-actions button { min-height:var(--control-min); padding:7px 10px; border-radius:var(--radius-control); font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+  .highlight-primary { border:0; background:var(--action-primary); color:var(--text-on-accent); }
+  .highlight-secondary { border:1px solid var(--border-default); background:var(--surface-raised); color:var(--text-primary); }
+  .todo-highlight-error { margin:0; color:var(--status-danger); }
+  @media (max-width:540px) { .daily-overview { grid-template-columns:repeat(4,minmax(126px,1fr)); scroll-snap-type:x proximity; } }
   .daylist { background: var(--surface-default); border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); overflow: hidden; }
   .daylist-hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border-subtle); font-size: 12px; color: var(--text-secondary); font-weight: 700; }
 
@@ -897,6 +1085,7 @@
   .item-title.strike { text-decoration: line-through; }
   .item-badges { display: flex; align-items: center; gap: 4px; }
   .item-time { font-size: 11px; color: var(--text-tertiary); font-weight: 500; }
+  .item-travel { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-tertiary); font-size:11px; }
   .recipe-marker { font-size:10px; color:var(--status-success); border:1px solid color-mix(in srgb, var(--status-success) 55%, var(--border-default)); border-radius:999px; padding:2px 6px; white-space:nowrap; }
   .item-prog { flex: 0 0 70px; }
   .meal-row-actions { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
@@ -921,6 +1110,7 @@
   .bio-unit { font-size: 13px; font-weight: 400; color: var(--text-tertiary); }
   .bio-source-badge { font-size: 9px; color: var(--status-success); font-weight: 600; background: color-mix(in srgb, var(--status-success) 15%, transparent); padding: 1px 5px; border-radius: 4px; }
   .bio-source-manual { font-size: 9px; color: var(--text-tertiary); font-weight: 500; }
+  .bio-source-estimate { font-size: 9px; color: var(--status-info); font-weight: 650; background: color-mix(in srgb, var(--status-info) 14%, transparent); padding: 1px 5px; border-radius: 4px; }
   .bio-hdr-right { display: flex; align-items: center; gap: 4px; }
   .bio-trend-button { display:grid; place-items:center; width:28px; min-height:28px; padding:0; border:1px solid var(--border-default); border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-secondary); cursor:pointer; }
   .bio-trend-button:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; }
@@ -941,6 +1131,11 @@
   .weight-mini-stats { display: flex; flex-wrap: wrap; gap: 4px 8px; }
   .wms { font-size: 10px; color: var(--text-tertiary); display: flex; align-items: baseline; gap: 2px; }
   .wms b { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+  .weight-estimate-note { margin: 1px 0 0; color: var(--text-tertiary); font-size: 9px; line-height: 1.3; }
+  .trend-legend { display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin:0; color:var(--text-tertiary); font-size:11px; }
+  .trend-key { width:16px; border-top:2px solid var(--status-info); }
+  .trend-key.interpolated { border-top-style:dashed; }
+  .trend-key.baseline { border-color:var(--text-tertiary); border-top-style:dashed; }
 
   .nutrition-kcal { display:flex; align-items:baseline; gap:3px; min-height:22px; }
   .nutrition-kcal span { font-size:18px; font-weight:700; color:var(--text-primary); line-height:1.1; }
@@ -957,14 +1152,6 @@
   .sleep-leg-label { color: var(--text-secondary); flex: 1; white-space: nowrap; }
   .sleep-leg-time { color: var(--text-primary); font-weight: 600; text-align: right; min-width: 34px; }
   .sleep-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-
-  .quickadd { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border-subtle); }
-  .quickadd input { flex: 1; padding: 8px 12px; border-radius: 8px; background: var(--surface-raised); border: 1px solid var(--border-default); color: var(--text-primary); font-size: 14px; }
-  .quickadd input:focus { border-color: var(--status-info); }
-  .quickadd input::placeholder { color: var(--text-tertiary); }
-  .quickadd button { width: 34px; height: 34px; border-radius: 8px; background: var(--action-primary); color: var(--text-on-accent); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity 0.15s; }
-  .quickadd button:disabled { opacity: 0.3; }
-  .quickadd button:active { opacity: 0.7; }
 
   .modal-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
 
@@ -999,7 +1186,7 @@
   .trend-summary span { display:grid; gap:2px; padding:9px; border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-tertiary); font-size:11px; }
   .trend-summary b { color:var(--text-primary); font-size:13px; }
   .metric-trend-chart { width:100%; height:auto; min-height:160px; overflow:visible; }
-  .trend-axis { display:flex; justify-content:space-between; gap:12px; color:var(--text-tertiary); font-size:11px; }
+  .trend-axis { display:flex; justify-content:space-between; gap:8px; padding-left:14%; padding-right:2.7%; color:var(--text-tertiary); font-size:10px; }
   .trend-range-tabs { display:flex; gap:4px; }
   .trend-range-tabs button { min-width:var(--control-min); min-height:30px; padding:4px 9px; border:1px solid var(--border-default); border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-secondary); font:inherit; font-size:11px; font-weight:700; cursor:pointer; }
   .trend-range-tabs button.active { background:var(--action-primary); border-color:var(--action-primary); color:var(--text-on-accent); }

@@ -10,22 +10,22 @@
 
   async function saveGoals() {
     dailyGoals.set(goals);
-    localStorage.setItem('fittrack-goals', JSON.stringify(goals));
+    localStorage.setItem('app-goals', JSON.stringify(goals));
     const payload: Partial<Goals> = { kcal: goals.kcal, protein: goals.protein, carbs: goals.carbs, fat: goals.fat, fiber_g: goals.fiber, free_sugar_g: goals.freeSugar, free_sugar_limit_g: goals.freeSugarLimit, steps: goals.steps, sleep_hours: goals.sleepHours };
     try { await api.updateGoals(payload); } catch { /* local store remains available offline */ }
   }
 
   onMount(async () => {
-    const saved = localStorage.getItem('fittrack-goals');
+    const saved = localStorage.getItem('app-goals');
     if (saved) { try { goals = { ...goals, ...JSON.parse(saved) }; dailyGoals.set(goals); } catch {} }
     try {
       const server = await api.getGoals();
-      if (server) { goals = { ...goals, kcal: server.kcal ?? goals.kcal, protein: server.protein ?? goals.protein, carbs: server.carbs ?? goals.carbs, fat: server.fat ?? goals.fat, fiber: server.fiber_g ?? goals.fiber, freeSugar: server.free_sugar_g ?? goals.freeSugar, freeSugarLimit: server.free_sugar_limit_g ?? goals.freeSugarLimit, steps: server.steps ?? goals.steps, sleepHours: server.sleep_hours ?? goals.sleepHours }; dailyGoals.set(goals); localStorage.setItem('fittrack-goals', JSON.stringify(goals)); }
+      if (server) { goals = { ...goals, kcal: server.kcal ?? goals.kcal, protein: server.protein ?? goals.protein, carbs: server.carbs ?? goals.carbs, fat: server.fat ?? goals.fat, fiber: server.fiber_g ?? goals.fiber, freeSugar: server.free_sugar_g ?? goals.freeSugar, freeSugarLimit: server.free_sugar_limit_g ?? goals.freeSugarLimit, steps: server.steps ?? goals.steps, sleepHours: server.sleep_hours ?? goals.sleepHours }; dailyGoals.set(goals); localStorage.setItem('app-goals', JSON.stringify(goals)); }
     } catch {}
   });
 </script>
 
-<svelte:head><title>FitTrack - Tagesziele</title></svelte:head>
+<svelte:head><title>Chronickel - Tagesziele</title></svelte:head>
 <div class="page">
   <SettingsHeader title="Tagesziele" subtitle="Ernährung, Schritte und Schlaf" />
   <section class="section-card"><div class="section-header">Ziele</div><div class="body">

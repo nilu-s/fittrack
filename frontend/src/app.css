@@ -24,4 +24,8 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
 ul { list-style: none; }
+/* Legacy quick-add markup may remain in an already-open day view during a
+   client-side update. The active footer owns To-do creation. */
+.quickadd { display: none !important; }
+input.file-input { display: none !important; }
 ::-webkit-scrollbar { width: 0; }

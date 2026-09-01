@@ -76,12 +76,19 @@ def _consecutive_streak(entries: list[DayEntry], predicate) -> int:
 
 
 @router.get("/week", response_model=WeekSummary)
-async def week_summary(date: Optional[date_type] = Query(None), user: str = Depends(get_current_user)):
-    """Summary for the week containing `date` (defaults to Berlin today)."""
+async def week_summary(
+    date: Optional[date_type] = Query(None),
+    rolling_days: Optional[int] = Query(None, ge=1, le=365),
+    user: str = Depends(get_current_user),
+):
+    """Calendar-week summary, or a rolling window ending at ``date``."""
     target = date or _berlin_today()
-    # Monday of that week in Berlin local date
-    week_start = target - timedelta(days=target.weekday())
-    week_end = week_start + timedelta(days=6)
+    if rolling_days is not None:
+        week_end = target
+        week_start = target - timedelta(days=rolling_days - 1)
+    else:
+        week_start = target - timedelta(days=target.weekday())
+        week_end = week_start + timedelta(days=6)
 
     async with async_session() as session:
         # Day entries
@@ -160,7 +167,8 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
         if training_completion > 100:
             training_completion = Decimal("100")
         todo_completion = Decimal(str(round(todo_done / todo_total * 100, 1))) if todo_total else Decimal("0")
-        creatine_compliance = Decimal(str(round(creatine_done_days / 7 * 100, 1))) if creatine_done_days else Decimal("0")
+        window_days = rolling_days or 7
+        creatine_compliance = Decimal(str(round(creatine_done_days / window_days * 100, 1))) if creatine_done_days else Decimal("0")
 
         # Macro compliance: compare weekly averages against goals
         def _compliance(actual: Optional[Decimal], target: Any) -> Optional[Decimal]:
@@ -211,10 +219,11 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
 async def trend(
     metric: str = Query(..., description="weight | kcal | steps | sleep_hours | protein | carbs | fat"),
     days: int = Query(30, ge=1, le=365),
+    end_date: Optional[date_type] = Query(None, description="Inclusive end date; defaults to today in Europe/Berlin"),
     user: str = Depends(get_current_user),
 ):
     """Trend data as array of {date, value}."""
-    end = _berlin_today()
+    end = end_date or _berlin_today()
     start = end - timedelta(days=days - 1)
 
     async with async_session() as session:

@@ -11,7 +11,7 @@ from app.models import DayEntry, Goal, MealEntry, Todo
 from app.main import app
 
 
-def test_account_owned_models_expose_no_legacy_owner_column():
+def test_account_owned_models_expose_no_compatibility_owner_column():
     for model in (DayEntry, Goal, MealEntry, Todo):
         assert not hasattr(model, "user_id")
 

@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.config import validate_runtime_settings
+from app.config import settings, validate_runtime_settings
 
 logger = logging.getLogger(__name__)
 
@@ -19,13 +19,13 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="FitTrack API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title=f"{settings.APP_NAME} API", version="1.0.0", lifespan=lifespan)
 
 # CORS — restrict to known origins
 _CORS_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://fittrack.49.12.225.84.sslip.io",
+    settings.APP_PUBLIC_ORIGIN,
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -54,6 +54,7 @@ from app.routes.todo_routines import router as todo_routines_router
 from app.routes.training import router as training_router
 from app.routes.goals import router as goals_router
 from app.routes.configurable_meals import router as configurable_meals_router
+from app.routes.todo_planning import router as todo_planning_router
 
 
 # Device ingestion and OAuth are deliberately outside the browser-session
@@ -110,3 +111,4 @@ app.include_router(scale_v2_router, prefix="/api")
 app.include_router(scale_browser_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
 app.include_router(google_calendar_router, prefix="/api")
+app.include_router(todo_planning_router, prefix="/api")

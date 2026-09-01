@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Vision Proxy: bridges FitTrack backend → Codex/GPT-5.5 vision API.
+Vision Proxy: bridges Chronickel backend → Codex/GPT-5.5 vision API.
 Reads OAuth token from Hermes auth.json, refreshes if needed, calls Codex responses API.
 Listens on 127.0.0.1:8100 — only accessible from localhost (Docker containers via host gateway).
 """
@@ -75,6 +75,11 @@ class AnalyzeRequest(BaseModel):
     image_base64: str
 
 
+class TodoDraftRequest(BaseModel):
+    text: str
+    date: str
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "model": MODEL}
@@ -97,6 +102,86 @@ async def analyze_photo(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Empty file")
     b64 = base64.b64encode(contents).decode()
     return await _do_analysis(b64)
+
+
+@app.post("/todo-draft")
+async def draft_todo(req: TodoDraftRequest):
+    """Return a review-only todo draft using the same Codex OAuth path.
+
+    This receives only the user's free text and selected calendar day; account
+    identity, session cookies, coordinates and Google tokens never leave the
+    Chronickel API.
+    """
+    prompt = (
+        "Create a German todo draft from the text below. Respond ONLY with valid JSON "
+        "having exactly title, due_date (YYYY-MM-DD), start_time (HH:MM or null), "
+        "place_query (string or null), travel_mode (drive|bicycle|walk|transit|null), "
+        "needs_review (array of strings). Never invent a place ID or missing facts. "
+        "Resolve relative German dates using the selected date as the reference: "
+        "'nächsten Freitag' means the Friday strictly after that date; a plain "
+        "weekday means its next occurrence, including the selected day.\n\n"
+        f"Selected date (reference): {req.date}\nTodo text: {req.text}"
+    )
+    token = get_codex_token()
+    try:
+        full_text = ""
+        with httpx.stream(
+            "POST", CODEX_API,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json={"model": MODEL, "store": False, "stream": True,
+                  "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}]}]},
+            timeout=60,
+        ) as response:
+            if response.status_code == 429:
+                raise HTTPException(status_code=429, detail="Codex rate limited")
+            if response.status_code != 200:
+                logger.error("Codex todo-draft error status=%d", response.status_code)
+                raise HTTPException(status_code=502, detail="Codex todo-draft unavailable")
+            for line in response.iter_lines():
+                if line.startswith("data: "):
+                    try:
+                        event = json.loads(line[6:])
+                        if event.get("type") == "response.output_text.delta":
+                            full_text += event.get("delta", "")
+                    except json.JSONDecodeError:
+                        continue
+        full_text = full_text.strip()
+        if full_text.startswith("```"):
+            lines = full_text.split("\n")
+            full_text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+        result = json.loads(full_text)
+        required = {"title", "due_date", "start_time", "place_query", "travel_mode", "needs_review"}
+        if not required.issubset(result) or not isinstance(result["needs_review"], list):
+            raise ValueError("Invalid todo-draft shape")
+        return JSONResponse(result)
+    except HTTPException:
+        raise
+    except (httpx.HTTPError, json.JSONDecodeError, ValueError):
+        logger.warning("Codex todo-draft returned no usable draft")
+        raise HTTPException(status_code=502, detail="Codex todo-draft unavailable")
+
+
+@app.post("/assistant")
+async def assistant(req: TodoDraftRequest):
+    """Answer an explicit user question without receiving account data."""
+    prompt = ("You are Chronickel's concise German planning assistant. Answer the user's question helpfully. "
+              "Do not claim to have changed data, do not request secrets, and suggest the relevant app area when useful. "
+              f"Selected date: {req.date}\nUser: {req.text}")
+    token = get_codex_token()
+    try:
+        full_text = ""
+        with httpx.stream("POST", CODEX_API, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}, json={"model": MODEL, "store": False, "stream": True, "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}]}]}, timeout=60) as response:
+            if response.status_code != 200: raise HTTPException(status_code=502, detail="Codex assistant unavailable")
+            for line in response.iter_lines():
+                if line.startswith("data: "):
+                    try:
+                        event = json.loads(line[6:])
+                        if event.get("type") == "response.output_text.delta": full_text += event.get("delta", "")
+                    except json.JSONDecodeError: continue
+        if not full_text.strip(): raise ValueError("empty assistant response")
+        return JSONResponse({"message": full_text.strip()})
+    except HTTPException: raise
+    except (httpx.HTTPError, ValueError): raise HTTPException(status_code=502, detail="Codex assistant unavailable")
 
 
 async def _do_analysis(b64: str) -> JSONResponse:

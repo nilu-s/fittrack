@@ -22,7 +22,7 @@ def test_scale_sync_proxy_route_is_exempt_from_browser_basic_auth():
     with open("../infra/caddy/Caddyfile", encoding="utf-8") as caddyfile:
         config = caddyfile.read()
 
-    scale_handler = "@scale_sync path /api/scale-sync/v2\n  handle @scale_sync {\n    reverse_proxy fittrack-api:8000\n  }"
+    scale_handler = "@scale_sync path /api/scale-sync/v2\n  handle @scale_sync {\n    reverse_proxy api:8000\n  }"
     api_handler = "@api path /api/*"
 
     assert scale_handler in config

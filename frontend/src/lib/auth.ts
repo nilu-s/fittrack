@@ -16,18 +16,18 @@ export async function checkAuth(): Promise<void> {
     });
     if (!resp.ok) {
       await clearAccountData();
-      window.localStorage.removeItem('fittrack_account_id');
+      window.localStorage.removeItem('app_account_id');
       isAuthenticated.set(false);
       authEmail.set(null);
       return;
     }
     const data = await resp.json();
     if (data.authenticated) {
-      const previousAccountId = window.localStorage.getItem('fittrack_account_id');
+      const previousAccountId = window.localStorage.getItem('app_account_id');
       if (previousAccountId && previousAccountId !== data.id) {
         await clearAccountData();
       }
-      window.localStorage.setItem('fittrack_account_id', data.id);
+      window.localStorage.setItem('app_account_id', data.id);
       isAuthenticated.set(true);
       authEmail.set(data.email);
     } else {
@@ -37,7 +37,7 @@ export async function checkAuth(): Promise<void> {
   } catch {
     // Network/SSL error — assume not authenticated, show login
     await clearAccountData();
-    window.localStorage.removeItem('fittrack_account_id');
+    window.localStorage.removeItem('app_account_id');
     isAuthenticated.set(false);
     authEmail.set(null);
   }
@@ -55,7 +55,7 @@ export async function logout(): Promise<void> {
   isAuthenticated.set(false);
   authEmail.set(null);
   await clearAccountData();
-  window.localStorage.removeItem('fittrack_account_id');
+  window.localStorage.removeItem('app_account_id');
 }
 
 export async function disconnectGoogle(): Promise<void> {
