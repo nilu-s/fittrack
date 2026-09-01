@@ -19,10 +19,10 @@ from sqlalchemy.exc import IntegrityError
 
 from app.config import settings
 from app.database import async_session
-from app.models import Food, MealCategory, MealEntry, MealEntryItem, MealPhotoAnalysis, MealPlan, MealPlanItem, MealPlanVersion, Photo, Recipe, RecipeIngredient
+from app.models import Food, MealCategory, MealCategoryRecipePreset, MealEntry, MealEntryItem, MealPhotoAnalysis, MealPlan, MealPlanItem, MealPlanVersion, Photo, Recipe, RecipeIngredient
 from app.routes.auth import get_current_user
 from app.schemas import (
-    FoodCreate, FoodResponse, FoodUpdate, MealCategoryCreate, MealCategoryResponse, MealCategoryReorder, MealCategoryUpdate,
+    FoodCreate, FoodResponse, FoodUpdate, MealCategoryCreate, MealCategoryResponse, MealCategoryRecipePresetUpdate, MealCategoryReorder, MealCategoryUpdate,
     MealEntryCreate, MealEntryItemInput, MealEntryItemResponse, MealEntryResponse, MealEntryUpdate,
     MealPlanCreate, MealPlanItemInput, MealPlanItemResponse, MealPlanResponse, MealPlanUpdate,
     Nutrition, RecipeCreate, RecipeIngredientInput, RecipeIngredientResponse, RecipeResponse, RecipeUpdate, MealPhotoAnalysisAccept, MealPhotoAnalysisResponse, MealEntryStatusCommand, MealPlanVersionResponse,
@@ -133,7 +133,13 @@ async def _recipe_nutrition(session, recipe: Recipe, account_id: uuid.UUID, mult
             nested = await _owned(session, Recipe, ingredient.nested_recipe_id, account_id)
             nested_total = await _recipe_nutrition(session, nested, account_id, ingredient.quantity / nested.servings, visited.copy())
             values.append(nested_total)
-    total = _sum(values) if values else {key: Decimal("0") for key in _NUTRIENTS}
+    if values:
+        total = _sum(values)
+    elif recipe.nutrition_per_serving:
+        total = {key: Decimal(str(recipe.nutrition_per_serving.get(key))) if recipe.nutrition_per_serving.get(key) is not None else None for key in _NUTRIENTS}
+        return {key: value * multiplier if value is not None else None for key, value in total.items()}
+    else:
+        total = {key: Decimal("0") for key in _NUTRIENTS}
     return {key: value * multiplier / recipe.servings if value is not None else None for key, value in total.items()}
 
 
@@ -187,7 +193,10 @@ async def _validate_active_recipe(session, recipe: Recipe, account_id: uuid.UUID
         RecipeIngredient.account_id == account_id,
     ))).scalars().all()
     if not ingredients:
-        raise HTTPException(422, "An active recipe requires at least one ingredient")
+        snapshot = recipe.nutrition_per_serving or {}
+        if all(snapshot.get(key) is not None for key in _NUTRIENTS):
+            return
+        raise HTTPException(422, "An active recipe requires ingredients or complete per-serving nutrient values")
     for ingredient in ingredients:
         if ingredient.food_id is None:
             continue
@@ -225,6 +234,47 @@ async def create_category(body: MealCategoryCreate, account_id: uuid.UUID = Depe
         try: await session.commit()
         except IntegrityError: await session.rollback(); raise HTTPException(409, "A category with this name already exists")
         await session.refresh(row); return row
+
+
+@router.get("/meal-categories/{category_id}/recipe-presets", response_model=list[RecipeResponse])
+async def list_category_recipe_presets(category_id: uuid.UUID, account_id: uuid.UUID = Depends(get_current_user)):
+    """Return the two account-local quick recipes in their explicit order."""
+    async with async_session() as session:
+        await _owned(session, MealCategory, category_id, account_id)
+        rows = (await session.execute(
+            select(MealCategoryRecipePreset, Recipe)
+            .join(Recipe, Recipe.id == MealCategoryRecipePreset.recipe_id)
+            .where(
+                MealCategoryRecipePreset.account_id == account_id,
+                MealCategoryRecipePreset.category_id == category_id,
+                Recipe.account_id == account_id,
+                Recipe.status == "active",
+            )
+            .order_by(MealCategoryRecipePreset.rank)
+        )).all()
+        return [await _recipe_response(session, recipe, account_id) for _, recipe in rows]
+
+
+@router.put("/meal-categories/{category_id}/recipe-presets", response_model=list[RecipeResponse])
+async def replace_category_recipe_presets(category_id: uuid.UUID, body: MealCategoryRecipePresetUpdate, account_id: uuid.UUID = Depends(get_current_user)):
+    """Atomically set zero, one, or two active recipes for an owned category."""
+    async with async_session() as session:
+        await _owned(session, MealCategory, category_id, account_id)
+        recipes = []
+        for recipe_id in body.recipe_ids:
+            recipe = await _owned(session, Recipe, recipe_id, account_id)
+            if recipe.status != "active":
+                raise HTTPException(422, "Quick recipes must be active")
+            recipes.append(recipe)
+        for old in (await session.execute(select(MealCategoryRecipePreset).where(
+            MealCategoryRecipePreset.account_id == account_id,
+            MealCategoryRecipePreset.category_id == category_id,
+        ))).scalars():
+            await session.delete(old)
+        for rank, recipe in enumerate(recipes, start=1):
+            session.add(MealCategoryRecipePreset(account_id=account_id, category_id=category_id, recipe_id=recipe.id, rank=rank))
+        await session.commit()
+        return [await _recipe_response(session, recipe, account_id) for recipe in recipes]
 
 
 @router.put("/meal-categories/reorder", response_model=list[MealCategoryResponse])
@@ -330,7 +380,16 @@ async def update_recipe(recipe_id: uuid.UUID, body: RecipeUpdate, account_id: uu
 @router.delete("/recipes/{recipe_id}", status_code=204)
 async def archive_recipe(recipe_id: uuid.UUID, account_id: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
-        row = await _owned(session, Recipe, recipe_id, account_id); row.status = "archived"; await session.commit()
+        row = await _owned(session, Recipe, recipe_id, account_id)
+        row.status = "archived"
+        # A hidden recipe must not silently return as a category shortcut when
+        # it is reactivated later. Historical meal snapshots stay untouched.
+        for preset in (await session.execute(select(MealCategoryRecipePreset).where(
+            MealCategoryRecipePreset.account_id == account_id,
+            MealCategoryRecipePreset.recipe_id == recipe_id,
+        ))).scalars():
+            await session.delete(preset)
+        await session.commit()
 
 
 async def _replace_plan_items(session, plan: MealPlan, inputs: list[MealPlanItemInput], account_id: uuid.UUID):

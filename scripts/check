@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+# Keep this matrix intentionally equivalent to the repository CI jobs. Database
+# migration rehearsal is CI-only unless a caller provides a disposable
+# PostgreSQL instance through DATABASE_URL.
 (cd backend && python -m pytest -q)
 (cd frontend && npm run check && npm run lint:design && npm run build)
-(cd esp32-scale-bridge && pio run)
+(cd esp32-scale-bridge && pio run && pio run -e diagnostic)

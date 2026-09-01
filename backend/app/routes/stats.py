@@ -5,10 +5,10 @@ from decimal import Decimal
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from app.database import async_session
-from app.models import DayEntry, Goal, Meal, Todo
+from app.models import DayEntry, Goal, MealEntry, Todo
 from app.routes.auth import get_current_user
 from app.routes.goals import DEFAULT_GOALS, _resolve_goal_value
 from app.schemas import TrendPoint, TrendResponse, WeekSummary
@@ -30,6 +30,32 @@ def _mean(values: list[Decimal]) -> Optional[Decimal]:
 
 def _sum_int(values: list[Optional[int]]) -> int:
     return sum(v for v in values if v is not None)
+
+
+_MEAL_NUTRIENTS = ("kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g", "free_sugar_g")
+
+
+async def _meal_totals_by_date(session, account_id, start: date_type, end: date_type) -> dict[date_type, dict[str, Decimal | None]]:
+    """Sum consumed configurable-meal snapshots without reviving legacy Meals.
+
+    A null snapshot value remains unknown for that day; it is never silently
+    converted to zero.  Planned and skipped entries are not intake data.
+    """
+    rows = (await session.execute(select(MealEntry).where(
+        MealEntry.account_id == account_id,
+        MealEntry.date.between(start, end),
+        MealEntry.status == "consumed",
+    ))).scalars().all()
+    totals: dict[date_type, dict[str, Decimal | None]] = {}
+    for entry in rows:
+        daily = totals.setdefault(entry.date, {key: Decimal("0") for key in _MEAL_NUTRIENTS})
+        for key in _MEAL_NUTRIENTS:
+            raw = (entry.nutrition_snapshot or {}).get(key)
+            if raw is None or daily[key] is None:
+                daily[key] = None
+            else:
+                daily[key] += Decimal(str(raw))
+    return totals
 
 
 def _consecutive_streak(entries: list[DayEntry], predicate) -> int:
@@ -71,19 +97,8 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
         total_cardio_minutes = _sum_int([e.cardio_minutes for e in entries])
         creatine_done_days = sum(1 for e in entries if e.creatine_done)
 
-        # Meals — daily totals (skip soft-deleted)
-        meal_result = await session.execute(
-            select(Meal.date, func.sum(Meal.kcal), func.sum(Meal.protein_g),
-                   func.sum(Meal.carbs_g), func.sum(Meal.fat_g),
-                   func.sum(Meal.fiber_g), func.sum(Meal.sugar_g), func.sum(Meal.free_sugar_g))
-            .where(
-                Meal.account_id == user,
-                Meal.date >= week_start,
-                Meal.date <= week_end,
-                Meal.deleted == False,
-            )
-            .group_by(Meal.date)
-        )
+        # Consumed configurable meal snapshots are the single source of truth.
+        meal_totals = await _meal_totals_by_date(session, user, week_start, week_end)
         daily_kcal: list[Decimal] = []
         daily_protein: list[Decimal] = []
         daily_carbs: list[Decimal] = []
@@ -91,21 +106,14 @@ async def week_summary(date: Optional[date_type] = Query(None), user: str = Depe
         daily_fiber: list[Decimal] = []
         daily_sugar: list[Decimal] = []
         daily_free_sugar: list[Decimal] = []
-        for row in meal_result:
-            if row[1] is not None:
-                daily_kcal.append(Decimal(row[1]))
-            if row[2] is not None:
-                daily_protein.append(Decimal(row[2]))
-            if row[3] is not None:
-                daily_carbs.append(Decimal(row[3]))
-            if row[4] is not None:
-                daily_fat.append(Decimal(row[4]))
-            if row[5] is not None:
-                daily_fiber.append(Decimal(row[5]))
-            if row[6] is not None:
-                daily_sugar.append(Decimal(row[6]))
-            if row[7] is not None:
-                daily_free_sugar.append(Decimal(row[7]))
+        for total in meal_totals.values():
+            if total["kcal"] is not None: daily_kcal.append(total["kcal"])
+            if total["protein_g"] is not None: daily_protein.append(total["protein_g"])
+            if total["carbs_g"] is not None: daily_carbs.append(total["carbs_g"])
+            if total["fat_g"] is not None: daily_fat.append(total["fat_g"])
+            if total["fiber_g"] is not None: daily_fiber.append(total["fiber_g"])
+            if total["sugar_g"] is not None: daily_sugar.append(total["sugar_g"])
+            if total["free_sugar_g"] is not None: daily_free_sugar.append(total["free_sugar_g"])
 
         # Todos (skip soft-deleted)
         todo_result = await session.execute(
@@ -214,46 +222,10 @@ async def trend(
                 ).order_by(DayEntry.date)
             )
             points = [TrendPoint(date=row[0], value=row[1]) for row in result if row[1] is not None]
-        elif metric == "kcal":
-            result = await session.execute(
-                select(Meal.date, func.sum(Meal.kcal)).where(
-                    Meal.account_id == user,
-                    Meal.date >= start,
-                    Meal.date <= end,
-                    Meal.deleted == False,
-                ).group_by(Meal.date).order_by(Meal.date)
-            )
-            points = [TrendPoint(date=row[0], value=row[1]) for row in result if row[1] is not None]
-        elif metric == "protein":
-            result = await session.execute(
-                select(Meal.date, func.sum(Meal.protein_g)).where(
-                    Meal.account_id == user,
-                    Meal.date >= start,
-                    Meal.date <= end,
-                    Meal.deleted == False,
-                ).group_by(Meal.date).order_by(Meal.date)
-            )
-            points = [TrendPoint(date=row[0], value=row[1]) for row in result if row[1] is not None]
-        elif metric == "carbs":
-            result = await session.execute(
-                select(Meal.date, func.sum(Meal.carbs_g)).where(
-                    Meal.account_id == user,
-                    Meal.date >= start,
-                    Meal.date <= end,
-                    Meal.deleted == False,
-                ).group_by(Meal.date).order_by(Meal.date)
-            )
-            points = [TrendPoint(date=row[0], value=row[1]) for row in result if row[1] is not None]
-        elif metric == "fat":
-            result = await session.execute(
-                select(Meal.date, func.sum(Meal.fat_g)).where(
-                    Meal.account_id == user,
-                    Meal.date >= start,
-                    Meal.date <= end,
-                    Meal.deleted == False,
-                ).group_by(Meal.date).order_by(Meal.date)
-            )
-            points = [TrendPoint(date=row[0], value=row[1]) for row in result if row[1] is not None]
+        elif metric in {"kcal", "protein", "carbs", "fat"}:
+            nutrient = {"kcal": "kcal", "protein": "protein_g", "carbs": "carbs_g", "fat": "fat_g"}[metric]
+            totals = await _meal_totals_by_date(session, user, start, end)
+            points = [TrendPoint(date=day, value=values[nutrient]) for day, values in sorted(totals.items()) if values[nutrient] is not None]
         elif metric == "steps":
             result = await session.execute(
                 select(DayEntry.date, DayEntry.steps).where(

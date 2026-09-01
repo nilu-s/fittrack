@@ -1,6 +1,6 @@
 # Umsetzungsplan: konfigurierbare Mahlzeiten
 
-**Status:** proposed — nach Freigabe der Spezifikation umsetzbar  
+**Status:** superseded (historical) — implementation completed; the active source is [`../specs/configurable-meals.md`](../specs/configurable-meals.md).
 **Autoritative Grundlage:** [`../specs/configurable-meals.md`](../specs/configurable-meals.md)
 
 ## Ausgangslage

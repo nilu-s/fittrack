@@ -47,6 +47,16 @@ body-composition code.
 
 - Inspect `git status --short` first.  This repository may contain user work;
   preserve unrelated changes.
+- Treat an approved spec as authoritative over an ADR, a versioned contract,
+  a plan, and a README/history, in that order. Stop when authoritative sources
+  conflict; resolve the decision in a separate spec-revision task.
+- Every implementation task declares its objective, in/out-of-scope paths,
+  governing artifact, acceptance checks, allowed side effects, stop conditions,
+  and one owning conflict domain. Review and research may run in parallel, but
+  only one agent writes a conflict domain at a time.
+- Revalidate the governing artifact when its declared touchpoint changes. Use
+  `.agents/skills/fittrack-artifact-lifecycle/` for the evidence-based
+  `confirmed`, `revise`, `supersede`, or `retire` outcome.
 - Use Alembic for persistent-schema changes.  Do not rely on
   `Base.metadata.create_all()` for migrations or edit existing migration files.
 - Make backwards-compatible API changes deliberately.  If a temporary legacy
@@ -59,6 +69,9 @@ body-composition code.
   result.
 - Prefer small, reviewable commits/work packages.  Do not mix the account
   isolation migration with BIA protocol reverse engineering.
+- Treat `backend/alembic/versions/`, `docs/contracts/openapi.json`, session /
+  ownership code, and shared frontend API/types as serialized conflict domains.
+  Do not create a second Alembic revision or edit these paths concurrently.
 
 ## Definition of done for account-scoped changes
 
@@ -87,4 +100,3 @@ cd frontend && npm run check && npm run lint:design && npm run build
 # ESP firmware (compile only when toolchain is present)
 cd esp32-scale-bridge && pio run
 ```
-

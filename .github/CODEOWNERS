@@ -1,0 +1,13 @@
+# Critical boundaries require review by the repository owner. GitHub branch
+# protection must require these reviews on the default branch.
+/AGENTS.md @nilu-s
+/CONTRIBUTING.md @nilu-s
+/docs/specs/ @nilu-s
+/docs/adr/ @nilu-s
+/docs/contracts/ @nilu-s
+/backend/alembic/versions/ @nilu-s
+/backend/app/routes/auth.py @nilu-s
+/backend/app/routes/scale_v2.py @nilu-s
+/backend/app/services/ownership.py @nilu-s
+/infra/ @nilu-s
+/docker-compose.yml @nilu-s

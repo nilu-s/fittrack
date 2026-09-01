@@ -147,8 +147,9 @@ async def _do_analysis(b64: str) -> JSONResponse:
             if r.status_code == 429:
                 raise HTTPException(status_code=429, detail="Codex rate limited")
             if r.status_code != 200:
-                body = r.read().decode()[:300]
-                logger.error("Codex API error %d: %s", r.status_code, body)
+                # Provider responses can contain prompts, images metadata, or
+                # credentials. Status is sufficient for operational diagnosis.
+                logger.error("Codex API error status=%d", r.status_code)
                 raise HTTPException(status_code=502, detail=f"Codex error: {r.status_code}")
             for line in r.iter_lines():
                 if line.startswith("data: "):
@@ -197,8 +198,8 @@ async def _do_analysis(b64: str) -> JSONResponse:
         logger.exception("Connection error")
         raise HTTPException(status_code=502, detail=str(e))
     except json.JSONDecodeError:
-        logger.error("Could not parse response: %s", full_text[:200])
-        raise HTTPException(status_code=500, detail=f"Parse error: {full_text[:200]}")
+        logger.error("Could not parse vision provider response")
+        raise HTTPException(status_code=500, detail="Vision provider returned an invalid response")
     except Exception as e:
         logger.exception("Vision proxy error")
         raise HTTPException(status_code=500, detail=str(e))

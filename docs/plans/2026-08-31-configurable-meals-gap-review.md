@@ -1,6 +1,6 @@
 # Deep-Gap-Review: konfigurierbare Mahlzeiten
 
-**Status:** proposed — P0-Gates vor Feature-Implementierung  
+**Status:** superseded (historical) — review input captured before implementation; the active source is [`../specs/configurable-meals.md`](../specs/configurable-meals.md).
 **Grundlage:** [`../specs/configurable-meals.md`](../specs/configurable-meals.md)  
 **Methode:** unabhängige lesende Reviews von Produkt/UI, Daten/API und Betrieb/Offline
 

@@ -53,6 +53,7 @@
           free_sugar_g: nutrition.free_sugar_g,
           is_done: entry.status === 'consumed', meal_entry: true,
           meal_entry_status: entry.status, category_name: category?.name,
+          category_id: entry.category_id, meal_entry_items: entry.items,
           recipe_instructions: recipeId ? recipeById.get(recipeId)?.instructions ?? [] : [],
           updated_at: entry.updated_at,
         };
@@ -67,9 +68,10 @@
     } catch (e) {
       console.warn('Failed to load day data:', e);
       const ce = await db.dayEntries.where('date').equals(date).first();
-      const cm = await db.meals.where('date').equals(date).toArray();
       const ct = await db.todos.where('date').equals(date).toArray();
-      dayData.set({ dayEntry: ce ?? { date }, meals: cm ?? [], todos: ct ?? [], trainingSuggestion: null, nextTraining: null, weekStats: null });
+      // Meal entries are revision-aware and online-first; never revive a
+      // removed legacy IndexedDB meal record during an offline fallback.
+      dayData.set({ dayEntry: ce ?? { date }, meals: [], todos: ct ?? [], trainingSuggestion: null, nextTraining: null, weekStats: null });
     }
   }
 

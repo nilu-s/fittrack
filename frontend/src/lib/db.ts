@@ -1,13 +1,11 @@
 import Dexie, { type Table } from 'dexie';
-import type { DayEntry, Meal, Todo, Exercise, TrainingSet, TrainingRotation, MealTemplate, SyncQueueEntry } from './types';
+import type { DayEntry, Todo, Exercise, TrainingSet, TrainingRotation, SyncQueueEntry } from './types';
 
 export interface DayEntryRecord extends DayEntry { localId?: number; serverId?: string; }
-export interface MealRecord extends Meal { localId?: number; serverId?: string; }
 export interface TodoRecord extends Todo { localId?: number; serverId?: string; }
 export interface ExerciseRecord extends Exercise { localId?: number; serverId?: string; }
 export interface TrainingSetRecord extends TrainingSet { localId?: number; serverId?: string; }
 export interface TrainingRotationRecord extends TrainingRotation { localId?: number; serverId?: string; }
-export interface MealTemplateRecord extends MealTemplate { localId?: number; serverId?: string; }
 export interface PhotoRecord { localId?: number; serverId?: string; mealLocalId?: number; blob?: Blob; }
 
 export class FitTrackDB extends Dexie {
@@ -15,9 +13,7 @@ export class FitTrackDB extends Dexie {
   trainingRotation!: Table<TrainingRotationRecord, number>;
   trainingSets!: Table<TrainingSetRecord, number>;
   exercises!: Table<ExerciseRecord, number>;
-  meals!: Table<MealRecord, number>;
   todos!: Table<TodoRecord, number>;
-  mealTemplates!: Table<MealTemplateRecord, number>;
   syncQueue!: Table<SyncQueueEntry, number>;
   photos!: Table<PhotoRecord, number>;
 
@@ -28,12 +24,14 @@ export class FitTrackDB extends Dexie {
       trainingRotation: '++localId, serverId, slot',
       trainingSets: '++localId, serverId, date, training_type, exercise_name, set_number, completed, updated_at',
       exercises: '++localId, serverId, training_type, exercise_name',
-      meals: '++localId, serverId, date, meal_slot, is_done, default_time, updated_at',
       todos: '++localId, serverId, status, priority, category, due_date, due_time, source, external_id, sort_order, updated_at',
-      mealTemplates: '++localId, serverId, slot',
       syncQueue: '++id, entityType, entityLocalId, action, clientTimestamp, synced',
       photos: '++localId, serverId, mealLocalId, blob',
     });
+    // Legacy Meal/Dish/MealTemplate APIs were removed in the account-private
+    // meal-entry cutover. Delete their unreachable local stores on upgrade so
+    // an account switch cannot leave misleading stale records behind.
+    this.version(3).stores({ meals: null, mealTemplates: null });
   }
 }
 
@@ -62,13 +60,12 @@ export async function clearAccountData() {
     'rw',
     [
       db.dayEntries, db.trainingRotation, db.trainingSets, db.exercises,
-      db.meals, db.todos, db.mealTemplates, db.syncQueue, db.photos,
+      db.todos, db.syncQueue, db.photos,
     ],
     async () => {
       await Promise.all([
         db.dayEntries.clear(), db.trainingRotation.clear(), db.trainingSets.clear(),
-        db.exercises.clear(), db.meals.clear(), db.todos.clear(),
-        db.mealTemplates.clear(), db.syncQueue.clear(), db.photos.clear(),
+        db.exercises.clear(), db.todos.clear(), db.syncQueue.clear(), db.photos.clear(),
       ]);
     },
   );

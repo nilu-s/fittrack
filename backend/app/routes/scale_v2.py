@@ -139,7 +139,10 @@ async def list_measurements(
     account_id=Depends(get_current_user),
 ):
     async with async_session() as session:
-        statement = select(ScaleMeasurement).where(ScaleMeasurement.status == "assigned")
+        statement = select(ScaleMeasurement).where(
+            ScaleMeasurement.account_id == account_id,
+            ScaleMeasurement.status == "assigned",
+        )
         if from_:
             statement = statement.where(ScaleMeasurement.measured_at >= from_)
         if to:
@@ -154,7 +157,12 @@ async def list_measurements(
 @browser_router.post("/{measurement_id}/reject")
 async def reject_measurement(measurement_id: uuid.UUID, account_id=Depends(get_current_user)):
     async with async_session() as session:
-        item = await session.get(ScaleMeasurement, measurement_id)
+        item = await session.scalar(
+            select(ScaleMeasurement).where(
+                ScaleMeasurement.id == measurement_id,
+                ScaleMeasurement.account_id == account_id,
+            )
+        )
         if not item or item.status != "assigned":
             raise HTTPException(status_code=404, detail="Measurement not found")
         item.status = "rejected"
@@ -170,14 +178,18 @@ profile_router = APIRouter(prefix="/account/body-profile", tags=["account"])
 @profile_router.get("", response_model=BodyProfileResponse | None)
 async def get_body_profile(account_id=Depends(get_current_user)):
     async with async_session() as session:
-        profile = (await session.execute(select(BodyProfile))).scalar_one_or_none()
+        profile = await session.scalar(
+            select(BodyProfile).where(BodyProfile.account_id == account_id)
+        )
     return profile
 
 
 @profile_router.put("", response_model=BodyProfileResponse)
 async def update_body_profile(body: BodyProfileUpdate, account_id=Depends(get_current_user)):
     async with async_session() as session:
-        profile = (await session.execute(select(BodyProfile))).scalar_one_or_none()
+        profile = await session.scalar(
+            select(BodyProfile).where(BodyProfile.account_id == account_id)
+        )
         if profile is None:
             profile = BodyProfile(account_id=account_id, **body.model_dump())
             session.add(profile)

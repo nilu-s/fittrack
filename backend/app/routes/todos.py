@@ -45,7 +45,9 @@ async def list_todos(
 @router.post("", response_model=TodoResponse, status_code=201)
 async def create_todo(body: TodoCreate, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        todo = Todo(**body.model_dump())
+        # Do not rely on the request-local ORM filter for ownership on writes:
+        # workers and focused route tests may not install that context.
+        todo = Todo(account_id=user, **body.model_dump())
         session.add(todo)
         await session.commit()
         await session.refresh(todo)
@@ -55,7 +57,9 @@ async def create_todo(body: TodoCreate, user: str = Depends(get_current_user)):
 @router.put("/{todo_id}", response_model=TodoResponse)
 async def update_todo(todo_id: uuid.UUID, body: TodoUpdate, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        result = await session.execute(select(Todo).where(Todo.id == todo_id))
+        result = await session.execute(
+            select(Todo).where(Todo.id == todo_id, Todo.account_id == user)
+        )
         todo = result.scalars().first()
         if todo is None:
             raise HTTPException(status_code=404, detail="Todo not found")
@@ -69,7 +73,11 @@ async def update_todo(todo_id: uuid.UUID, body: TodoUpdate, user: str = Depends(
 @router.delete("/{todo_id}", status_code=204)
 async def delete_todo(todo_id: uuid.UUID, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        result = await session.execute(select(Todo).where(Todo.id == todo_id, Todo.deleted == False))
+        result = await session.execute(
+            select(Todo).where(
+                Todo.id == todo_id, Todo.account_id == user, Todo.deleted == False
+            )
+        )
         todo = result.scalars().first()
         if todo is None:
             raise HTTPException(status_code=404, detail="Todo not found")
@@ -80,7 +88,9 @@ async def delete_todo(todo_id: uuid.UUID, user: str = Depends(get_current_user))
 @router.post("/{todo_id}/done", response_model=TodoResponse)
 async def mark_todo_done(todo_id: uuid.UUID, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        result = await session.execute(select(Todo).where(Todo.id == todo_id))
+        result = await session.execute(
+            select(Todo).where(Todo.id == todo_id, Todo.account_id == user)
+        )
         todo = result.scalars().first()
         if todo is None:
             raise HTTPException(status_code=404, detail="Todo not found")

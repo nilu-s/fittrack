@@ -3,12 +3,21 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+
+# Alembic starts from its console-script location, not reliably from the
+# repository. Make the backend package importable for local and CI migration
+# runs without relying on a caller-provided PYTHONPATH.
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.config import settings
 from app.database import Base
@@ -18,7 +27,6 @@ from app.models import (  # noqa: F401 — ensure all models are imported
     ExerciseProgress,
     Goal,
     GoogleToken,
-    Meal,
     MealCategory,
     Food,
     Recipe,
@@ -28,7 +36,6 @@ from app.models import (  # noqa: F401 — ensure all models are imported
     MealEntry,
     MealEntryItem,
     MealPhotoAnalysis,
-    MealTemplate,
     Photo,
     SyncLog,
     Todo,

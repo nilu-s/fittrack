@@ -10,9 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import inspect, select
 
 from app.database import async_session
-from app.models import DayEntry, Exercise, Meal, MealTemplate, Todo, TrainingSet, SyncLog
+from app.models import DayEntry, Exercise, Todo, TrainingSet, SyncLog
 from app.routes.auth import get_current_user
-from app.schemas import SyncConflictItem, SyncRequest, SyncResponse
+from app.schemas import SyncConflictItem, SyncOperationResult, SyncRequest, SyncResponse
 
 logger = logging.getLogger(__name__)
 
@@ -21,32 +21,20 @@ router = APIRouter(prefix="/sync", tags=["sync"])
 # Mapping entity_type → model
 ENTITY_MODELS = {
     "day_entry": DayEntry,
-    "meal": Meal,
     "todo": Todo,
     "training_set": TrainingSet,
     "exercise": Exercise,
-    "meal_template": MealTemplate,
 }
 
 
 async def _validate_owned_references(session, model, payload: dict[str, Any], account_id: str) -> None:
-    """Validate IDs that are logically foreign keys but lack DB constraints."""
-    if model is Meal and payload.get("dish_id") is not None:
-        from app.models import Dish
-
-        dish = await session.scalar(
-            select(Dish).where(Dish.id == payload["dish_id"], Dish.account_id == account_id)
-        )
-        if dish is None:
-            raise HTTPException(status_code=404, detail="Dish not found")
+    """Reserved for syncable models with logical foreign-key references."""
 
 
 def _safe_payload(model, payload: dict[str, Any] | None) -> dict[str, Any]:
     """Keep only writable table columns; ownership/identity are server-owned."""
     column_names = {column.key for column in inspect(model).columns}
     server_managed = {"id", "account_id", "user_id", "deleted", "updated_at"}
-    if model is Meal:
-        server_managed.update({"photo_url", "photo_analysis", "assigned_via_photo"})
     return {
         key: value
         for key, value in (payload or {}).items()
@@ -59,15 +47,25 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
     async with async_session() as session:
         conflicts: list[SyncConflictItem] = []
         applied: list[dict[str, Any]] = []
+        results: list[SyncOperationResult] = []
 
-        for change in body.changes:
+        for change_index, change in enumerate(body.changes):
             model = ENTITY_MODELS.get(change.entity_type)
             if model is None:
-                logger.warning("Unknown entity_type: %s", change.entity_type)
+                results.append(SyncOperationResult(
+                    change_index=change_index, entity_type=change.entity_type,
+                    entity_id=change.entity_id, status="validation_error",
+                    detail="Unknown sync entity type",
+                ))
                 continue
 
             if change.action not in {"create", "update", "delete"}:
-                raise HTTPException(status_code=422, detail="Invalid sync action")
+                results.append(SyncOperationResult(
+                    change_index=change_index, entity_type=change.entity_type,
+                    entity_id=change.entity_id, status="validation_error",
+                    detail="Invalid sync action",
+                ))
+                continue
 
             # Never select a resource outside the authenticated account,
             # including when the request context is absent in tests/workers.
@@ -84,6 +82,16 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                     if hasattr(existing, "updated_at"):
                         existing.updated_at = datetime.now(BERLIN_TZ)
                     applied.append({"entity_type": change.entity_type, "entity_id": str(change.entity_id), "action": "delete"})
+                    results.append(SyncOperationResult(
+                        change_index=change_index, entity_type=change.entity_type,
+                        entity_id=change.entity_id, status="applied",
+                    ))
+                else:
+                    # A repeated delete is safe and may leave the queue.
+                    results.append(SyncOperationResult(
+                        change_index=change_index, entity_type=change.entity_type,
+                        entity_id=change.entity_id, status="duplicate",
+                    ))
                 continue
 
             # Offline records are untrusted input. In particular, an IndexedDB
@@ -99,14 +107,23 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                 # primary-key conflict (or, on a future non-global key, data
                 # creation under the wrong operation).
                 if change.action == "update":
-                    raise HTTPException(status_code=404, detail="Sync entity not found")
+                    results.append(SyncOperationResult(
+                        change_index=change_index, entity_type=change.entity_type,
+                        entity_id=change.entity_id, status="validation_error",
+                        detail="Sync entity not found",
+                    ))
+                    continue
                 # Create new record
                 obj = model(**payload, id=change.entity_id, account_id=user)
                 session.add(obj)
                 applied.append({"entity_type": change.entity_type, "entity_id": str(change.entity_id), "action": "create"})
             else:
                 if change.action == "create":
-                    raise HTTPException(status_code=409, detail="Sync entity already exists")
+                    results.append(SyncOperationResult(
+                        change_index=change_index, entity_type=change.entity_type,
+                        entity_id=change.entity_id, status="duplicate",
+                    ))
+                    continue
                 # Update — last-write-wins by client_timestamp vs updated_at
                 server_updated = getattr(existing, "updated_at", None)
                 if server_updated is not None and change.client_timestamp < server_updated:
@@ -119,11 +136,21 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                         client_timestamp=change.client_timestamp,
                         server_timestamp=server_updated,
                     ))
-                    # Still apply client change (last-write-wins policy for Phase 1)
+                    results.append(SyncOperationResult(
+                        change_index=change_index, entity_type=change.entity_type,
+                        entity_id=change.entity_id, status="conflict",
+                        detail="Server version is newer",
+                    ))
+                    continue
                 for field, value in payload.items():
                     if hasattr(existing, field) and field not in {"id", "account_id", "user_id"}:
                         setattr(existing, field, value)
                 applied.append({"entity_type": change.entity_type, "entity_id": str(change.entity_id), "action": "update"})
+
+            results.append(SyncOperationResult(
+                change_index=change_index, entity_type=change.entity_type,
+                entity_id=change.entity_id, status="applied",
+            ))
 
             # Log to sync_log
             session.add(SyncLog(
@@ -164,5 +191,6 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
         return SyncResponse(
             server_changes=server_changes,
             conflicts=conflicts,
+            results=results,
             sync_token=sync_token,
         )

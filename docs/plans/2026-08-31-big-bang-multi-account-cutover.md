@@ -1,6 +1,6 @@
 # FitTrack Big-Bang Multi-Account Cutover
 
-**Status:** proposed — implementation gate
+**Status:** superseded (historical) — the implemented controls are maintained in `AGENTS.md`, specs, contracts and CI.
 
 **Authoritative specification:**
 [`../specs/multi-account-scale-and-body-composition.md`](../specs/multi-account-scale-and-body-composition.md)

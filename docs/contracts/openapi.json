@@ -87,7 +87,7 @@
           "auth"
         ],
         "summary": "Logout",
-        "description": "Logout \u2014 clear session cookie only (keep Google tokens for re-login).",
+        "description": "Logout — clear session cookie only (keep Google tokens for re-login).",
         "operationId": "logout_api_auth_logout_post",
         "responses": {
           "200": {
@@ -127,7 +127,7 @@
           "auth"
         ],
         "summary": "Google Disconnect",
-        "description": "Disconnect Google \u2014 delete Google tokens from DB, but keep session cookie.",
+        "description": "Disconnect Google — delete Google tokens from DB, but keep session cookie.",
         "operationId": "google_disconnect_api_auth_google_disconnect_post",
         "responses": {
           "200": {
@@ -147,7 +147,7 @@
           "auth"
         ],
         "summary": "Google Callback",
-        "description": "Handle OAuth callback \u2014 exchange code for tokens and persist to DB.",
+        "description": "Handle OAuth callback — exchange code for tokens and persist to DB.",
         "operationId": "google_callback_api_google_callback_get",
         "responses": {
           "200": {
@@ -167,7 +167,7 @@
           "day-entries"
         ],
         "summary": "Get Day Entry",
-        "description": "Get a day entry by date \u2014 does NOT create one if missing (no side-effect on GET).",
+        "description": "Get a day entry by date — does NOT create one if missing (no side-effect on GET).",
         "operationId": "get_day_entry_api_day_entries_get",
         "parameters": [
           {
@@ -276,299 +276,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DayEntryBulkResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/meals": {
-      "get": {
-        "tags": [
-          "meals"
-        ],
-        "summary": "Get Meals",
-        "operationId": "get_meals_api_meals_get",
-        "parameters": [
-          {
-            "name": "date",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "date",
-              "title": "Date"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MealResponse"
-                  },
-                  "title": "Response Get Meals Api Meals Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "meals"
-        ],
-        "summary": "Create Meal",
-        "operationId": "create_meal_api_meals_post",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MealCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MealResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/meals/{meal_id}": {
-      "put": {
-        "tags": [
-          "meals"
-        ],
-        "summary": "Update Meal",
-        "operationId": "update_meal_api_meals__meal_id__put",
-        "parameters": [
-          {
-            "name": "meal_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Meal Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MealUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MealResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "meals"
-        ],
-        "summary": "Delete Meal",
-        "operationId": "delete_meal_api_meals__meal_id__delete",
-        "parameters": [
-          {
-            "name": "meal_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Meal Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/meals/{meal_id}/done": {
-      "post": {
-        "tags": [
-          "meals"
-        ],
-        "summary": "Mark Meal Done",
-        "operationId": "mark_meal_done_api_meals__meal_id__done_post",
-        "parameters": [
-          {
-            "name": "meal_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Meal Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MealResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/meal-templates": {
-      "get": {
-        "tags": [
-          "meal-templates"
-        ],
-        "summary": "List Meal Templates",
-        "operationId": "list_meal_templates_api_meal_templates_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MealTemplateResponse"
-                  },
-                  "type": "array",
-                  "title": "Response List Meal Templates Api Meal Templates Get"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/meal-templates/{slot}": {
-      "put": {
-        "tags": [
-          "meal-templates"
-        ],
-        "summary": "Update Meal Template",
-        "operationId": "update_meal_template_api_meal_templates__slot__put",
-        "parameters": [
-          {
-            "name": "slot",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Slot"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MealTemplateUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MealTemplateResponse"
                 }
               }
             }
@@ -1685,48 +1392,6 @@
         }
       }
     },
-    "/api/photos/analyze": {
-      "post": {
-        "tags": [
-          "photos"
-        ],
-        "summary": "Analyze Photo",
-        "description": "Legacy ``Meal`` photo flow kept only for backward compatibility.\n\nConfigurable ``MealEntry`` photo analysis is deliberately proposal-first:\nit must use the dedicated accept/reject commands, never this auto-mutating\nendpoint.\n\nIf meal_id is provided, the analysis result is also persisted to the meal:\n- meal.photo_analysis = analysis\n- meal.assigned_via_photo = True\n- meal.photo_url = file_path\n- Photo.meal_id = meal_id",
-        "operationId": "analyze_photo_api_photos_analyze_post",
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_analyze_photo_api_photos_analyze_post"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PhotoAnalysisResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/stats/week": {
       "get": {
         "tags": [
@@ -2001,352 +1666,6 @@
         }
       }
     },
-    "/api/dishes": {
-      "get": {
-        "tags": [
-          "dishes"
-        ],
-        "summary": "List Dishes",
-        "description": "List all dishes. Optionally filter by slot or search by name.\nSorted by is_default desc, usage_count desc, name.",
-        "operationId": "list_dishes_api_dishes_get",
-        "parameters": [
-          {
-            "name": "slot",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by preferred slot",
-              "title": "Slot"
-            },
-            "description": "Filter by preferred slot"
-          },
-          {
-            "name": "q",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Search query (case-insensitive name match)",
-              "title": "Q"
-            },
-            "description": "Search query (case-insensitive name match)"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/DishResponse"
-                  },
-                  "title": "Response List Dishes Api Dishes Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "dishes"
-        ],
-        "summary": "Create Dish",
-        "operationId": "create_dish_api_dishes_post",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DishCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DishResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/dishes/recommend": {
-      "get": {
-        "tags": [
-          "dishes"
-        ],
-        "summary": "Recommend For Slot",
-        "description": "Get the default dish for a slot and alternatives from that same slot.\n\nA meal slot is a product category (breakfast, lunch, snack, dinner), so an\nalternative must have the same preferred slot. Macro distance is only used\nto rank dishes inside that category; it must never broaden the category.",
-        "operationId": "recommend_for_slot_api_dishes_recommend_get",
-        "parameters": [
-          {
-            "name": "slot",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "description": "Meal slot 1-4",
-              "title": "Slot"
-            },
-            "description": "Meal slot 1-4"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DishRecommendResult"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/dishes/{dish_id}": {
-      "put": {
-        "tags": [
-          "dishes"
-        ],
-        "summary": "Update Dish",
-        "operationId": "update_dish_api_dishes__dish_id__put",
-        "parameters": [
-          {
-            "name": "dish_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Dish Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DishUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DishResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "dishes"
-        ],
-        "summary": "Delete Dish",
-        "operationId": "delete_dish_api_dishes__dish_id__delete",
-        "parameters": [
-          {
-            "name": "dish_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Dish Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/dishes/match": {
-      "get": {
-        "tags": [
-          "dishes"
-        ],
-        "summary": "Match Dish",
-        "description": "Fuzzy-match a dish name against ALL existing dishes (slot-independent).",
-        "operationId": "match_dish_api_dishes_match_get",
-        "parameters": [
-          {
-            "name": "name",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "Dish name to match against existing dishes",
-              "title": "Name"
-            },
-            "description": "Dish name to match against existing dishes"
-          },
-          {
-            "name": "threshold",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "number",
-              "description": "Similarity threshold 0-1",
-              "default": 0.75,
-              "title": "Threshold"
-            },
-            "description": "Similarity threshold 0-1"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DishMatchResult"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/dishes/{dish_id}/use": {
-      "post": {
-        "tags": [
-          "dishes"
-        ],
-        "summary": "Increment Usage",
-        "description": "Increment usage_count when a dish is selected for a meal.",
-        "operationId": "increment_usage_api_dishes__dish_id__use_post",
-        "parameters": [
-          {
-            "name": "dish_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Dish Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DishResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/meal-categories": {
       "get": {
         "tags": [
@@ -2416,6 +1735,110 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MealCategoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meal-categories/{category_id}/recipe-presets": {
+      "get": {
+        "tags": [
+          "configurable-meals"
+        ],
+        "summary": "List Category Recipe Presets",
+        "description": "Return the two account-local quick recipes in their explicit order.",
+        "operationId": "list_category_recipe_presets_api_meal_categories__category_id__recipe_presets_get",
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Category Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecipeResponse"
+                  },
+                  "title": "Response List Category Recipe Presets Api Meal Categories  Category Id  Recipe Presets Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "configurable-meals"
+        ],
+        "summary": "Replace Category Recipe Presets",
+        "description": "Atomically set zero, one, or two active recipes for an owned category.",
+        "operationId": "replace_category_recipe_presets_api_meal_categories__category_id__recipe_presets_put",
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Category Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MealCategoryRecipePresetUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecipeResponse"
+                  },
+                  "title": "Response Replace Category Recipe Presets Api Meal Categories  Category Id  Recipe Presets Put"
                 }
               }
             }
@@ -4213,31 +3636,6 @@
         "type": "object",
         "title": "BodyProfileUpdate"
       },
-      "Body_analyze_photo_api_photos_analyze_post": {
-        "properties": {
-          "file": {
-            "type": "string",
-            "contentMediaType": "application/octet-stream",
-            "title": "File"
-          },
-          "meal_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Meal Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "file"
-        ],
-        "title": "Body_analyze_photo_api_photos_analyze_post"
-      },
       "Body_create_photo_analysis_api_meal_entries__entry_id__photo_analyses_post": {
         "properties": {
           "file": {
@@ -4809,629 +4207,6 @@
           "id"
         ],
         "title": "DayEntryResponse"
-      },
-      "DishCreate": {
-        "properties": {
-          "slot": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slot"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "kcal": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kcal"
-          },
-          "protein_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Protein G"
-          },
-          "carbs_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Carbs G"
-          },
-          "fat_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fat G"
-          },
-          "fiber_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fiber G"
-          },
-          "sugar_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sugar G"
-          },
-          "free_sugar_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Sugar G"
-          },
-          "photo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Photo Url"
-          },
-          "is_default": {
-            "type": "boolean",
-            "title": "Is Default",
-            "default": false
-          },
-          "usage_count": {
-            "type": "integer",
-            "title": "Usage Count",
-            "default": 0
-          },
-          "source": {
-            "type": "string",
-            "title": "Source",
-            "default": "manual"
-          },
-          "portion_label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Portion Label"
-          },
-          "portion_grams": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Portion Grams"
-          },
-          "is_scalable": {
-            "type": "boolean",
-            "title": "Is Scalable",
-            "default": false
-          }
-        },
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "DishCreate"
-      },
-      "DishMatchResult": {
-        "properties": {
-          "matched": {
-            "type": "boolean",
-            "title": "Matched"
-          },
-          "dish": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DishResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "similarity": {
-            "type": "number",
-            "title": "Similarity",
-            "default": 0.0
-          }
-        },
-        "type": "object",
-        "required": [
-          "matched"
-        ],
-        "title": "DishMatchResult"
-      },
-      "DishRecommendResult": {
-        "properties": {
-          "default": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DishResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "alternatives": {
-            "items": {
-              "$ref": "#/components/schemas/DishResponse"
-            },
-            "type": "array",
-            "title": "Alternatives",
-            "default": []
-          }
-        },
-        "type": "object",
-        "title": "DishRecommendResult",
-        "description": "Result for GET /dishes/recommend \u2014 default + alternatives for a slot."
-      },
-      "DishResponse": {
-        "properties": {
-          "slot": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slot"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "kcal": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kcal"
-          },
-          "protein_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Protein G"
-          },
-          "carbs_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Carbs G"
-          },
-          "fat_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fat G"
-          },
-          "fiber_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fiber G"
-          },
-          "sugar_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sugar G"
-          },
-          "free_sugar_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Sugar G"
-          },
-          "photo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Photo Url"
-          },
-          "is_default": {
-            "type": "boolean",
-            "title": "Is Default",
-            "default": false
-          },
-          "usage_count": {
-            "type": "integer",
-            "title": "Usage Count",
-            "default": 0
-          },
-          "source": {
-            "type": "string",
-            "title": "Source",
-            "default": "manual"
-          },
-          "portion_label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Portion Label"
-          },
-          "portion_grams": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Portion Grams"
-          },
-          "is_scalable": {
-            "type": "boolean",
-            "title": "Is Scalable",
-            "default": false
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "created_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created At"
-          },
-          "updated_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "id"
-        ],
-        "title": "DishResponse"
-      },
-      "DishUpdate": {
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "kcal": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kcal"
-          },
-          "protein_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Protein G"
-          },
-          "carbs_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Carbs G"
-          },
-          "fat_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fat G"
-          },
-          "fiber_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fiber G"
-          },
-          "sugar_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sugar G"
-          },
-          "free_sugar_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Sugar G"
-          },
-          "photo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Photo Url"
-          },
-          "is_default": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Default"
-          },
-          "slot": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slot"
-          },
-          "portion_label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Portion Label"
-          },
-          "portion_grams": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Portion Grams"
-          },
-          "is_scalable": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Scalable"
-          }
-        },
-        "type": "object",
-        "title": "DishUpdate"
       },
       "ExerciseCreate": {
         "properties": {
@@ -6824,6 +5599,23 @@
         ],
         "title": "MealCategoryCreate"
       },
+      "MealCategoryRecipePresetUpdate": {
+        "properties": {
+          "recipe_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 2,
+            "title": "Recipe Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MealCategoryRecipePresetUpdate",
+        "description": "Replace the at-most-two quick recipes for one owned category."
+      },
       "MealCategoryReorder": {
         "properties": {
           "ids": {
@@ -6937,229 +5729,6 @@
         "additionalProperties": false,
         "type": "object",
         "title": "MealCategoryUpdate"
-      },
-      "MealCreate": {
-        "properties": {
-          "date": {
-            "type": "string",
-            "format": "date",
-            "title": "Date"
-          },
-          "meal_slot": {
-            "type": "integer",
-            "title": "Meal Slot"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "default_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Default Time"
-          },
-          "kcal": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kcal"
-          },
-          "protein_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Protein G"
-          },
-          "carbs_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Carbs G"
-          },
-          "fat_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fat G"
-          },
-          "fiber_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fiber G"
-          },
-          "sugar_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sugar G"
-          },
-          "free_sugar_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Sugar G"
-          },
-          "is_standard": {
-            "type": "boolean",
-            "title": "Is Standard",
-            "default": false
-          },
-          "is_done": {
-            "type": "boolean",
-            "title": "Is Done",
-            "default": false
-          },
-          "replaced_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Replaced By"
-          },
-          "photo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Photo Url"
-          },
-          "photo_analysis": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Photo Analysis"
-          },
-          "assigned_via_photo": {
-            "type": "boolean",
-            "title": "Assigned Via Photo",
-            "default": false
-          },
-          "deleted": {
-            "type": "boolean",
-            "title": "Deleted",
-            "default": false
-          },
-          "portion_factor": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Portion Factor",
-            "default": "1.00"
-          },
-          "dish_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dish Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "date",
-          "meal_slot",
-          "name"
-        ],
-        "title": "MealCreate"
       },
       "MealEntryCreate": {
         "properties": {
@@ -7966,692 +6535,6 @@
         ],
         "title": "MealPlanVersionResponse"
       },
-      "MealResponse": {
-        "properties": {
-          "date": {
-            "type": "string",
-            "format": "date",
-            "title": "Date"
-          },
-          "meal_slot": {
-            "type": "integer",
-            "title": "Meal Slot"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "default_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Default Time"
-          },
-          "kcal": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kcal"
-          },
-          "protein_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Protein G"
-          },
-          "carbs_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Carbs G"
-          },
-          "fat_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fat G"
-          },
-          "fiber_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fiber G"
-          },
-          "sugar_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sugar G"
-          },
-          "free_sugar_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Sugar G"
-          },
-          "is_standard": {
-            "type": "boolean",
-            "title": "Is Standard",
-            "default": false
-          },
-          "is_done": {
-            "type": "boolean",
-            "title": "Is Done",
-            "default": false
-          },
-          "replaced_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Replaced By"
-          },
-          "photo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Photo Url"
-          },
-          "photo_analysis": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Photo Analysis"
-          },
-          "assigned_via_photo": {
-            "type": "boolean",
-            "title": "Assigned Via Photo",
-            "default": false
-          },
-          "deleted": {
-            "type": "boolean",
-            "title": "Deleted",
-            "default": false
-          },
-          "portion_factor": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Portion Factor",
-            "default": "1.00"
-          },
-          "dish_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dish Id"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "updated_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "date",
-          "meal_slot",
-          "name",
-          "id"
-        ],
-        "title": "MealResponse"
-      },
-      "MealTemplateResponse": {
-        "properties": {
-          "slot": {
-            "type": "integer",
-            "title": "Slot"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "kcal": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kcal"
-          },
-          "protein_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Protein G"
-          },
-          "carbs_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Carbs G"
-          },
-          "fat_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fat G"
-          },
-          "fiber_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fiber G"
-          },
-          "sugar_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sugar G"
-          },
-          "free_sugar_g": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Sugar G"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "slot",
-          "name",
-          "id"
-        ],
-        "title": "MealTemplateResponse"
-      },
-      "MealTemplateUpdate": {
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "kcal": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kcal"
-          },
-          "protein_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Protein G"
-          },
-          "carbs_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Carbs G"
-          },
-          "fat_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fat G"
-          },
-          "fiber_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fiber G"
-          },
-          "sugar_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sugar G"
-          },
-          "free_sugar_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Sugar G"
-          }
-        },
-        "type": "object",
-        "title": "MealTemplateUpdate"
-      },
-      "MealUpdate": {
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "default_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Default Time"
-          },
-          "kcal": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kcal"
-          },
-          "protein_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Protein G"
-          },
-          "carbs_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Carbs G"
-          },
-          "fat_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fat G"
-          },
-          "fiber_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fiber G"
-          },
-          "sugar_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sugar G"
-          },
-          "free_sugar_g": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Free Sugar G"
-          },
-          "is_standard": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Standard"
-          },
-          "is_done": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Done"
-          },
-          "replaced_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Replaced By"
-          },
-          "photo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Photo Url"
-          },
-          "photo_analysis": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Photo Analysis"
-          },
-          "assigned_via_photo": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assigned Via Photo"
-          },
-          "deleted": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Deleted"
-          },
-          "portion_factor": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Portion Factor"
-          },
-          "dish_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dish Id"
-          }
-        },
-        "type": "object",
-        "title": "MealUpdate"
-      },
       "Nutrition": {
         "properties": {
           "kcal": {
@@ -8742,58 +6625,6 @@
         "type": "object",
         "title": "Nutrition"
       },
-      "PhotoAnalysisResponse": {
-        "properties": {
-          "photo_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Photo Id"
-          },
-          "file_path": {
-            "type": "string",
-            "title": "File Path"
-          },
-          "analysis": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Analysis"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "dish_match": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DishMatchResult"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "photo_id",
-          "file_path"
-        ],
-        "title": "PhotoAnalysisResponse"
-      },
       "RecipeCreate": {
         "properties": {
           "name": {
@@ -8844,6 +6675,14 @@
             },
             "type": "array",
             "title": "Ingredients"
+          },
+          "instructions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Instructions"
           }
         },
         "additionalProperties": false,
@@ -9008,6 +6847,13 @@
             ],
             "title": "Notes"
           },
+          "instructions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Instructions"
+          },
           "ingredients": {
             "items": {
               "$ref": "#/components/schemas/RecipeIngredientResponse"
@@ -9031,6 +6877,7 @@
           "status",
           "servings",
           "notes",
+          "instructions",
           "ingredients",
           "nutrition",
           "updated_at"
@@ -9101,6 +6948,20 @@
               }
             ],
             "title": "Ingredients"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions"
           },
           "expected_updated_at": {
             "anyOf": [
@@ -9262,6 +7123,52 @@
         ],
         "title": "SyncConflictItem"
       },
+      "SyncOperationResult": {
+        "properties": {
+          "change_index": {
+            "type": "integer",
+            "title": "Change Index"
+          },
+          "entity_type": {
+            "type": "string",
+            "title": "Entity Type"
+          },
+          "entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Entity Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "duplicate",
+              "conflict",
+              "validation_error"
+            ],
+            "title": "Status"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "change_index",
+          "entity_type",
+          "entity_id",
+          "status"
+        ],
+        "title": "SyncOperationResult"
+      },
       "SyncRequest": {
         "properties": {
           "last_sync": {
@@ -9310,6 +7217,14 @@
             },
             "type": "array",
             "title": "Conflicts",
+            "default": []
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SyncOperationResult"
+            },
+            "type": "array",
+            "title": "Results",
             "default": []
           },
           "sync_token": {

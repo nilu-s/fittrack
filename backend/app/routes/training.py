@@ -469,7 +469,7 @@ async def list_exercises(training_type: Optional[str] = Query(None), user: str =
 @exercises_router.post("", response_model=ExerciseResponse, status_code=201)
 async def create_exercise(body: ExerciseCreate, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        ex = Exercise(**body.model_dump())
+        ex = Exercise(account_id=user, **body.model_dump())
         _validate_topset_plan(ex)
         session.add(ex)
         await session.commit()
@@ -480,7 +480,9 @@ async def create_exercise(body: ExerciseCreate, user: str = Depends(get_current_
 @exercises_router.put("/{exercise_id}", response_model=ExerciseResponse)
 async def update_exercise(exercise_id: uuid.UUID, body: ExerciseUpdate, user: str = Depends(get_current_user)):
     async with async_session() as session:
-        result = await session.execute(select(Exercise).where(Exercise.id == exercise_id))
+        result = await session.execute(
+            select(Exercise).where(Exercise.id == exercise_id, Exercise.account_id == user)
+        )
         ex = result.scalars().first()
         if ex is None:
             raise HTTPException(status_code=404, detail="Exercise not found")

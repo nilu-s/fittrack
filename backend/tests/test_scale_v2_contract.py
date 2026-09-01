@@ -7,12 +7,12 @@ from pydantic import ValidationError
 
 from app.schemas import ScaleSyncV2Request
 from app.services.scale_assignment import AssignmentRange, choose_assignment
-from app.models import DayEntry, Dish, Goal, Meal, Todo
+from app.models import DayEntry, Goal, MealEntry, Todo
 from app.main import app
 
 
 def test_account_owned_models_expose_no_legacy_owner_column():
-    for model in (DayEntry, Dish, Goal, Meal, Todo):
+    for model in (DayEntry, Goal, MealEntry, Todo):
         assert not hasattr(model, "user_id")
 
 

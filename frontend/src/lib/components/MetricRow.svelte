@@ -13,8 +13,6 @@
   const dispatch = createEventDispatcher();
   let isEditing = false;
   let editValue: string = '';
-  let lastTap = 0;
-  let editTimeout: ReturnType<typeof setTimeout> | null = null;
 
   function startEdit() { if (!editable) return; editValue = value != null ? String(value) : ''; isEditing = true; }
   function commitEdit() { isEditing = false; const parsed = parseValue(editValue); if (parsed !== value) dispatch('change', parsed); }
@@ -23,31 +21,22 @@
     const num = parseFloat(trimmed); if (!isNaN(num) && /^\d+\.?\d*$/.test(trimmed)) return num; return trimmed;
   }
   function onCheck() { if (!checkable) return; if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30); dispatch('check', !checked); }
-  function handleRowTap() {
-    if (!checkable) return;
-    const now = Date.now();
-    if (now - lastTap < 300) { if (editTimeout) clearTimeout(editTimeout); onCheck(); lastTap = 0; } else { lastTap = now; }
-  }
   function handleValueTap() {
-    if (!editable) return;
-    const now = Date.now();
-    if (now - lastTap < 300) { if (editTimeout) clearTimeout(editTimeout); lastTap = 0; return; }
-    lastTap = now;
-    editTimeout = setTimeout(() => { if (Date.now() - lastTap >= 300) startEdit(); }, 320);
+    if (editable) startEdit();
   }
   function handleKey(e: KeyboardEvent) { if (e.key === 'Enter') { e.preventDefault(); commitEdit(); } else if (e.key === 'Escape') isEditing = false; }
 </script>
 
-<div class="mrow" class:checked={checkable && checked} onclick={handleRowTap} role={checkable ? 'button' : undefined} tabindex={checkable ? 0 : undefined}>
+<div class="mrow" class:checked={checkable && checked}>
   {#if icon}<Icon name={icon} size={18} />{/if}
   <span class="mrow-label">{label}</span>
   {#if isEditing}
     <input class="mrow-input" type="text" inputmode="decimal" bind:value={editValue} onblur={commitEdit} onkeydown={handleKey} use:focusInput />
   {:else}
-    <span class="mrow-value tap-area" onclick={handleValueTap}>
+    <button class="mrow-value tap-area" type="button" onclick={handleValueTap} disabled={!editable} aria-label={`${label} bearbeiten`}>
       {value != null && value !== '' ? value : '—'}
       {#if unit && value != null && value !== ''}<span class="mrow-unit">{unit}</span>{/if}
-    </span>
+    </button>
   {/if}
   {#if checkable}
     <button class="mrow-check" class:done={checked} onclick={onCheck} aria-label={checked ? 'Erledigt' : 'Markieren'}>
@@ -65,7 +54,8 @@
   .mrow:last-child { border-bottom: none; }
   .mrow.checked { opacity: 0.5; }
   .mrow-label { flex: 1; font-size: 14px; color: var(--text-dim); }
-  .mrow-value { font-size: 15px; font-weight: 600; text-align: right; min-width: 60px; padding: 2px 6px; border-radius: 6px; }
+  .mrow-value { font-size: 15px; font-weight: 600; text-align: right; min-width: 60px; padding: 2px 6px; border-radius: 6px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+  .mrow-value:disabled { cursor: default; }
   .mrow-value:active { background: var(--card-2); }
   .mrow-unit { font-size: 12px; color: var(--text-faint); margin-left: 2px; font-weight: 400; }
   .mrow-input { flex: 0 1 80px; text-align: right; padding: 2px 6px; border-radius: 6px; background: var(--card-2); border: 1px solid var(--blue); font-size: 15px; font-weight: 600; color: var(--text); }

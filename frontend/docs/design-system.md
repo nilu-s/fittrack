@@ -1,12 +1,22 @@
 # FitTrack Design System
 
+## Transition status
+
+The former **Dark only** direction has been superseded by
+[`ADR 0002`](../../docs/adr/0002-muted-light-product-ui.md). This document and
+the implementation tokens will be migrated to the approved muted-light product
+UI in a dedicated frontend package; existing dark tokens remain transitional
+until then.
+
 ## Canonical reference
 
 The daily page (`/`) is FitTrack’s visual source of truth. Secondary routes inherit its hierarchy: current action/value first, contextual information second, optional detail on explicit expansion.
 
 ## Rules
 
-- **Dark only:** `--color-bg` with solid `--surface-*` layers and subtle borders. Gradients, glow and glassmorphism are not part of the system.
+- **Muted light direction:** use layered, non-white solid `--surface-*` roles
+  and subtle borders. Gradients, glow and glassmorphism are not part of the
+  system.
 - **Semantic colour:** use `--status-*` for state and `--data-*` for stable data categories. Colour is always paired with readable text, an icon, or an accessible name.
 - **One token source:** tokens are defined in `src/lib/styles/tokens.css`; shared implementation is in `src/lib/styles/primitives.css`.
 - **Mobile interaction:** controls have at least `--control-min` (38px); press states are available without hover.

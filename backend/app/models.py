@@ -122,33 +122,6 @@ class DayEntry(AccountOwned, Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-class Meal(AccountOwned, Base):
-    __tablename__ = "meals"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    date: Mapped[date] = mapped_column(Date, nullable=False)
-    meal_slot: Mapped[int] = mapped_column(Integer, nullable=False)
-    name: Mapped[str] = mapped_column(Text, nullable=False)
-    default_time: Mapped[time | None] = mapped_column(Time)
-    kcal: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
-    protein_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    carbs_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    fat_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    fiber_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    free_sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    is_standard: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_done: Mapped[bool] = mapped_column(Boolean, default=False)
-    replaced_by: Mapped[str | None] = mapped_column(Text)
-    photo_url: Mapped[str | None] = mapped_column(Text)
-    photo_analysis: Mapped[dict | None] = mapped_column(JSONB)
-    assigned_via_photo: Mapped[bool] = mapped_column(Boolean, default=False)
-    deleted: Mapped[bool] = mapped_column(Boolean, default=False)
-    portion_factor: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal("1.00"))
-    dish_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-
 class Todo(AccountOwned, Base):
     __tablename__ = "todos"
 
@@ -170,25 +143,8 @@ class Todo(AccountOwned, Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-class MealTemplate(AccountOwned, Base):
-    __tablename__ = "meal_templates"
-    __table_args__ = (UniqueConstraint("account_id", "slot", name="uq_meal_templates_account_slot"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    slot: Mapped[int] = mapped_column(Integer, nullable=False)
-    name: Mapped[str] = mapped_column(Text, nullable=False)
-    kcal: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
-    protein_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    carbs_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    fat_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    fiber_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    free_sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-
-
-# The configurable meal domain deliberately does not reuse the legacy Meal,
-# Dish, and MealTemplate records above.  These records are immutable-at-use:
-# nutritional values copied to MealEntry/MealEntryItem remain historical facts.
+# Configurable meal records are immutable at use: nutritional values copied to
+# MealEntry/MealEntryItem remain historical facts.
 class MealCategory(AccountOwned, Base):
     __tablename__ = "meal_categories"
     __table_args__ = (UniqueConstraint("account_id", "name", name="uq_meal_categories_account_name"),)
@@ -234,8 +190,32 @@ class Recipe(AccountOwned, Base):
     # nutritional source of truth; directions must never contain nutrition
     # values that the API would be unable to validate.
     instructions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    # Complete per-serving nutrition for imported or manually specified
+    # recipes whose ingredient list is unavailable. This prevents a complete
+    # dish from masquerading as a Food merely to carry its nutrient values.
+    nutrition_per_serving: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class MealCategoryRecipePreset(AccountOwned, Base):
+    """A person's two quick recipe choices for one meal category.
+
+    Recipes are deliberately not given a global ``is_default`` flag: the same
+    recipe can be a useful breakfast and an occasional dinner.  The category
+    owns the shortcut and its stable display rank instead.
+    """
+    __tablename__ = "meal_category_recipe_presets"
+    __table_args__ = (
+        UniqueConstraint("account_id", "category_id", "rank", name="uq_meal_category_recipe_preset_rank"),
+        UniqueConstraint("account_id", "category_id", "recipe_id", name="uq_meal_category_recipe_preset_recipe"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    category_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_categories.id", ondelete="CASCADE"), nullable=False)
+    recipe_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False)
+    rank: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class RecipeIngredient(AccountOwned, Base):
@@ -405,9 +385,6 @@ class Photo(AccountOwned, Base):
     __tablename__ = "photos"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    meal_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
-    # `meal_id` is retained solely for the legacy Meal API. New photo flows
-    # bind to the account-owned MealEntry and require explicit acceptance.
     meal_entry_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_entries.id", ondelete="SET NULL"))
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
     original_filename: Mapped[str | None] = mapped_column(Text)
@@ -469,45 +446,6 @@ class ExerciseProgress(AccountOwned, Base):
     new_target_weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     new_target_reps_low: Mapped[int | None] = mapped_column(Integer)
     consecutive_failures: Mapped[int] = mapped_column(Integer, default=0)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-
-class Dish(AccountOwned, Base):
-    """Reusable dish/preset — grows over time from templates + photo analyses.
-
-    Dishes are slot-independent: any dish can be assigned to any meal slot.
-    `preferred_slot` is a hint for the recommend endpoint (which dish to show first for a slot).
-    `is_default=True` marks the dish that auto-creates as the meal for a slot each day.
-
-    Portion fields:
-    - portion_label: human-readable portion ("100g", "1 Portion", "1 Döner")
-    - portion_grams: numeric grams for scalable dishes (null for "1 Portion")
-    - is_scalable: True → show slider; False → single serving, no slider
-    Nutritional values are per the default portion; portion_factor on Meal scales them.
-    """
-    __tablename__ = "dishes"
-    __table_args__ = (
-        UniqueConstraint("account_id", "name", name="uq_dishes_account_name"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    slot: Mapped[int | None] = mapped_column(Integer, nullable=True)  # preferred slot, not mandatory
-    name: Mapped[str] = mapped_column(Text, nullable=False)
-    kcal: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
-    protein_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    carbs_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    fat_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    fiber_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    free_sugar_g: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    photo_url: Mapped[str | None] = mapped_column(Text)
-    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
-    usage_count: Mapped[int] = mapped_column(Integer, default=0)
-    source: Mapped[str] = mapped_column(Text, default="seed")  # 'seed' | 'photo' | 'manual'
-    portion_label: Mapped[str | None] = mapped_column(Text)
-    portion_grams: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
-    is_scalable: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 

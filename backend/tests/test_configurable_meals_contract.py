@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from fastapi import HTTPException
 
 from app.routes.configurable_meals import _MAX_PHOTO_BYTES, _image_metadata, _sum, _vision_proposal
-from app.schemas import MealCategoryReorder, MealEntryItemInput, MealPhotoAnalysisAccept, MealEntryStatusCommand, RecipeCreate, RecipeIngredientInput, RecipeUpdate
+from app.schemas import MealCategoryRecipePresetUpdate, MealCategoryReorder, MealEntryItemInput, MealPhotoAnalysisAccept, MealEntryStatusCommand, RecipeCreate, RecipeIngredientInput, RecipeUpdate
 from app.main import app
 
 
@@ -44,6 +44,15 @@ class ConfigurableMealsContractTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             MealCategoryReorder(ids=[duplicate, duplicate])
 
+    def test_category_recipe_presets_are_limited_to_two_distinct_recipes(self):
+        first = "00000000-0000-0000-0000-000000000001"
+        second = "00000000-0000-0000-0000-000000000002"
+        self.assertEqual([str(value) for value in MealCategoryRecipePresetUpdate(recipe_ids=[first, second]).recipe_ids], [first, second])
+        with self.assertRaises(ValidationError):
+            MealCategoryRecipePresetUpdate(recipe_ids=[first, first])
+        with self.assertRaises(ValidationError):
+            MealCategoryRecipePresetUpdate(recipe_ids=[first, second, "00000000-0000-0000-0000-000000000003"])
+
     def test_photo_accept_requires_user_selected_snapshot_items(self):
         with self.assertRaises(ValidationError):
             MealPhotoAnalysisAccept(items=[])
@@ -58,6 +67,19 @@ class ConfigurableMealsContractTests(unittest.TestCase):
         paths = app.openapi()["paths"]
         self.assertIn("/api/meal-categories/reorder", paths)
         self.assertIn("put", paths["/api/meal-categories/reorder"])
+
+    def test_category_recipe_presets_are_part_of_the_account_scoped_contract(self):
+        paths = app.openapi()["paths"]
+        path = "/api/meal-categories/{category_id}/recipe-presets"
+        self.assertIn(path, paths)
+        self.assertIn("get", paths[path])
+        self.assertIn("put", paths[path])
+
+    def test_legacy_meal_and_dish_routes_are_not_public(self):
+        paths = app.openapi()["paths"]
+        self.assertNotIn("/api/meals", paths)
+        self.assertNotIn("/api/dishes", paths)
+        self.assertNotIn("/api/meal-templates", paths)
 
     def test_meal_photo_upload_uses_validated_content_not_filename(self):
         mime_type, extension = _image_metadata(b"\x89PNG\r\n\x1a\nphoto", "image/png")

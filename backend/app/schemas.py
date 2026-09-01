@@ -120,157 +120,6 @@ class BodyProfileResponse(BodyProfileUpdate):
 
 
 # ---------------------------------------------------------------------------
-# Meal
-# ---------------------------------------------------------------------------
-class MealBase(_Base):
-    date: date
-    meal_slot: int
-    name: str
-    default_time: Optional[time] = None
-    kcal: Optional[Decimal] = None
-    protein_g: Optional[Decimal] = None
-    carbs_g: Optional[Decimal] = None
-    fat_g: Optional[Decimal] = None
-    fiber_g: Optional[Decimal] = None
-    sugar_g: Optional[Decimal] = None
-    free_sugar_g: Optional[Decimal] = None
-    is_standard: bool = False
-    is_done: bool = False
-    replaced_by: Optional[str] = None
-    photo_url: Optional[str] = None
-    photo_analysis: Optional[dict[str, Any]] = None
-    assigned_via_photo: bool = False
-    deleted: bool = False
-    portion_factor: Optional[Decimal] = Decimal("1.00")
-    dish_id: Optional[uuid.UUID] = None
-
-
-class MealCreate(MealBase):
-    pass
-
-
-class MealUpdate(_Base):
-    name: Optional[str] = None
-    default_time: Optional[time] = None
-    kcal: Optional[Decimal] = None
-    protein_g: Optional[Decimal] = None
-    carbs_g: Optional[Decimal] = None
-    fat_g: Optional[Decimal] = None
-    fiber_g: Optional[Decimal] = None
-    sugar_g: Optional[Decimal] = None
-    free_sugar_g: Optional[Decimal] = None
-    is_standard: Optional[bool] = None
-    is_done: Optional[bool] = None
-    replaced_by: Optional[str] = None
-    photo_url: Optional[str] = None
-    photo_analysis: Optional[dict[str, Any]] = None
-    assigned_via_photo: Optional[bool] = None
-    deleted: Optional[bool] = None
-    portion_factor: Optional[Decimal] = None
-    dish_id: Optional[uuid.UUID] = None
-
-
-class MealResponse(MealBase):
-    id: uuid.UUID
-    updated_at: Optional[datetime] = None
-
-
-# ---------------------------------------------------------------------------
-# MealTemplate
-# ---------------------------------------------------------------------------
-class MealTemplateBase(_Base):
-    slot: int
-    name: str
-    kcal: Optional[Decimal] = None
-    protein_g: Optional[Decimal] = None
-    carbs_g: Optional[Decimal] = None
-    fat_g: Optional[Decimal] = None
-    fiber_g: Optional[Decimal] = None
-    sugar_g: Optional[Decimal] = None
-    free_sugar_g: Optional[Decimal] = None
-
-
-class MealTemplateCreate(MealTemplateBase):
-    pass
-
-
-class MealTemplateUpdate(_Base):
-    name: Optional[str] = None
-    kcal: Optional[Decimal] = None
-    protein_g: Optional[Decimal] = None
-    carbs_g: Optional[Decimal] = None
-    fat_g: Optional[Decimal] = None
-    fiber_g: Optional[Decimal] = None
-    sugar_g: Optional[Decimal] = None
-    free_sugar_g: Optional[Decimal] = None
-
-
-class MealTemplateResponse(MealTemplateBase):
-    id: uuid.UUID
-
-
-# ---------------------------------------------------------------------------#
-# Dish
-# ---------------------------------------------------------------------------#
-class DishBase(_Base):
-    slot: Optional[int] = None  # preferred slot, not mandatory
-    name: str
-    kcal: Optional[Decimal] = None
-    protein_g: Optional[Decimal] = None
-    carbs_g: Optional[Decimal] = None
-    fat_g: Optional[Decimal] = None
-    fiber_g: Optional[Decimal] = None
-    sugar_g: Optional[Decimal] = None
-    free_sugar_g: Optional[Decimal] = None
-    photo_url: Optional[str] = None
-    is_default: bool = False
-    usage_count: int = 0
-    source: str = "manual"
-    portion_label: Optional[str] = None
-    portion_grams: Optional[Decimal] = None
-    is_scalable: bool = False
-
-
-class DishCreate(DishBase):
-    pass
-
-
-class DishUpdate(_Base):
-    name: Optional[str] = None
-    kcal: Optional[Decimal] = None
-    protein_g: Optional[Decimal] = None
-    carbs_g: Optional[Decimal] = None
-    fat_g: Optional[Decimal] = None
-    fiber_g: Optional[Decimal] = None
-    sugar_g: Optional[Decimal] = None
-    free_sugar_g: Optional[Decimal] = None
-    photo_url: Optional[str] = None
-    is_default: Optional[bool] = None
-    slot: Optional[int] = None
-    portion_label: Optional[str] = None
-    portion_grams: Optional[Decimal] = None
-    is_scalable: Optional[bool] = None
-
-
-class DishResponse(DishBase):
-    id: uuid.UUID
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-
-class DishMatchResult(_Base):
-    matched: bool
-    dish: Optional[DishResponse] = None
-    similarity: float = 0.0
-
-
-class DishRecommendResult(_Base):
-    """Result for GET /dishes/recommend — default + alternatives for a slot."""
-    default: Optional[DishResponse] = None
-    alternatives: list[DishResponse] = []
-
-
-# ---------------------------------------------------------------------------
 # Configurable meal domain (v1)
 # ---------------------------------------------------------------------------
 NutritionValue = Optional[Decimal]
@@ -317,6 +166,19 @@ class MealCategoryReorder(_Base):
         if len(ids) != len(set(ids)):
             raise ValueError("ids must be unique")
         return ids
+
+
+class MealCategoryRecipePresetUpdate(_Base):
+    """Replace the at-most-two quick recipes for one owned category."""
+    model_config = ConfigDict(extra="forbid")
+    recipe_ids: list[uuid.UUID] = Field(default_factory=list, max_length=2)
+
+    @field_validator("recipe_ids")
+    @classmethod
+    def unique_recipe_ids(cls, recipe_ids):
+        if len(recipe_ids) != len(set(recipe_ids)):
+            raise ValueError("recipe_ids must be unique")
+        return recipe_ids
 
 
 class FoodCreate(Nutrition):
@@ -779,9 +641,18 @@ class SyncConflictItem(_Base):
     server_timestamp: datetime
 
 
+class SyncOperationResult(_Base):
+    change_index: int
+    entity_type: str
+    entity_id: uuid.UUID
+    status: Literal["applied", "duplicate", "conflict", "validation_error"]
+    detail: Optional[str] = None
+
+
 class SyncResponse(_Base):
     server_changes: list[dict[str, Any]] = []
     conflicts: list[SyncConflictItem] = []
+    results: list[SyncOperationResult] = []
     sync_token: datetime
 
 

@@ -84,10 +84,10 @@ async def sync_google_calendar(
             )
 
         if resp.status_code != 200:
-            logger.error(f"Google Calendar events fetch failed: {resp.status_code} {resp.text}")
+            logger.error("Google Calendar events fetch failed: status=%s", resp.status_code)
             raise HTTPException(
                 status_code=resp.status_code,
-                detail=f"Google Calendar API error: {resp.text}",
+                detail="Google Calendar API error",
             )
 
         data = resp.json()

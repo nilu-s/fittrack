@@ -8,6 +8,8 @@
   export let date: string;
   export let oncomplete: (data: { date: string; training_type: string }) => void = () => {};
   export let onclose: () => void = () => {};
+  /** Set by a containing dialog that already owns the close control. */
+  export let showClose = true;
 
   let exercises: TrainingSuggestionExercise[] = [];
   let loading = true;
@@ -41,7 +43,7 @@
 </script>
 
 <div class="td slide-down">
-  <div class="td-hdr"><span class="td-title">{training_type}</span><button class="td-close" onclick={onclose} aria-label="Schliessen"><Icon name="x" size={16} /></button></div>
+  <div class="td-hdr"><span class="td-title">{training_type}</span>{#if showClose}<button class="td-close" onclick={onclose} aria-label="Schließen"><Icon name="x" size={16} /></button>{/if}</div>
   {#if loading}<div class="td-loading"><div class="spinner"></div><span>Lädt…</span></div>
   {:else if exercises.length === 0 && cardioMinutes == null}<div class="td-empty">Keine Übungen für {training_type}.</div>
   {:else if exercises.length === 0}

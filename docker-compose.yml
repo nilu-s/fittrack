@@ -16,6 +16,7 @@ services:
   fittrack-api:
     build: ./backend
     environment:
+      ENVIRONMENT: production
       TZ: Europe/Berlin
       DATABASE_URL: postgresql+asyncpg://fittrack:${FITTRACK_DB_PASSWORD}@fittrack-db:5432/fittrack
       VISION_PROXY_URL: http://vision-proxy:8100

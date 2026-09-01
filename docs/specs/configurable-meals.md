@@ -23,6 +23,7 @@ Owner oder eine fremde Ressourcen-ID als Berechtigung.
 ## 2. Umfang und Nicht-Ziele
 
 Im ersten Release enthalten sind frei benennbare Mahlzeitenkategorien,
+zwei je Kategorie pflegbare Standardgerichte für die Tages-Schnellauswahl,
 Lebensmittel, Rezepte mit Zutaten, Tages-/Wochenpläne, Portionen, Planung und
 Verzehr, Nährwert-Summen, Fotos und die Übernahme einer Fotoanalyse nach
 expliziter Bestätigung.
@@ -37,6 +38,7 @@ Solche Erweiterungen benötigen eine eigene Spezifikation.
 | Entität | Zweck | Wesentliche Regeln |
 | --- | --- | --- |
 | `meal_categories` | Je Konto konfigurierbare Kategorien, z. B. Frühstück oder Snack | Name und Reihenfolge je Konto eindeutig; keine feste Anzahl und keine globalen Slots. |
+| `meal_category_recipe_presets` | Schnellauswahl einer Kategorie | Höchstens zwei aktive, konto-eigene Rezepte in expliziter Reihenfolge. |
 | `foods` | Lebensmittel mit Nährwerten je 100 g | Einheitliche Dezimalwerte; Quelle und Vertrauensniveau werden gespeichert. |
 | `recipes` | Wiederverwendbares Gericht | Entwurf, aktiv oder archiviert; ergibt eine definierte Anzahl Portionen. |
 | `recipe_ingredients` | Zutaten bzw. Unterrezepte eines Rezepts | Menge, Einheit und Reihenfolge; keine zyklischen Unterrezepte. |
@@ -79,6 +81,7 @@ keine Owner-Felder an.
 | Ressource | Operationen |
 | --- | --- |
 | Kategorien | `GET/POST /meal-categories`, `PUT/DELETE /meal-categories/{id}`, Reihenfolge aktualisieren |
+| Kategorie-Schnellauswahl | `GET/PUT /meal-categories/{id}/recipe-presets`; maximal zwei aktive Rezepte |
 | Lebensmittel | `GET/POST /foods`, `GET/PUT/DELETE /foods/{id}`, Suche nach Name/Tag |
 | Rezepte | `GET/POST /recipes`, `GET/PUT/DELETE /recipes/{id}`, Zutaten nur atomar mit dem Rezept schreiben |
 | Pläne | `GET/POST /meal-plans`, `GET/PUT/DELETE /meal-plans/{id}`, aktivieren/versionieren |

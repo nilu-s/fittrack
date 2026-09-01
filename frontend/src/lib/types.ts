@@ -57,6 +57,9 @@ export interface Meal {
   meal_entry_status?: 'planned' | 'consumed' | 'skipped';
   category_name?: string;
   recipe_instructions?: string[];
+  /** New meal-domain fields used by the daily editor. */
+  category_id?: string;
+  meal_entry_items?: MealEntryItem[];
 }
 
 export interface Todo {
@@ -456,6 +459,13 @@ export interface SyncPayload {
 export interface SyncResponse {
   server_changes: any[];
   conflicts: any[];
+  results: Array<{
+    change_index: number;
+    entity_type: string;
+    entity_id: string;
+    status: 'applied' | 'duplicate' | 'conflict' | 'validation_error';
+    detail?: string | null;
+  }>;
   sync_token: string;
 }
 

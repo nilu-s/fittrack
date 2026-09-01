@@ -10,10 +10,15 @@ Offline-first PWA für Fitness-, Ernährungs- und To-Do-Tracking.
 
 ## Development
 ```bash
-docker compose up -d
+cp .env.example .env
+docker compose -f docker-compose.dev.yml up -d
 # Backend: http://localhost:8000/api/health
 # Frontend: http://localhost:3000
 ```
+
+Run `cd backend && alembic upgrade head` only after following the account
+cutover runbook when a legacy database is involved. The developer Compose file
+does not mount production credentials or expose Caddy.
 
 ## Production
 - API: `https://fittrack.49.12.225.84.sslip.io/api`

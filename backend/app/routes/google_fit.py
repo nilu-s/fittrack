@@ -65,10 +65,10 @@ async def _aggregate_fit_data(
             timeout=30,
         )
     if resp.status_code != 200:
-        logger.error(f"Google Fit aggregate failed for {data_type_name}: {resp.status_code} {resp.text}")
+        logger.error("Google Fit aggregate failed for %s: status=%s", data_type_name, resp.status_code)
         raise HTTPException(
             status_code=resp.status_code,
-            detail=f"Google Fit API error ({data_type_name}): {resp.text}",
+            detail=f"Google Fit API error ({data_type_name})",
         )
     return resp.json()
 

@@ -1,11 +1,10 @@
 import type {
-  DayEntry, Meal, Todo, Exercise, TrainingSet, TrainingRotation, TrainingUnit,
+  DayEntry, Todo, Exercise, TrainingSet, TrainingRotation, TrainingUnit,
   TrainingSuggestion, TrainingCompleteRequest, ExerciseProgress,
-  MealTemplate, WeekStats, TrendData, SyncPayload, SyncResponse, Goals,
-  Dish, DishMatchResult, DishRecommendResult, PhotoAnalysisResponse,
+  WeekStats, TrendData, SyncPayload, SyncResponse, Goals,
   MealCategory, Food, Recipe, MealPlan, MealEntry, MealPhotoAnalysis,
 } from './types';
-import { db, queueSync, type DayEntryRecord, type MealRecord, type TodoRecord } from './db';
+import { db, queueSync, type DayEntryRecord, type TodoRecord } from './db';
 
 function getBaseUrl(): string {
   if (typeof window !== 'undefined') {
@@ -188,93 +187,6 @@ class ApiClient {
       }
       return null;
     }
-  }
-
-  // Meals
-  async getMeals(date: string): Promise<Meal[]> {
-    return (await this.request<Meal[]>(`/meals?date=${date}`)) ?? [];
-  }
-
-  async createMeal(data: Partial<Meal>): Promise<Meal | null> {
-    try {
-      const result = await this.request<Meal>(`/meals`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-      if (result) {
-        await saveLocalEntity('meal', db.meals, result, 'update', result.id);
-      }
-      return result;
-    } catch (err) {
-      if (isNetworkError(err)) {
-        const localId = await saveLocalEntity('meal', db.meals, data, 'create');
-        return (await db.meals.get(localId as number)) ?? null;
-      }
-      return null;
-    }
-  }
-
-  async updateMeal(id: string | number, data: Partial<Meal>): Promise<Meal | null> {
-    const serverId = looksLikeServerId(id) ? String(id) : undefined;
-    try {
-      const result = await this.request<Meal>(`/meals/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-      if (result) {
-        await saveLocalEntity('meal', db.meals, result, 'update', result.id);
-      }
-      return result;
-    } catch (err) {
-      if (isNetworkError(err)) {
-        const merged = { ...data, id: serverId ?? id };
-        const localId = await saveLocalEntity('meal', db.meals, merged, 'update', serverId);
-        return (await db.meals.get(localId as number)) ?? null;
-      }
-      return null;
-    }
-  }
-
-  async deleteMeal(id: string | number): Promise<boolean> {
-    const serverId = looksLikeServerId(id) ? String(id) : undefined;
-    try {
-      await this.request(`/meals/${id}`, { method: 'DELETE' });
-      if (serverId) {
-        await saveLocalEntity('meal', db.meals, {}, 'delete', serverId);
-      }
-      return true;
-    } catch (err) {
-      if (isNetworkError(err)) {
-        await saveLocalEntity('meal', db.meals, {}, 'delete', serverId ?? String(id));
-        return true;
-      }
-      return false;
-    }
-  }
-
-  async markMealDone(id: string | number): Promise<Meal | null> {
-    const serverId = looksLikeServerId(id) ? String(id) : undefined;
-    try {
-      const result = await this.request<Meal>(`/meals/${id}/done`, { method: 'POST' });
-      if (result) {
-        await saveLocalEntity('meal', db.meals, result, 'update', result.id);
-      }
-      return result;
-    } catch (err) {
-      if (isNetworkError(err)) {
-        const existing = serverId ? await findLocalByServerId<MealRecord>(db.meals, serverId) : undefined;
-        const updated: Partial<Meal> = existing
-          ? { ...existing, is_done: !existing.is_done, updated_at: new Date().toISOString() }
-          : { id: serverId ?? String(id), is_done: true, updated_at: new Date().toISOString() };
-        const localId = await saveLocalEntity('meal', db.meals, updated, 'update', serverId ?? String(id));
-        return (await db.meals.get(localId as number)) ?? null;
-      }
-      return null;
-    }
-  }
-
-  async getMealTemplates(): Promise<MealTemplate[]> {
-    return (await this.request<MealTemplate[]>(`/meal-templates`)) ?? [];
   }
 
   // Todos
@@ -465,33 +377,6 @@ class ApiClient {
     return this.request<TrendData>(`/stats/trend?metric=${encodeURIComponent(metric)}&days=${days}`);
   }
 
-  // Photos
-  async analyzePhoto(file: File, mealId?: string): Promise<PhotoAnalysisResponse | null> {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (mealId) {
-      formData.append('meal_id', mealId);
-    }
-    try {
-      const url = `${this.baseUrl}/photos/analyze`;
-      const response = await fetch(url, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        console.warn(`API error: ${response.status} ${response.statusText} for /photos/analyze`);
-        return null;
-      }
-      const text = await response.text();
-      if (!text) return null;
-      return JSON.parse(text);
-    } catch (err) {
-      console.warn('API request failed for /photos/analyze:', err);
-      return null;
-    }
-  }
-
   // Google Auth
   async getGoogleStatus(): Promise<any | null> {
     return this.request<any>(`/auth/google/status`);
@@ -538,48 +423,6 @@ class ApiClient {
     });
   }
 
-  // Dishes
-  async getDishes(slot?: number, q?: string): Promise<Dish[]> {
-    const params = new URLSearchParams();
-    if (slot !== undefined) params.set('slot', String(slot));
-    if (q) params.set('q', q);
-    const query = params.toString() ? `?${params}` : '';
-    return (await this.request<Dish[]>(`/dishes${query}`)) ?? [];
-  }
-
-  async getDishRecommend(slot: number): Promise<DishRecommendResult | null> {
-    return this.request<DishRecommendResult>(`/dishes/recommend?slot=${slot}`);
-  }
-
-  async createDish(data: Partial<Dish> & { name: string }): Promise<Dish | null> {
-    return this.request<Dish>(`/dishes`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateDish(id: string, data: Partial<Dish>): Promise<Dish | null> {
-    return this.request<Dish>(`/dishes/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteDish(id: string): Promise<boolean> {
-    try {
-      await this.request(`/dishes/${id}`, { method: 'DELETE' });
-      return true;
-    } catch { return false; }
-  }
-
-  async matchDish(name: string): Promise<DishMatchResult | null> {
-    return this.request<DishMatchResult>(`/dishes/match?name=${encodeURIComponent(name)}`);
-  }
-
-  async incrementDishUsage(id: string): Promise<Dish | null> {
-    return this.request<Dish>(`/dishes/${id}/use`, { method: 'POST' });
-  }
-
   // Configurable meals v1.  Server derives the account from the session; callers
   // never send an owner identifier.  These calls deliberately do not use the
   // legacy offline queue: v1 mutations require revision-aware conflict handling.
@@ -599,6 +442,12 @@ class ApiClient {
   }
   async reorderMealCategories(ids: string[]): Promise<MealCategory[]> {
     return (await this.request('/meal-categories/reorder', { method: 'PUT', body: JSON.stringify({ ids }) })) ?? [];
+  }
+  async getMealCategoryRecipePresets(categoryId: string): Promise<Recipe[]> {
+    return (await this.request<Recipe[]>(`/meal-categories/${categoryId}/recipe-presets`)) ?? [];
+  }
+  async updateMealCategoryRecipePresets(categoryId: string, recipeIds: string[]): Promise<Recipe[]> {
+    return (await this.request<Recipe[]>(`/meal-categories/${categoryId}/recipe-presets`, { method: 'PUT', body: JSON.stringify({ recipe_ids: recipeIds }) })) ?? [];
   }
   async getFoods(q?: string): Promise<Food[]> {
     const query = q ? `?q=${encodeURIComponent(q)}` : '';
@@ -643,6 +492,12 @@ class ApiClient {
       if (!response.ok) return null;
       return await response.json() as MealPhotoAnalysis;
     } catch (err) { throw new NetworkError(`Network request failed for meal photo ${id}`, err); }
+  }
+  async acceptMealEntryPhoto(id: string, analysisId: string, data: { name?: string; status?: 'planned' | 'consumed' | 'skipped'; items: Array<{ food_id?: string; recipe_id?: string; quantity: number; unit: 'g' | 'ml' | 'serving' }> }): Promise<MealEntry | null> {
+    return this.request(`/meal-entries/${id}/photo-analyses/${analysisId}/accept`, { method: 'POST', body: JSON.stringify(data) });
+  }
+  async rejectMealEntryPhoto(id: string, analysisId: string): Promise<MealPhotoAnalysis | null> {
+    return this.request(`/meal-entries/${id}/photo-analyses/${analysisId}/reject`, { method: 'POST' });
   }
 }
 

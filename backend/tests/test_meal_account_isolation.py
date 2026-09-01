@@ -1,4 +1,4 @@
-"""Regression contracts for legacy meal endpoints' account boundary.
+"""Regression contracts for the account-scoped configurable meal API.
 
 These tests deliberately inspect the query given to the persistence layer: a
 request-context ownership filter is valuable defense in depth, but routes must
@@ -13,13 +13,10 @@ from unittest.mock import patch
 
 from fastapi import HTTPException
 
-from app.routes.dishes import update_dish
-from app.routes.meals import update_meal
-from app.routes.photos import analyze_photo
 from app.routes.configurable_meals import _owned, create_photo_analysis
 from app.models import MealEntry
 from app.routes.sync import sync_changes
-from app.schemas import DishUpdate, MealUpdate, SyncChangeItem, SyncRequest
+from app.schemas import SyncChangeItem, SyncRequest
 
 
 class _Scalars:
@@ -53,46 +50,6 @@ class _NoRecordSession:
 
 
 class MealAccountIsolationTests(unittest.IsolatedAsyncioTestCase):
-    async def test_meal_update_queries_id_and_authenticated_account(self):
-        session = _NoRecordSession()
-        with patch("app.routes.meals.async_session", return_value=_Context(session)):
-            with self.assertRaises(HTTPException) as error:
-                await update_meal(uuid.uuid4(), MealUpdate(name="forged"), user=uuid.uuid4())
-        self.assertEqual(error.exception.status_code, 404)
-        self.assertIn("meals.account_id", str(session.statements[0]))
-
-    async def test_dish_update_queries_id_and_authenticated_account(self):
-        session = _NoRecordSession()
-        with patch("app.routes.dishes.async_session", return_value=_Context(session)):
-            with self.assertRaises(HTTPException) as error:
-                await update_dish(uuid.uuid4(), DishUpdate(name="forged"), user=uuid.uuid4())
-        self.assertEqual(error.exception.status_code, 404)
-        self.assertIn("dishes.account_id", str(session.statements[0]))
-
-    async def test_photo_rejects_other_accounts_meal_before_reading_upload(self):
-        class Upload:
-            filename = "meal.jpg"
-            content_type = "image/jpeg"
-            read_called = False
-
-            async def read(self):
-                self.read_called = True
-                return b"image"
-
-        class Session:
-            statement = None
-
-            async def scalar(self, statement):
-                self.statement = statement
-                return None
-
-        upload, session = Upload(), Session()
-        with patch("app.routes.photos.async_session", return_value=_Context(session)):
-            with self.assertRaises(HTTPException) as error:
-                await analyze_photo(upload, meal_id=str(uuid.uuid4()), user=uuid.uuid4())
-        self.assertEqual(error.exception.status_code, 404)
-        self.assertFalse(upload.read_called)
-        self.assertIn("meals.account_id", str(session.statement))
 
     async def test_configurable_entry_photo_rejects_foreign_entry_before_reading_upload(self):
         class Upload:
@@ -119,7 +76,7 @@ class MealAccountIsolationTests(unittest.IsolatedAsyncioTestCase):
             await _owned(session, MealEntry, uuid.uuid4(), uuid.uuid4())
         self.assertIn("meal_entries.account_id", str(session.statements[0]))
 
-    async def test_sync_delete_of_other_accounts_row_is_not_reported_as_applied(self):
+    async def test_retired_meal_sync_changes_remain_visible_as_validation_errors(self):
         session = _NoRecordSession()
         session.commit = self._async_noop
         session.add = lambda _item: self.fail("foreign row must not create a sync log")
@@ -133,7 +90,25 @@ class MealAccountIsolationTests(unittest.IsolatedAsyncioTestCase):
         with patch("app.routes.sync.async_session", return_value=_Context(session)):
             response = await sync_changes(request, user=uuid.uuid4())
         self.assertEqual(response.server_changes, [])
-        self.assertIn("meals.account_id", str(session.statements[0]))
+        self.assertEqual(session.statements, [])
+        self.assertEqual(response.results[0].status, "validation_error")
+        self.assertEqual(response.results[0].detail, "Unknown sync entity type")
+
+    async def test_invalid_sync_action_is_a_per_change_validation_error(self):
+        session = _NoRecordSession()
+        session.commit = self._async_noop
+        request = SyncRequest(changes=[SyncChangeItem(
+            entity_type="todo",
+            entity_id=uuid.uuid4(),
+            action="rename",
+            payload={},
+            client_timestamp=datetime.now(timezone.utc),
+        )])
+        with patch("app.routes.sync.async_session", return_value=_Context(session)):
+            response = await sync_changes(request, user=uuid.uuid4())
+        self.assertEqual(response.results[0].status, "validation_error")
+        self.assertEqual(response.results[0].detail, "Invalid sync action")
+        self.assertEqual(session.statements, [])
 
     async def _async_noop(self):
         pass

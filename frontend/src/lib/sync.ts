@@ -8,6 +8,7 @@ export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'error';
 
 export const syncStatus = writable<SyncStatus>('synced');
 export const lastSync = writable<number | null>(null);
+export const syncIssues = writable<Array<{ entityType: string; entityId: string; status: string; detail?: string | null }>>([]);
 
 let isSyncing = false;
 let retryCount = 0;
@@ -38,11 +39,9 @@ function stripLocalOnlyFields(payload: Record<string, any>): Record<string, any>
 
 const ENTITY_TYPE_MAP: Record<string, string> = {
   dayEntry: 'day_entry',
-  meal: 'meal',
   todo: 'todo',
   trainingSet: 'training_set',
   exercise: 'exercise',
-  mealTemplate: 'meal_template',
 };
 
 async function buildSyncPayload(pending: SyncQueueEntry[]): Promise<SyncPayload> {
@@ -56,16 +55,12 @@ async function buildSyncPayload(pending: SyncQueueEntry[]): Promise<SyncPayload>
     try {
       if (entry.entityType === 'dayEntry') {
         record = (await db.dayEntries.get(entry.entityLocalId)) as Record<string, any> | undefined;
-      } else if (entry.entityType === 'meal') {
-        record = (await db.meals.get(entry.entityLocalId)) as Record<string, any> | undefined;
       } else if (entry.entityType === 'todo') {
         record = (await db.todos.get(entry.entityLocalId)) as Record<string, any> | undefined;
       } else if (entry.entityType === 'trainingSet') {
         record = (await db.trainingSets.get(entry.entityLocalId)) as Record<string, any> | undefined;
       } else if (entry.entityType === 'exercise') {
         record = (await db.exercises.get(entry.entityLocalId)) as Record<string, any> | undefined;
-      } else if (entry.entityType === 'mealTemplate') {
-        record = (await db.mealTemplates.get(entry.entityLocalId)) as Record<string, any> | undefined;
       }
     } catch (e) {
       console.warn('Failed to load queued entity from IndexedDB:', e);
@@ -82,16 +77,12 @@ async function buildSyncPayload(pending: SyncQueueEntry[]): Promise<SyncPayload>
         try {
           if (entry.entityType === 'dayEntry') {
             await db.dayEntries.update(entry.entityLocalId, { serverId });
-          } else if (entry.entityType === 'meal') {
-            await db.meals.update(entry.entityLocalId, { serverId });
           } else if (entry.entityType === 'todo') {
             await db.todos.update(entry.entityLocalId, { serverId });
           } else if (entry.entityType === 'trainingSet') {
             await db.trainingSets.update(entry.entityLocalId, { serverId });
           } else if (entry.entityType === 'exercise') {
             await db.exercises.update(entry.entityLocalId, { serverId });
-          } else if (entry.entityType === 'mealTemplate') {
-            await db.mealTemplates.update(entry.entityLocalId, { serverId });
           }
         } catch (e) {
           console.warn('Failed to persist generated server id:', e);
@@ -144,17 +135,31 @@ async function processSyncQueue(): Promise<boolean> {
     return processSyncQueue();
   }
 
-  // Mark all as synced
-  for (const entry of pending) {
-    if (entry.id) {
+  // Only remove operations the server explicitly accepted (or recognized as
+  // idempotent). Conflicts and validation errors remain inspectable locally;
+  // they must never disappear merely because another operation succeeded.
+  const accepted = new Set(
+    response.results
+      .filter((result) => result.status === 'applied' || result.status === 'duplicate')
+      .map((result) => result.change_index),
+  );
+  const rejected = response.results.filter((result) => !accepted.has(result.change_index));
+  for (const [index, entry] of pending.entries()) {
+    if (accepted.has(index) && entry.id) {
       await db.syncQueue.update(entry.id, { synced: true });
     }
   }
   await db.syncQueue.where('synced').equals(1 as any).delete();
   await db.syncQueue.where('synced').equals(true as any).delete();
 
+  syncIssues.set(rejected.map((result) => ({
+    entityType: result.entity_type,
+    entityId: result.entity_id,
+    status: result.status,
+    detail: result.detail,
+  })));
   retryCount = 0;
-  syncStatus.set('synced');
+  syncStatus.set(rejected.length ? 'error' : 'synced');
   lastSync.set(Date.now());
   return true;
 }

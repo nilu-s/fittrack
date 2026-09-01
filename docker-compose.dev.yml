@@ -1,0 +1,36 @@
+# Local-only developer services. It deliberately excludes Caddy, the external
+# agent network, public IP bindings, and the host-mounted vision credential.
+services:
+  fittrack-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: fittrack
+      POSTGRES_USER: fittrack
+      POSTGRES_PASSWORD: ${FITTRACK_DB_PASSWORD:?set FITTRACK_DB_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fittrack -d fittrack"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  fittrack-api:
+    build: ./backend
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://fittrack:${FITTRACK_DB_PASSWORD:?set FITTRACK_DB_PASSWORD in .env}@fittrack-db:5432/fittrack
+      FITTRACK_JWT_SECRET: ${FITTRACK_JWT_SECRET:?set FITTRACK_JWT_SECRET in .env}
+      PHOTO_DIR: /app/photos
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      fittrack-db:
+        condition: service_healthy
+
+  fittrack-web:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - fittrack-api

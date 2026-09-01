@@ -7,12 +7,15 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.config import validate_runtime_settings
+
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Schema changes run exclusively through Alembic; accounts seed explicitly."""
+    validate_runtime_settings()
     yield
 
 
@@ -41,8 +44,6 @@ async def health():
 # --- Register routers ---
 from app.routes.auth import router as auth_router, google_router as auth_google_router
 from app.routes.day_entries import router as day_entries_router
-from app.routes.meals import router as meals_router, templates_router as meal_templates_router
-from app.routes.photos import router as photos_router
 from app.routes.stats import router as stats_router
 from app.routes.google_calendar import router as google_calendar_router
 from app.routes.google_fit import router as google_fit_router
@@ -50,9 +51,7 @@ from app.routes.scale_v2 import browser_router as scale_browser_router, device_r
 from app.routes.sync import router as sync_router
 from app.routes.todos import router as todos_router
 from app.routes.training import router as training_router
-from app.routes.vision import router as vision_router
 from app.routes.goals import router as goals_router
-from app.routes.dishes import router as dishes_router
 from app.routes.configurable_meals import router as configurable_meals_router
 
 
@@ -98,16 +97,11 @@ async def require_browser_account(request: Request, call_next):
 app.include_router(auth_router, prefix="/api")
 app.include_router(auth_google_router, prefix="/api")
 app.include_router(day_entries_router, prefix="/api")
-app.include_router(meals_router, prefix="/api")
-app.include_router(meal_templates_router, prefix="/api")
 app.include_router(todos_router, prefix="/api")
 app.include_router(training_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
-app.include_router(photos_router, prefix="/api")
-app.include_router(vision_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
 app.include_router(goals_router, prefix="/api")
-app.include_router(dishes_router, prefix="/api")
 app.include_router(configurable_meals_router, prefix="/api")
 app.include_router(google_fit_router, prefix="/api")
 app.include_router(scale_v2_router, prefix="/api")
