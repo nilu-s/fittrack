@@ -37,6 +37,8 @@ The daily page (`/`) is FitTrack’s visual source of truth. Secondary routes in
 | `ui-empty`, `ui-loading`, `ui-spinner` | Empty and loading states |
 | `modal-overlay`, `modal-card`, `ui-dialog` | Standard dialog surface/layer with shared header, eyebrow, close control, content section and action row |
 
+Detail overlays opened from a day-feed card use the trigger position: upper, middle and lower third of the viewport map to upper, centred and lower dialog placement. Bottom action sheets remain bottom-aligned by contract.
+
 ## Verification
 
 Run `npm run lint:design` after UI changes. It asserts the token contract, global imports, main-shell primitive usage and the no-gradient Settings rule. Follow it with `npm run check` and `npm run build`.

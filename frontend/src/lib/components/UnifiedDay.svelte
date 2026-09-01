@@ -24,11 +24,6 @@
   $: todos = dayData.todos ?? [];
   $: trainingSuggestion = dayData.trainingSuggestion ?? null;
 
-  let weightTrend: TrendPoint[] = [];
-  let weightRange = 7; // 7 | 30 | 365
-  $: if (currentDate) loadWeightTrend();
-  async function loadWeightTrend() { try { const wt = await api.getStatsTrend('weight', weightRange); weightTrend = (wt?.points ?? []).filter((p: any) => p.value != null && p.value > 0); } catch {} }
-
   $: goals = $dailyGoals;
 
   let expandedSleep = false;
@@ -81,13 +76,18 @@
   let mealEntryEditorCamera = false;
   let metricTrendItem: UnifiedItem | null = null;
   let metricTrend: TrendPoint[] = [];
+  let metricTrendRange = 7;
   let metricTrendLoading = false;
   let metricTrendError = '';
   let metricTrendTrigger: HTMLElement | null = null;
   let metricTrendCloseButton: HTMLButtonElement | null = null;
+  let metricTrendPlacement: 'top' | 'center' | 'bottom' = 'center';
   let nutritionDetailsOpen = false;
   let nutritionDetailsTrigger: HTMLElement | null = null;
   let nutritionDetailsCloseButton: HTMLButtonElement | null = null;
+  let nutritionDetailsPlacement: 'top' | 'center' | 'bottom' = 'center';
+  let detailItemTrigger: HTMLElement | null = null;
+  let detailItemPlacement: 'top' | 'center' | 'bottom' = 'center';
 
   /** Only one task detail may be open in the daily list at a time. */
   function closeOpenTodoDetails() {
@@ -221,21 +221,39 @@
       return;
     }
     closeOpenTodoDetails();
+    detailItemTrigger = trigger ?? null;
+    detailItemPlacement = overlayPlacement(trigger);
     detailItem = item;
   }
-  function closeItemDetails() { detailItem = null; }
+  function closeItemDetails() {
+    detailItem = null;
+    const trigger = detailItemTrigger;
+    detailItemTrigger = null;
+    setTimeout(() => trigger?.focus(), 0);
+  }
+
+  function overlayPlacement(trigger?: HTMLElement): 'top' | 'center' | 'bottom' {
+    if (!trigger || typeof window === 'undefined') return 'center';
+    const centerY = trigger.getBoundingClientRect().top + trigger.getBoundingClientRect().height / 2;
+    if (centerY < window.innerHeight / 3) return 'top';
+    if (centerY > window.innerHeight * 2 / 3) return 'bottom';
+    return 'center';
+  }
 
   async function openMetricTrend(item: UnifiedItem, trigger?: HTMLElement) {
     closeOpenTodoDetails();
     metricTrendItem = item;
     metricTrend = [];
+    metricTrendRange = 7;
     metricTrendError = '';
     metricTrendLoading = true;
     metricTrendTrigger = trigger ?? null;
+    metricTrendPlacement = overlayPlacement(trigger);
     await tick();
     metricTrendCloseButton?.focus();
     try {
-      const response = await api.getStatsTrend(item.id === 'metric-steps' ? 'steps' : 'sleep_hours', 365);
+      const metric = item.id === 'metric-weight' ? 'weight' : item.id === 'metric-steps' ? 'steps' : 'sleep_hours';
+      const response = await api.getStatsTrend(metric, 365);
       metricTrend = (response?.points ?? []).filter((point) => point.value != null);
     } catch {
       metricTrendError = 'Der Verlauf konnte gerade nicht geladen werden.';
@@ -255,6 +273,7 @@
   async function openNutritionDetails(trigger: HTMLElement) {
     closeOpenTodoDetails();
     nutritionDetailsTrigger = trigger;
+    nutritionDetailsPlacement = overlayPlacement(trigger);
     nutritionDetailsOpen = true;
     await tick();
     nutritionDetailsCloseButton?.focus();
@@ -267,9 +286,19 @@
     setTimeout(() => trigger?.focus(), 0);
   }
 
-  function metricChart(points: TrendPoint[]) {
+  function metricChart(points: TrendPoint[], numDays: number) {
     if (!points.length) return null;
-    const values = points.map((point) => Number(point.value));
+    const valuesByDate = new Map(points.filter((point) => point.value != null).map((point) => [point.date, Number(point.value)]));
+    const anchor = new Date(); anchor.setHours(0, 0, 0, 0);
+    const days: { date: string; value: number; hasData: boolean }[] = [];
+    let lastKnown = Number(points[0].value) || 0;
+    for (let index = numDays - 1; index >= 0; index--) {
+      const date = new Date(anchor); date.setDate(anchor.getDate() - index);
+      const key = localDateStr(date);
+      if (valuesByDate.has(key)) lastKnown = valuesByDate.get(key)!;
+      days.push({ date: key, value: lastKnown, hasData: valuesByDate.has(key) });
+    }
+    const values = days.map((day) => day.value);
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min || 1;
@@ -279,16 +308,26 @@
       x: points.length === 1 ? width / 2 : 8 + index * ((width - 16) / (points.length - 1)),
       y: 8 + (height - 20) - ((value - min) / range) * (height - 20),
     }));
-    const path = coords.map((coord, index) => `${index ? 'L' : 'M'}${coord.x.toFixed(1)},${coord.y.toFixed(1)}`).join(' ');
+    const verifiedPath = coords.slice(0, -1).flatMap((coord, index) => days[index].hasData && days[index + 1].hasData ? [`M${coord.x.toFixed(1)},${coord.y.toFixed(1)} L${coords[index + 1].x.toFixed(1)},${coords[index + 1].y.toFixed(1)}`] : []).join(' ');
+    const assumedPath = coords.slice(0, -1).flatMap((coord, index) => !(days[index].hasData && days[index + 1].hasData) ? [`M${coord.x.toFixed(1)},${coord.y.toFixed(1)} L${coords[index + 1].x.toFixed(1)},${coords[index + 1].y.toFixed(1)}`] : []).join(' ');
     const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-    return { path, coords, first: points[0].date, last: points[points.length - 1].date, min, max, average };
+    const labelStep = numDays <= 7 ? 1 : numDays <= 30 ? 5 : Math.floor(numDays / 12);
+    const labels = days.map((day, index) => {
+      if (index % labelStep !== 0 && index !== days.length - 1) return null;
+      const date = new Date(`${day.date}T00:00`);
+      return { date: day.date, label: numDays <= 7 ? date.toLocaleDateString('de-DE', { weekday: 'short' }).slice(0, 2) : date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }) };
+    }).filter((label) => label !== null) as { date: string; label: string }[];
+    return { verifiedPath, assumedPath, coords, days, labels, first: days[0].date, last: days[days.length - 1].date, min, max, average };
   }
 
   function formatTrendDate(value: string) { return new Date(`${value}T00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' }); }
   function formatTrendValue(value: number, item: UnifiedItem) {
+    if (item.id === 'metric-weight') return `${value.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`;
     if (item.id === 'metric-sleep') return `${value.toLocaleString('de-DE', { maximumFractionDigits: 1 })} h`;
     return Math.round(value).toLocaleString('de-DE');
   }
+
+  function metricTrendColor(_item: UnifiedItem) { return 'var(--status-info)'; }
 
   function getMealFromItem(item: UnifiedItem): Meal | undefined {
     const id = String(item.id).replace('meal-', '');
@@ -515,11 +554,7 @@
         {:else if weightItem.weightSource === 'manual'}
           <span class="bio-source-manual">manuell</span>
         {/if}
-        <div class="weight-range-tabs">
-          <button class:active={weightRange === 7} onclick={() => { weightRange = 7; loadWeightTrend(); }}>W</button>
-          <button class:active={weightRange === 30} onclick={() => { weightRange = 30; loadWeightTrend(); }}>M</button>
-          <button class:active={weightRange === 365} onclick={() => { weightRange = 365; loadWeightTrend(); }}>J</button>
-        </div>
+        <button class="bio-trend-button" type="button" onclick={(event) => openMetricTrend(weightItem, event.currentTarget)} aria-label="Gewichtsverlauf anzeigen"><Icon name="chart" size={16} /></button>
       </div>
     </div>
     <div class="weight-value-row">
@@ -545,38 +580,6 @@
       <div class="weight-mini-stats">
         {#if wd.bmi != null}<span class="wms"><b>{wd.bmi}</b> BMI</span>{/if}
       </div>
-    {/if}
-    {#if weightTrend.length > 0 && !weightEditing}
-      {@const wc = weightChart(weightTrend, realTodayStr, currentDate, weightRange)}
-      {#if wc}
-        <svg class="weight-chart-full" viewBox="0 0 200 50" preserveAspectRatio="none">
-          <!-- Background area (faint) -->
-          <path d={wc.fullAreaD} fill="var(--status-info)" fill-opacity="0.05" />
-          <!-- Assumed segments (gray, dashed) -->
-          {#if wc.assumedPathD}
-            <path d={wc.assumedPathD} fill="none" stroke="var(--text-tertiary)" stroke-width="1.5" stroke-dasharray="3,2" stroke-linecap="round" />
-          {/if}
-          <!-- Verified segments (blue, solid) -->
-          {#if wc.verifiedPathD}
-            <path d={wc.verifiedPathD} fill="none" stroke="var(--status-info)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          {/if}
-          <!-- Dots: verified=blue, assumed=gray hollow, selected=ring -->
-          {#each wc.dots as d}
-            <circle cx={d.x} cy={d.y}
-              r={d.isSelected ? 3.5 : d.hasData ? 2 : 1.5}
-              fill={d.hasData ? 'var(--status-info)' : 'var(--text-tertiary)'}
-              stroke={d.isSelected ? 'var(--color-bg)' : 'none'}
-              stroke-width={d.isSelected ? '1.5' : '0'}
-              opacity={d.hasData ? 1 : 0.5}
-            />
-          {/each}
-        </svg>
-        <div class="weight-chart-labels">
-          {#each wc.labels as l}
-            <span class="weight-chart-label" class:today={l.isSelected}>{l.label}</span>
-          {/each}
-        </div>
-      {/if}
     {/if}
   </section>
 {/if}
@@ -651,7 +654,7 @@
 <MealEntryEditorSheet meal={mealEntryEditorItem ? getMealFromItem(mealEntryEditorItem) ?? null : null} open={Boolean(mealEntryEditorItem)} autoOpenCamera={mealEntryEditorCamera} on:close={closeMealEntryEditor} on:saved={(event) => { applyMealEntryUpdate(event.detail.entry); closeMealEntryEditor(); }} />
 
 {#if nutritionDetailsOpen}
-  <dialog class="modal-overlay trend-overlay" open aria-labelledby="nutrition-detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeNutritionDetails(); }} oncancel={(event) => { event.preventDefault(); closeNutritionDetails(); }}>
+  <dialog class="modal-overlay trend-overlay" class:overlay-top={nutritionDetailsPlacement === 'top'} class:overlay-bottom={nutritionDetailsPlacement === 'bottom'} open aria-labelledby="nutrition-detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeNutritionDetails(); }} oncancel={(event) => { event.preventDefault(); closeNutritionDetails(); }}>
     <section class="modal-card trend-detail ui-dialog">
       <header class="detail-header ui-dialog__header"><div><p class="detail-kind ui-dialog__eyebrow">Tagesübersicht</p><h2 id="nutrition-detail-title">Nährwerte & Kalorien</h2></div><button bind:this={nutritionDetailsCloseButton} class="detail-close ui-dialog__close" type="button" aria-label="Nährwertdetails schließen" onclick={closeNutritionDetails}>×</button></header>
       <div class="nutrition-detail-grid ui-dialog__section">
@@ -675,8 +678,8 @@
 {/if}
 
 {#if metricTrendItem}
-  {@const chart = metricChart(metricTrend)}
-  <dialog class="modal-overlay trend-overlay" open aria-labelledby="metric-trend-title" onclick={(event) => { if (event.target === event.currentTarget) closeMetricTrend(); }} oncancel={(event) => { event.preventDefault(); closeMetricTrend(); }}>
+  {@const chart = metricChart(metricTrend, metricTrendRange)}
+  <dialog class="modal-overlay trend-overlay" class:overlay-top={metricTrendPlacement === 'top'} class:overlay-bottom={metricTrendPlacement === 'bottom'} open aria-labelledby="metric-trend-title" onclick={(event) => { if (event.target === event.currentTarget) closeMetricTrend(); }} oncancel={(event) => { event.preventDefault(); closeMetricTrend(); }}>
     <section class="modal-card trend-detail ui-dialog">
       <header class="detail-header ui-dialog__header">
         <div><p class="detail-kind ui-dialog__eyebrow">Verlauf · letzte 365 Tage</p><h2 id="metric-trend-title">{metricTrendItem.title}</h2></div>
@@ -687,6 +690,11 @@
       {:else if metricTrendError}
         <p class="detail-meta">{metricTrendError}</p>
       {:else if chart}
+        <div class="trend-range-tabs" aria-label="Zeitraum auswählen">
+          <button class:active={metricTrendRange === 7} type="button" onclick={() => (metricTrendRange = 7)}>W</button>
+          <button class:active={metricTrendRange === 30} type="button" onclick={() => (metricTrendRange = 30)}>M</button>
+          <button class:active={metricTrendRange === 365} type="button" onclick={() => (metricTrendRange = 365)}>J</button>
+        </div>
         <div class="trend-summary ui-dialog__section" aria-label={`Zusammenfassung für ${metricTrendItem.title}`}>
           <span><b>{formatTrendValue(chart.average, metricTrendItem)}</b> Ø</span>
           <span><b>{formatTrendValue(chart.min, metricTrendItem)}</b> min.</span>
@@ -694,12 +702,13 @@
         </div>
         <svg class="metric-trend-chart" viewBox="0 0 300 120" role="img" aria-label={`${metricTrendItem.title} von ${formatTrendDate(chart.first)} bis ${formatTrendDate(chart.last)}`}>
           <line x1="8" y1="108" x2="292" y2="108" stroke="var(--border-default)" stroke-width="1" />
-          <path d={chart.path} fill="none" stroke={metricTrendItem.id === 'metric-sleep' ? 'var(--data-sleep-deep)' : 'var(--status-success)'} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          {#if chart.assumedPath}<path d={chart.assumedPath} fill="none" stroke="var(--text-tertiary)" stroke-width="1.5" stroke-dasharray="3 3" stroke-linecap="round" />{/if}
+          {#if chart.verifiedPath}<path d={chart.verifiedPath} fill="none" stroke={metricTrendColor(metricTrendItem)} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />{/if}
           {#each chart.coords as point, index}
-            <circle cx={point.x} cy={point.y} r={metricTrend.length > 90 ? 0 : 2.5} fill={metricTrendItem.id === 'metric-sleep' ? 'var(--data-sleep-deep)' : 'var(--status-success)'}><title>{formatTrendDate(metricTrend[index].date)}: {formatTrendValue(Number(metricTrend[index].value), metricTrendItem)}</title></circle>
+            {#if chart.days[index].hasData}<circle cx={point.x} cy={point.y} r={metricTrendRange === 365 ? 0 : 2.5} fill={metricTrendColor(metricTrendItem)}><title>{formatTrendDate(chart.days[index].date)}: {formatTrendValue(chart.days[index].value, metricTrendItem)}</title></circle>{/if}
           {/each}
         </svg>
-        <div class="trend-axis"><span>{formatTrendDate(chart.first)}</span><span>{formatTrendDate(chart.last)}</span></div>
+        <div class="trend-axis">{#each chart.labels as label}<span>{label.label}</span>{/each}</div>
       {:else}
         <p class="detail-empty">Für diesen Zeitraum sind noch keine Daten vorhanden.</p>
       {/if}
@@ -708,7 +717,7 @@
 {/if}
 
 {#if detailItem}
-  <dialog class="modal-overlay compact-overlay" open aria-labelledby="detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeItemDetails(); }} oncancel={(event) => { event.preventDefault(); closeItemDetails(); }}>
+  <dialog class="modal-overlay compact-overlay" class:overlay-top={detailItemPlacement === 'top'} class:overlay-bottom={detailItemPlacement === 'bottom'} open aria-labelledby="detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeItemDetails(); }} oncancel={(event) => { event.preventDefault(); closeItemDetails(); }}>
     <div class="modal-card compact-detail ui-dialog">
       <header class="detail-header ui-dialog__header"><div><p class="detail-kind ui-dialog__eyebrow">{detailItem.type === 'meal' ? 'Mahlzeit' : detailItem.type === 'training' ? 'Training' : detailItem.type === 'todo' ? 'To-do' : 'Tageswert'}</p><h2 id="detail-title">{detailItem.title}</h2></div><button class="detail-close ui-dialog__close" type="button" aria-label="Details schließen" onclick={closeItemDetails}>×</button></header>
       {#if detailItem.type === 'meal'}
@@ -841,20 +850,10 @@
   .weight-edit-hint { font-size: 12px; color: var(--text-tertiary); font-weight: 400; margin-left: 4px; }
   .weight-input { width: 100px; padding: 4px 8px; border-radius: 6px; background: var(--surface-raised); border: 1px solid var(--border-default); color: var(--text-primary); font-size: 22px; font-weight: 700; }
   .weight-input:focus { border-color: var(--status-info); outline: none; }
-  .weight-chart-full { width: 100%; height: 60px; }
-  .weight-chart-labels { display: flex; justify-content: space-between; padding: 0 2px; }
-  .weight-chart-label { font-size: 8px; color: var(--text-tertiary); text-align: center; flex: 1; white-space: nowrap; overflow: hidden; }
-  .weight-chart-label.today { color: var(--status-info); font-weight: 700; }
-
   /* Weight mini stats — compact inline metrics */
   .weight-mini-stats { display: flex; flex-wrap: wrap; gap: 4px 8px; }
   .wms { font-size: 10px; color: var(--text-tertiary); display: flex; align-items: baseline; gap: 2px; }
   .wms b { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
-
-  /* Weight range selector */
-  .weight-range-tabs { display: flex; gap: 2px; }
-  .weight-range-tabs button { font-size: 10px; font-weight: 600; padding: 2px 6px; border: 1px solid var(--border-default); border-radius: 4px; background: transparent; color: var(--text-tertiary); cursor: pointer; line-height: 1.4; }
-  .weight-range-tabs button.active { background: var(--status-info); color: var(--color-bg); border-color: var(--status-info); }
 
   .nutrition-kcal { display:flex; align-items:baseline; gap:4px; min-height:29px; }
   .nutrition-kcal span { font-size:22px; font-weight:700; color:var(--text-primary); line-height:1.2; }
@@ -910,12 +909,17 @@
   .detail-section { display:grid; gap:8px; color:var(--text-primary); font-size:14px; line-height:1.45; }
   .detail-section ol { display:grid; gap:7px; margin:0; padding-left:22px; color:var(--text-secondary); }
   .trend-overlay { align-items:center; justify-content:center; padding:16px; }
+  .trend-overlay.overlay-top,.compact-overlay.overlay-top { align-items:flex-start; padding-top:max(32px, 10dvh); }
+  .trend-overlay.overlay-bottom,.compact-overlay.overlay-bottom { align-items:flex-end; padding-bottom:max(24px, env(safe-area-inset-bottom, 0px)); }
   .trend-detail { width:min(100%, 560px); max-height:min(76dvh, 620px); overflow:auto; border-radius:var(--radius-modal); }
   .trend-summary { grid-template-columns:repeat(3, 1fr); gap:8px; }
   .trend-summary span { display:grid; gap:2px; padding:9px; border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-tertiary); font-size:11px; }
   .trend-summary b { color:var(--text-primary); font-size:13px; }
   .metric-trend-chart { width:100%; height:auto; min-height:160px; overflow:visible; }
   .trend-axis { display:flex; justify-content:space-between; gap:12px; color:var(--text-tertiary); font-size:11px; }
+  .trend-range-tabs { display:flex; gap:4px; }
+  .trend-range-tabs button { min-width:var(--control-min); min-height:30px; padding:4px 9px; border:1px solid var(--border-default); border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-secondary); font:inherit; font-size:11px; font-weight:700; cursor:pointer; }
+  .trend-range-tabs button.active { background:var(--action-primary); border-color:var(--action-primary); color:var(--text-on-accent); }
   .nutrition-detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
   .nutrition-detail-grid span { display:grid; gap:2px; color:var(--text-tertiary); font-size:12px; }
   .nutrition-detail-grid b { color:var(--text-primary); font-size:15px; }
