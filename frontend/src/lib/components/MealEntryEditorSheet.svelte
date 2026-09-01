@@ -2,9 +2,9 @@
   import { createEventDispatcher } from 'svelte';
   import Icon from './Icon.svelte';
   import { api } from '$lib/api';
-  import type { Food, Meal, MealPhotoAnalysis, Recipe } from '$lib/types';
+  import type { Food, MealEntry, MealPhotoAnalysis, Recipe } from '$lib/types';
 
-  export let meal: Meal | null = null;
+  export let meal: MealEntry | null = null;
   export let open = false;
   export let autoOpenCamera = false;
   const dispatch = createEventDispatcher<{ close: void; saved: { entry: any } }>();
@@ -124,7 +124,7 @@
 <dialog bind:this={dialog} class="meal-editor ui-dialog" aria-labelledby="meal-editor-title" onclose={handleClose}>
   {#if meal}
     <header class="ui-dialog__header">
-      <div><p>{meal.category_name ?? 'Mahlzeit'} · {meal.meal_entry_status === 'consumed' ? 'verzehrt' : 'geplant'}</p><h2 id="meal-editor-title">Mahlzeit anpassen</h2></div>
+      <div><p>{meal.category_name ?? 'Mahlzeit'} · {meal.status === 'consumed' ? 'verzehrt' : 'geplant'}</p><h2 id="meal-editor-title">Mahlzeit anpassen</h2></div>
       <button class="close ui-dialog__close" type="button" onclick={close} aria-label="Mahlzeit anpassen schließen"><Icon name="x" size={20} /></button>
     </header>
     {#if error}<p class="error" role="alert">{error}</p>{/if}

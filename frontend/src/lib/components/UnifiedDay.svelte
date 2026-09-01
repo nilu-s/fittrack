@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, tick } from 'svelte';
+  import { createEventDispatcher, onMount, tick } from 'svelte';
   import MetricRow from './MetricRow.svelte';
   import ProgressBar from './ProgressBar.svelte';
   import PillBadge from './PillBadge.svelte';
@@ -8,19 +8,18 @@
   import Icon from './Icon.svelte';
   import { api } from '$lib/api';
   import { dailyGoals } from '$lib/stores';
-  import type { DayEntry, Meal, Todo, TrainingSuggestion, DayData, TrendPoint } from '$lib/types';
+  import type { DayEntry, Todo, TrainingSuggestion, DayData, TrendPoint, MealEntry, Nutrition } from '$lib/types';
 
   export let dayData: DayData;
   export let currentDate: string;
   const dispatch = createEventDispatcher();
-  const SLOT_NAMES: Record<number, string> = { 1: 'Frühstück', 2: 'Mittag', 3: 'Snack', 4: 'Abendessen' };
 
   let entry: DayEntry = dayData.dayEntry ?? { date: currentDate };
-  let meals: Meal[] = dayData.meals ?? [];
+  let mealEntries: MealEntry[] = dayData.mealEntries ?? [];
   let todos: Todo[] = dayData.todos ?? [];
   let trainingSuggestion: TrainingSuggestion | null = dayData.trainingSuggestion ?? null;
   $: entry = dayData.dayEntry ?? { date: currentDate };
-  $: meals = dayData.meals ?? [];
+  $: mealEntries = dayData.mealEntries ?? [];
   $: todos = dayData.todos ?? [];
   $: trainingSuggestion = dayData.trainingSuggestion ?? null;
 
@@ -31,11 +30,11 @@
   let weightEditing = false;
   let quickAdd = '';
 
-  type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; fiber?: number | null; sugar?: number | null; mealTime?: string | null; todoData?: Todo; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bmi: number | null }; };
+  type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; fiber?: number | null; sugar?: number | null; mealTime?: string | null; entryData?: MealEntry; todoData?: Todo; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bmi: number | null }; };
 
-  $: unifiedItems = buildUnifiedItems(entry, meals, todos, trainingSuggestion);
+  $: unifiedItems = buildUnifiedItems(entry, mealEntries, todos, trainingSuggestion);
 
-  function buildUnifiedItems(entry: DayEntry | null, mealList: Meal[], todoList: Todo[], suggestion: TrainingSuggestion | null): UnifiedItem[] {
+  function buildUnifiedItems(entry: DayEntry | null, mealList: MealEntry[], todoList: Todo[], suggestion: TrainingSuggestion | null): UnifiedItem[] {
     const items: UnifiedItem[] = [];
     if (!entry) return items;
     // Weight: biometric — automated from ESP32 scale, but manually editable too
@@ -46,11 +45,11 @@
     // Sleep: biometric — automated from Google Fit, shows quality score and details instead
     items.push({ id: 'metric-sleep', type: 'metric', icon: 'sleep', title: 'Schlaf', done: false, sortKey: '00-02', metricField: 'sleep_hours', metricValue: entry.sleep_hours ?? null, metricUnit: 'h', hasProgress: true, progressCurrent: entry.sleep_hours ?? 0, progressTarget: goals.sleepHours, sleepQuality: entry.sleep_quality ?? 0, sleepDetails: (entry.sleep_deep_hours != null || entry.sleep_rem_hours != null) ? { deep: Number(entry.sleep_deep_hours) || 0, rem: Number(entry.sleep_rem_hours) || 0, light: Number(entry.sleep_light_hours) || 0, awake: Number(entry.sleep_awake_hours) || 0, efficiency: Number(entry.sleep_efficiency) || 0 } : undefined, biometric: true });
     // Mahlzeiten gehören in denselben Tagesfluss wie Training und freie To-dos.
-    const sortedMeals = [...mealList].sort((a, b) => (a.meal_slot ?? 99) - (b.meal_slot ?? 99));
+    const sortedMeals = [...mealList].sort((a, b) => (a.category_sort_order ?? 99) - (b.category_sort_order ?? 99));
     for (const m of sortedMeals) {
-      const slotLabel = m.category_name || SLOT_NAMES[m.meal_slot] || `Slot ${m.meal_slot}`;
+      const slotLabel = m.category_name || 'Mahlzeit';
       const dishName = m.name || '— Mahlzeit wählen —';
-      items.push({ id: `meal-${m.id ?? m.meal_slot}`, type: 'meal', icon: 'meal', title: `${slotLabel}: ${dishName}`, done: m.is_done ?? false, sortKey: `01-${String(m.meal_slot).padStart(2, '0')}`, kcal: Number(m.kcal) || null, protein: Number(m.protein_g) || null, fiber: Number(m.fiber_g) || null, sugar: Number(m.sugar_g) || null, mealTime: m.default_time ? m.default_time.slice(0, 5) : null });
+      items.push({ id: `meal-${m.id}`, type: 'meal', icon: 'meal', title: `${slotLabel}: ${dishName}`, done: m.status !== 'planned', sortKey: `01-${String(m.category_sort_order ?? 99).padStart(2, '0')}`, kcal: Number(m.nutrition?.kcal) || null, protein: Number(m.nutrition?.protein_g) || null, fiber: Number(m.nutrition?.fiber_g) || null, sugar: Number(m.nutrition?.sugar_g) || null, mealTime: null, entryData: m });
     }
     const trainingType = suggestion?.training_type ?? entry.training_type;
     if (trainingType && trainingType !== 'Ruhetag') {
@@ -81,13 +80,16 @@
   let metricTrendError = '';
   let metricTrendTrigger: HTMLElement | null = null;
   let metricTrendCloseButton: HTMLButtonElement | null = null;
-  let metricTrendPlacement: 'top' | 'center' | 'bottom' = 'center';
+  let metricTrendOverlay: HTMLDialogElement | null = null;
+  let metricTrendOverlayTop: number | null = null;
   let nutritionDetailsOpen = false;
   let nutritionDetailsTrigger: HTMLElement | null = null;
   let nutritionDetailsCloseButton: HTMLButtonElement | null = null;
-  let nutritionDetailsPlacement: 'top' | 'center' | 'bottom' = 'center';
+  let nutritionDetailsOverlay: HTMLDialogElement | null = null;
+  let nutritionDetailsOverlayTop: number | null = null;
   let detailItemTrigger: HTMLElement | null = null;
-  let detailItemPlacement: 'top' | 'center' | 'bottom' = 'center';
+  let detailItemOverlay: HTMLDialogElement | null = null;
+  let detailItemOverlayTop: number | null = null;
 
   /** Only one task detail may be open in the daily list at a time. */
   function closeOpenTodoDetails() {
@@ -108,13 +110,22 @@
 
   function applyMealEntryUpdate(updated: any) {
     const nutrition = updated?.nutrition ?? {};
-    meals = meals.map((meal) => meal.id === updated?.id ? {
-      ...meal, name: updated.name, meal_entry_items: updated.items, updated_at: updated.updated_at,
-      meal_entry_status: updated.status, is_done: updated.status !== 'planned',
-      kcal: nutrition.kcal, protein_g: nutrition.protein_g, carbs_g: nutrition.carbs_g, fat_g: nutrition.fat_g,
-      fiber_g: nutrition.fiber_g, sugar_g: nutrition.sugar_g, free_sugar_g: nutrition.free_sugar_g,
-    } : meal);
-    dispatch('mealtoggle', { id: updated.id, is_done: updated.status !== 'planned', data: { name: updated.name, meal_entry_status: updated.status, updated_at: updated.updated_at, kcal: nutrition.kcal, protein_g: nutrition.protein_g, carbs_g: nutrition.carbs_g, fat_g: nutrition.fat_g, fiber_g: nutrition.fiber_g, sugar_g: nutrition.sugar_g, free_sugar_g: nutrition.free_sugar_g } });
+    mealEntries = mealEntries.map((meal) => meal.id === updated?.id ? { ...meal, ...updated, nutrition } : meal);
+    dispatch('mealentrychange', { entry: updated });
+  }
+
+  async function refreshMealEntryFromServer(entryId: string): Promise<MealEntry | null> {
+    const currentEntries = await api.getMealEntries(currentDate);
+    const refreshed = currentEntries.find((entry) => entry.id === entryId);
+    if (!refreshed) return null;
+
+    // Category labels are display metadata supplied by the dashboard, not the
+    // meal-entry API. Keep them while replacing the authoritative nutrition
+    // snapshot and status from the server.
+    mealEntries = mealEntries.map((entry) => entry.id === entryId
+      ? { ...entry, ...refreshed }
+      : entry);
+    return mealEntries.find((entry) => entry.id === entryId) ?? null;
   }
 
   function toggleTodoActions(item: UnifiedItem) {
@@ -190,18 +201,33 @@
   async function toggleDone(item: UnifiedItem) {
     if (item.type === 'metric' && item.metricDoneField) { const newVal = !(entry as any)[item.metricDoneField]; try { await api.upsertDayEntry({ ...entry, [item.metricDoneField]: newVal, date: currentDate }); entry = { ...entry, [item.metricDoneField]: newVal }; dispatch('update', { field: item.metricDoneField, value: newVal }); } catch {} return; }
     if (item.type === 'meal') {
-      const mealId = item.id.replace('meal-', '');
-      const meal = meals.find((m) => String(m.id) === mealId || `meal-${m.meal_slot}` === item.id);
+      const meal = item.entryData;
       if (!meal?.id) return;
+      const previousMeal = meal;
+      const nextStatus = meal.status === 'consumed' ? 'planned' : 'consumed';
+      // Give immediate feedback: the intake total is derived from this local
+      // state, so it changes in the same UI update as the checkmark.
+      mealEntries = mealEntries.map((current) => current.id === meal.id
+        ? { ...current, status: nextStatus, consumed_at: nextStatus === 'consumed' ? new Date().toISOString() : null }
+        : current);
       try {
-        if (meal.meal_entry) {
-          const nextStatus = meal.meal_entry_status === 'consumed' ? 'planned' : 'consumed';
-          const updated = await api.setMealEntryStatus(meal.id, nextStatus, meal.updated_at);
-          if (!updated) return;
-          meals = meals.map((m) => m.id === meal.id ? { ...m, is_done: updated.status !== 'planned', meal_entry_status: updated.status, updated_at: updated.updated_at } : m);
-          dispatch('mealtoggle', { id: meal.id, is_done: updated.status !== 'planned', data: { meal_entry_status: updated.status, updated_at: updated.updated_at } });
+        // A status toggle is intentionally independent of an older edit
+        // timestamp.  Otherwise a harmless background refresh can reject the
+        // checkmark and leave the nutrient intake unchanged.
+        const updated = await api.setMealEntryStatus(meal.id, nextStatus);
+        if (!updated) {
+          mealEntries = mealEntries.map((current) => current.id === meal.id ? previousMeal : current);
+          return;
         }
-      } catch {}
+        mealEntries = mealEntries.map((current) => current.id === meal.id ? { ...current, ...updated } : current);
+        // Re-read after the mutation so the tile always uses the server's
+        // complete nutrition snapshot, including after a fast double tap or
+        // another client changed the same day.
+        const refreshed = await refreshMealEntryFromServer(meal.id).catch(() => null);
+        dispatch('mealentrychange', { entry: refreshed ?? updated });
+      } catch {
+        mealEntries = mealEntries.map((current) => current.id === meal.id ? previousMeal : current);
+      }
       return;
     }
     if (item.type === 'training' && entry) { const newVal = !entry.training_done; try { await api.upsertDayEntry({ ...entry, training_done: newVal, date: currentDate }); entry = { ...entry, training_done: newVal }; dispatch('trainingtoggle', newVal); } catch {} return; }
@@ -222,23 +248,50 @@
     }
     closeOpenTodoDetails();
     detailItemTrigger = trigger ?? null;
-    detailItemPlacement = overlayPlacement(trigger);
+    detailItemOverlayTop = null;
     detailItem = item;
+    void tick().then(positionDetailItemOverlay);
   }
   function closeItemDetails() {
     detailItem = null;
+    detailItemOverlayTop = null;
     const trigger = detailItemTrigger;
     detailItemTrigger = null;
     setTimeout(() => trigger?.focus(), 0);
   }
 
-  function overlayPlacement(trigger?: HTMLElement): 'top' | 'center' | 'bottom' {
-    if (!trigger || typeof window === 'undefined') return 'center';
-    const centerY = trigger.getBoundingClientRect().top + trigger.getBoundingClientRect().height / 2;
-    if (centerY < window.innerHeight / 3) return 'top';
-    if (centerY > window.innerHeight * 2 / 3) return 'bottom';
-    return 'center';
+  function overlayTopFor(trigger: HTMLElement | null, overlay: HTMLDialogElement | null) {
+    const card = overlay?.firstElementChild as HTMLElement | null;
+    if (!trigger || !card || typeof window === 'undefined') return null;
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const headerBottom = document.querySelector<HTMLElement>('.hdr')?.getBoundingClientRect().bottom ?? 16;
+    const navTop = document.querySelector<HTMLElement>('.dnav')?.getBoundingClientRect().top ?? viewportHeight - 16;
+    const safeTop = Math.max(16, headerBottom + 12);
+    const safeBottom = Math.min(viewportHeight - 16, navTop - 12);
+    const triggerRect = trigger.getBoundingClientRect();
+    const cardHeight = card.getBoundingClientRect().height;
+    const preferredTop = triggerRect.top + triggerRect.height / 2 - cardHeight / 2;
+    const maximumTop = Math.max(safeTop, safeBottom - cardHeight);
+    return Math.round(Math.min(Math.max(preferredTop, safeTop), maximumTop));
   }
+
+  function positionDetailItemOverlay() { detailItemOverlayTop = overlayTopFor(detailItemTrigger, detailItemOverlay); }
+  function positionMetricTrendOverlay() { metricTrendOverlayTop = overlayTopFor(metricTrendTrigger, metricTrendOverlay); }
+  function positionNutritionDetailsOverlay() { nutritionDetailsOverlayTop = overlayTopFor(nutritionDetailsTrigger, nutritionDetailsOverlay); }
+
+  onMount(() => {
+    const reposition = () => {
+      if (detailItem) positionDetailItemOverlay();
+      if (metricTrendItem) positionMetricTrendOverlay();
+      if (nutritionDetailsOpen) positionNutritionDetailsOverlay();
+    };
+    window.addEventListener('resize', reposition);
+    window.visualViewport?.addEventListener('resize', reposition);
+    return () => {
+      window.removeEventListener('resize', reposition);
+      window.visualViewport?.removeEventListener('resize', reposition);
+    };
+  });
 
   async function openMetricTrend(item: UnifiedItem, trigger?: HTMLElement) {
     closeOpenTodoDetails();
@@ -248,8 +301,9 @@
     metricTrendError = '';
     metricTrendLoading = true;
     metricTrendTrigger = trigger ?? null;
-    metricTrendPlacement = overlayPlacement(trigger);
+    metricTrendOverlayTop = null;
     await tick();
+    positionMetricTrendOverlay();
     metricTrendCloseButton?.focus();
     try {
       const metric = item.id === 'metric-weight' ? 'weight' : item.id === 'metric-steps' ? 'steps' : 'sleep_hours';
@@ -259,12 +313,15 @@
       metricTrendError = 'Der Verlauf konnte gerade nicht geladen werden.';
     } finally {
       metricTrendLoading = false;
+      await tick();
+      positionMetricTrendOverlay();
     }
   }
 
   function closeMetricTrend() {
     metricTrendItem = null;
     metricTrend = [];
+    metricTrendOverlayTop = null;
     const trigger = metricTrendTrigger;
     metricTrendTrigger = null;
     setTimeout(() => trigger?.focus(), 0);
@@ -273,14 +330,16 @@
   async function openNutritionDetails(trigger: HTMLElement) {
     closeOpenTodoDetails();
     nutritionDetailsTrigger = trigger;
-    nutritionDetailsPlacement = overlayPlacement(trigger);
+    nutritionDetailsOverlayTop = null;
     nutritionDetailsOpen = true;
     await tick();
+    positionNutritionDetailsOverlay();
     nutritionDetailsCloseButton?.focus();
   }
 
   function closeNutritionDetails() {
     nutritionDetailsOpen = false;
+    nutritionDetailsOverlayTop = null;
     const trigger = nutritionDetailsTrigger;
     nutritionDetailsTrigger = null;
     setTimeout(() => trigger?.focus(), 0);
@@ -329,20 +388,55 @@
 
   function metricTrendColor(_item: UnifiedItem) { return 'var(--status-info)'; }
 
-  function getMealFromItem(item: UnifiedItem): Meal | undefined {
-    const id = String(item.id).replace('meal-', '');
-    return meals.find((m) => String(m.id) === id || `meal-${m.meal_slot}` === item.id);
-  }
+  function getMealFromItem(item: UnifiedItem): MealEntry | undefined { return item.entryData; }
 
   $: weightItem = unifiedItems.find((i) => i.id === 'metric-weight');
   $: biometricItems = unifiedItems.filter((i) => i.biometric && i.id !== 'metric-weight');
   $: manualItems = unifiedItems.filter((i) => !i.biometric);
   $: openCount = manualItems.filter((i) => !i.done).length;
-  $: consumedMeals = meals.filter((meal) => meal.meal_entry_status === 'consumed');
-  $: nutritionTotals = consumedMeals.reduce((totals, meal) => ({
-    kcal: totals.kcal + (Number(meal.kcal) || 0), protein: totals.protein + (Number(meal.protein_g) || 0),
-    carbs: totals.carbs + (Number(meal.carbs_g) || 0), fat: totals.fat + (Number(meal.fat_g) || 0),
-  }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
+  const NUTRIENT_GROUPS: Array<{ title: string; values: Array<{ key: keyof Nutrition; label: string; unit: string }> }> = [
+    { title: 'Makronährstoffe', values: [
+      { key: 'kcal', label: 'Energie', unit: 'kcal' }, { key: 'protein_g', label: 'Protein', unit: 'g' },
+      { key: 'carbs_g', label: 'Kohlenhydrate', unit: 'g' }, { key: 'fat_g', label: 'Fett', unit: 'g' },
+      { key: 'saturated_fat_g', label: 'Gesättigte Fettsäuren', unit: 'g' }, { key: 'fiber_g', label: 'Ballaststoffe', unit: 'g' },
+      { key: 'sugar_g', label: 'Zucker', unit: 'g' }, { key: 'free_sugar_g', label: 'Freie Zucker', unit: 'g' },
+    ] },
+    { title: 'Mineralstoffe', values: [
+      { key: 'sodium_mg', label: 'Natrium', unit: 'mg' }, { key: 'potassium_mg', label: 'Kalium', unit: 'mg' },
+      { key: 'calcium_mg', label: 'Calcium', unit: 'mg' }, { key: 'magnesium_mg', label: 'Magnesium', unit: 'mg' },
+      { key: 'iron_mg', label: 'Eisen', unit: 'mg' }, { key: 'zinc_mg', label: 'Zink', unit: 'mg' },
+    ] },
+    { title: 'Vitamine', values: [
+      { key: 'vitamin_a_ug', label: 'Vitamin A', unit: 'µg' }, { key: 'vitamin_c_mg', label: 'Vitamin C', unit: 'mg' },
+      { key: 'vitamin_d_ug', label: 'Vitamin D', unit: 'µg' }, { key: 'vitamin_b12_ug', label: 'Vitamin B12', unit: 'µg' },
+      { key: 'folate_ug', label: 'Folat', unit: 'µg' },
+    ] },
+  ];
+  // The tile is an intake balance: only entries explicitly checked as
+  // consumed count.  Updating a meal's status updates this reactive total
+  // immediately, without waiting for a page reload.
+  $: nutritionDayEntries = mealEntries.filter((entry) => entry.status === 'consumed');
+  $: nutritionTotals = Object.fromEntries(NUTRIENT_GROUPS.flatMap((group) => group.values.map(({ key }) => {
+    const values = nutritionDayEntries.map((entry) => entry.nutrition?.[key]);
+    const known = values.filter((value): value is number => value != null).map(Number);
+    return [key, known.length ? known.reduce((sum, value) => sum + value, 0) : null];
+  }))) as Record<keyof Nutrition, number | null>;
+  $: nutritionIncomplete = Object.fromEntries(NUTRIENT_GROUPS.flatMap((group) => group.values.map(({ key }) => [
+    key,
+    nutritionDayEntries.some((entry) => entry.nutrition?.[key] == null),
+  ]))) as Record<keyof Nutrition, boolean>;
+  function formatNutrient(value: number | null, incomplete: boolean, unit: string) {
+    if (value == null) return '-';
+    const digits = unit === 'kcal' ? 0 : value < 10 ? 1 : 0;
+    const prefix = incomplete ? '≥ ' : '';
+    return `${prefix}${value.toLocaleString('de-DE', { maximumFractionDigits: digits })} ${unit}`;
+  }
+  // Keep display strings in an explicit reactive value. The compact tile must
+  // re-render its macros in the same update cycle as the kcal total.
+  $: nutritionDisplay = Object.fromEntries(NUTRIENT_GROUPS.flatMap((group) => group.values.map(({ key, unit }) => [
+    key,
+    formatNutrient(nutritionTotals[key], nutritionIncomplete[key], unit),
+  ]))) as Record<keyof Nutrition, string>;
 
   // Local date string (avoids UTC offset bug)
   function localDateStr(d: Date): string {
@@ -585,16 +679,16 @@
 {/if}
   <section class="nutrition-section" aria-labelledby="nutrition-title">
     <div class="bio-hdr">
-      <span class="bio-title" id="nutrition-title"><Icon name="meal" size={14} /> Ernährung</span>
+      <span class="bio-title" id="nutrition-title"><Icon name="meal" size={14} /> Nährstoffe</span>
       <button class="bio-trend-button" type="button" onclick={(event) => openNutritionDetails(event.currentTarget)} aria-label="Nährwertdetails anzeigen"><Icon name="chart" size={16} /></button>
     </div>
-    <div class="nutrition-kcal"><span>{Math.round(nutritionTotals.kcal).toLocaleString('de-DE')}</span><small>kcal{goals.kcal ? ` / ${Number(goals.kcal).toLocaleString('de-DE')}` : ''}</small></div>
+    <div class="nutrition-kcal"><span>{nutritionTotals.kcal == null ? '—' : Math.round(nutritionTotals.kcal).toLocaleString('de-DE')}</span><small>kcal{goals.kcal ? ` / ${Number(goals.kcal).toLocaleString('de-DE')}` : ''}</small></div>
     <div class="nutrition-macros" aria-label="Verzehrte Makronährstoffe">
-      <span><b>{Math.round(nutritionTotals.protein)} g</b> Protein</span>
-      <span><b>{Math.round(nutritionTotals.carbs)} g</b> KH</span>
-      <span><b>{Math.round(nutritionTotals.fat)} g</b> Fett</span>
+      <span><b>{nutritionDisplay.protein_g}</b> Protein</span>
+      <span><b>{nutritionDisplay.carbs_g}</b> KH</span>
+      <span><b>{nutritionDisplay.fat_g}</b> Fett</span>
     </div>
-    <p class="nutrition-status">{consumedMeals.length ? `${consumedMeals.length} Mahlzeit${consumedMeals.length === 1 ? '' : 'en'} verzehrt` : 'Noch nichts verzehrt'}</p>
+    <p class="nutrition-status">{nutritionDayEntries.length ? 'Nährstoffbilanz der verzehrten Mahlzeiten' : 'Noch keine Mahlzeit verzehrt'}</p>
   </section>
 </div>
 
@@ -625,7 +719,7 @@
           {#if item.type === 'meal' && item.kcal}<PillBadge value={Math.round(item.kcal)} unit="kcal" color="var(--data-nutrition-energy)" />{/if}
           {#if item.type === 'meal' && item.protein}<PillBadge value={Math.round(item.protein)} unit="g P" color="var(--data-nutrition-protein)" />{/if}
           {#if item.mealTime}<span class="item-time">{item.mealTime}</span>{/if}
-          {#if item.type === 'meal'}<span class="recipe-marker" title="Lange drücken für Rezeptdetails">Rezeptdetails</span>{/if}
+          {#if item.type === 'meal'}<span class="recipe-marker" title="Lange drücken für Mahlzeitdetails">Mahlzeitdetails</span>{/if}
         </div>
       </div>
       {#if item.type === 'meal' && !item.done}
@@ -654,32 +748,27 @@
 <MealEntryEditorSheet meal={mealEntryEditorItem ? getMealFromItem(mealEntryEditorItem) ?? null : null} open={Boolean(mealEntryEditorItem)} autoOpenCamera={mealEntryEditorCamera} on:close={closeMealEntryEditor} on:saved={(event) => { applyMealEntryUpdate(event.detail.entry); closeMealEntryEditor(); }} />
 
 {#if nutritionDetailsOpen}
-  <dialog class="modal-overlay trend-overlay" class:overlay-top={nutritionDetailsPlacement === 'top'} class:overlay-bottom={nutritionDetailsPlacement === 'bottom'} open aria-labelledby="nutrition-detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeNutritionDetails(); }} oncancel={(event) => { event.preventDefault(); closeNutritionDetails(); }}>
+  <dialog bind:this={nutritionDetailsOverlay} class="modal-overlay trend-overlay" class:overlay-positioned={nutritionDetailsOverlayTop !== null} style={nutritionDetailsOverlayTop === null ? undefined : `--overlay-offset-top: ${nutritionDetailsOverlayTop}px`} open aria-labelledby="nutrition-detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeNutritionDetails(); }} oncancel={(event) => { event.preventDefault(); closeNutritionDetails(); }}>
     <section class="modal-card trend-detail ui-dialog">
-      <header class="detail-header ui-dialog__header"><div><p class="detail-kind ui-dialog__eyebrow">Tagesübersicht</p><h2 id="nutrition-detail-title">Nährwerte & Kalorien</h2></div><button bind:this={nutritionDetailsCloseButton} class="detail-close ui-dialog__close" type="button" aria-label="Nährwertdetails schließen" onclick={closeNutritionDetails}>×</button></header>
-      <div class="nutrition-detail-grid ui-dialog__section">
-        <span><b>{Math.round(nutritionTotals.kcal).toLocaleString('de-DE')}</b> kcal</span>
-        <span><b>{Math.round(nutritionTotals.protein)} g</b> Protein</span>
-        <span><b>{Math.round(nutritionTotals.carbs)} g</b> Kohlenhydrate</span>
-        <span><b>{Math.round(nutritionTotals.fat)} g</b> Fett</span>
-      </div>
-      {#if consumedMeals.length}
-        <section class="nutrition-meal-list ui-dialog__section" aria-labelledby="consumed-meals-title">
-          <strong id="consumed-meals-title">Verzehrte Mahlzeiten</strong>
-          {#each consumedMeals as meal (meal.id ?? meal.meal_slot)}
-            <div><span>{meal.name ?? meal.category_name ?? 'Mahlzeit'}</span><b>{Math.round(Number(meal.kcal) || 0)} kcal</b></div>
-          {/each}
+      <header class="detail-header ui-dialog__header"><div><p class="detail-kind ui-dialog__eyebrow">Tagesübersicht</p><h2 id="nutrition-detail-title">Nährstoffe</h2></div><button bind:this={nutritionDetailsCloseButton} class="detail-close ui-dialog__close" type="button" aria-label="Nährwertdetails schließen" onclick={closeNutritionDetails}>×</button></header>
+      <p class="nutrition-intro">Summen aus den verzehrten Mahlzeiten dieses Tages. „≥“ bedeutet: Ein Teil der Zutaten hat noch keine Referenzwerte.</p>
+      {#each NUTRIENT_GROUPS as group}
+        <section class="nutrient-group ui-dialog__section" aria-labelledby={`nutrient-group-${group.title}`}>
+          <h3 id={`nutrient-group-${group.title}`}>{group.title}</h3>
+          <div class="nutrition-detail-grid">
+            {#each group.values as nutrient}
+              <span><b>{nutritionDisplay[nutrient.key]}</b>{nutrient.label}</span>
+            {/each}
+          </div>
         </section>
-      {:else}
-        <p class="detail-empty">Noch keine verzehrte Mahlzeit für diesen Tag.</p>
-      {/if}
+      {/each}
     </section>
   </dialog>
 {/if}
 
 {#if metricTrendItem}
   {@const chart = metricChart(metricTrend, metricTrendRange)}
-  <dialog class="modal-overlay trend-overlay" class:overlay-top={metricTrendPlacement === 'top'} class:overlay-bottom={metricTrendPlacement === 'bottom'} open aria-labelledby="metric-trend-title" onclick={(event) => { if (event.target === event.currentTarget) closeMetricTrend(); }} oncancel={(event) => { event.preventDefault(); closeMetricTrend(); }}>
+  <dialog bind:this={metricTrendOverlay} class="modal-overlay trend-overlay" class:overlay-positioned={metricTrendOverlayTop !== null} style={metricTrendOverlayTop === null ? undefined : `--overlay-offset-top: ${metricTrendOverlayTop}px`} open aria-labelledby="metric-trend-title" onclick={(event) => { if (event.target === event.currentTarget) closeMetricTrend(); }} oncancel={(event) => { event.preventDefault(); closeMetricTrend(); }}>
     <section class="modal-card trend-detail ui-dialog">
       <header class="detail-header ui-dialog__header">
         <div><p class="detail-kind ui-dialog__eyebrow">Verlauf · letzte 365 Tage</p><h2 id="metric-trend-title">{metricTrendItem.title}</h2></div>
@@ -717,20 +806,18 @@
 {/if}
 
 {#if detailItem}
-  <dialog class="modal-overlay compact-overlay" class:overlay-top={detailItemPlacement === 'top'} class:overlay-bottom={detailItemPlacement === 'bottom'} open aria-labelledby="detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeItemDetails(); }} oncancel={(event) => { event.preventDefault(); closeItemDetails(); }}>
+  <dialog bind:this={detailItemOverlay} class="modal-overlay compact-overlay" class:overlay-positioned={detailItemOverlayTop !== null} style={detailItemOverlayTop === null ? undefined : `--overlay-offset-top: ${detailItemOverlayTop}px`} open aria-labelledby="detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeItemDetails(); }} oncancel={(event) => { event.preventDefault(); closeItemDetails(); }}>
     <div class="modal-card compact-detail ui-dialog">
       <header class="detail-header ui-dialog__header"><div><p class="detail-kind ui-dialog__eyebrow">{detailItem.type === 'meal' ? 'Mahlzeit' : detailItem.type === 'training' ? 'Training' : detailItem.type === 'todo' ? 'To-do' : 'Tageswert'}</p><h2 id="detail-title">{detailItem.title}</h2></div><button class="detail-close ui-dialog__close" type="button" aria-label="Details schließen" onclick={closeItemDetails}>×</button></header>
       {#if detailItem.type === 'meal'}
         {@const detailMeal = getMealFromItem(detailItem)}
         <div class="modal-pills">
-          {#if detailMeal?.kcal != null}<PillBadge value={Math.round(Number(detailMeal.kcal))} unit="kcal" color="var(--data-nutrition-energy)" />{/if}
-          {#if detailMeal?.protein_g != null}<PillBadge value={Math.round(Number(detailMeal.protein_g))} unit="g Protein" color="var(--data-nutrition-protein)" />{/if}
-          {#if detailMeal?.carbs_g != null}<PillBadge value={Math.round(Number(detailMeal.carbs_g))} unit="g KH" color="var(--data-nutrition-carbs)" />{/if}
-          {#if detailMeal?.fat_g != null}<PillBadge value={Math.round(Number(detailMeal.fat_g))} unit="g Fett" color="var(--data-nutrition-fat)" />{/if}
+          {#if detailMeal?.nutrition?.kcal != null}<PillBadge value={Math.round(Number(detailMeal.nutrition.kcal))} unit="kcal" color="var(--data-nutrition-energy)" />{/if}
+          {#if detailMeal?.nutrition?.protein_g != null}<PillBadge value={Math.round(Number(detailMeal.nutrition.protein_g))} unit="g Protein" color="var(--data-nutrition-protein)" />{/if}
+          {#if detailMeal?.nutrition?.carbs_g != null}<PillBadge value={Math.round(Number(detailMeal.nutrition.carbs_g))} unit="g KH" color="var(--data-nutrition-carbs)" />{/if}
+          {#if detailMeal?.nutrition?.fat_g != null}<PillBadge value={Math.round(Number(detailMeal.nutrition.fat_g))} unit="g Fett" color="var(--data-nutrition-fat)" />{/if}
         </div>
-        {#if detailMeal?.recipe_instructions?.length}
-          <div class="detail-section ui-dialog__section"><strong>Kochanleitung</strong><ol>{#each detailMeal.recipe_instructions as step}<li>{step}</li>{/each}</ol></div>
-        {:else}<p class="detail-empty">Für diese Mahlzeit ist noch keine Kochanleitung hinterlegt.</p>{/if}
+        <button class="modal-secondary" onclick={() => { mealEntryEditorItem = detailItem; closeItemDetails(); }}>Mahlzeit anpassen</button>
       {:else if detailItem.type === 'todo'}
         <div class="detail-section ui-dialog__section">
           {#if detailItem.todoData?.category}<p class="detail-meta">Kategorie: {detailItem.todoData.category}</p>{/if}
@@ -820,56 +907,56 @@
   .more-action { width:34px; height:34px; border-radius:var(--radius-control); color:var(--text-tertiary); font-size:15px; letter-spacing:1px; }
   .more-action:focus-visible,.more-action:active { background:var(--surface-raised); color:var(--text-primary); }
   /* Biometrics — Schritte + Schlaf nebeneinander */
-  .biometrics-row { display: flex; gap: 8px; padding: 0 0 4px; }
+  .biometrics-row { display: flex; gap: 6px; padding: 0 0 3px; }
   .biometrics-row .bio-section { flex: 1; }
-  .bio-section { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: var(--surface-default); border: 1px solid var(--border-subtle); border-radius:var(--radius-surface); touch-action:manipulation; }
+  .bio-section { display: flex; flex-direction: column; gap: 3px; padding: 7px 8px; background: var(--surface-default); border: 1px solid var(--border-subtle); border-radius:var(--radius-surface); touch-action:manipulation; }
   .bio-section:active { background: var(--surface-raised); }
   .bio-hdr { display: flex; align-items: center; justify-content: space-between; }
-  .bio-title { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; font-weight: 600; }
-  .bio-value-lg { font-size: 22px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
-  .bio-target { font-size: 13px; font-weight: 400; color: var(--text-tertiary); }
-  .bio-status { font-size: 11px; min-height: 14px; }
+  .bio-title { font-size: 10px; color: var(--text-secondary); display: flex; align-items: center; gap: 3px; font-weight: 600; }
+  .bio-value-lg { font-size: 18px; font-weight: 700; color: var(--text-primary); line-height: 1.1; }
+  .bio-target { font-size: 11px; font-weight: 400; color: var(--text-tertiary); }
+  .bio-status { font-size: 10px; min-height: 11px; }
   .bio-goal-reached { color: var(--status-success); font-weight: 600; }
   .bio-pending { color: var(--text-tertiary); }
   .bio-unit { font-size: 13px; font-weight: 400; color: var(--text-tertiary); }
   .bio-source-badge { font-size: 9px; color: var(--status-success); font-weight: 600; background: color-mix(in srgb, var(--status-success) 15%, transparent); padding: 1px 5px; border-radius: 4px; }
   .bio-source-manual { font-size: 9px; color: var(--text-tertiary); font-weight: 500; }
   .bio-hdr-right { display: flex; align-items: center; gap: 4px; }
-  .bio-trend-button { display:grid; place-items:center; width:var(--control-min); min-height:var(--control-min); padding:0; border:1px solid var(--border-default); border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-secondary); cursor:pointer; }
+  .bio-trend-button { display:grid; place-items:center; width:28px; min-height:28px; padding:0; border:1px solid var(--border-default); border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-secondary); cursor:pointer; }
   .bio-trend-button:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; }
   .bio-trend-button:active { background:var(--surface-pressed); }
 
   /* Tageswerte */
-  .feature-card-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:4px; }
-  .weight-section,.nutrition-section { display:flex; flex-direction:column; gap:6px; min-width:0; padding:14px; border-radius:var(--radius-surface); }
-  .weight-section { background:var(--surface-accent); border:1px solid var(--border-accent); }
+  .feature-card-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-bottom:3px; }
+  .weight-section,.nutrition-section { display:flex; flex-direction:column; gap:3px; min-width:0; padding:8px; border-radius:var(--radius-surface); }
+  .weight-section { background:var(--surface-default); border:1px solid var(--border-subtle); }
   .nutrition-section { background:var(--surface-default); border:1px solid var(--border-subtle); }
   .weight-value-row { display: flex; align-items: baseline; gap: 6px; }
-  .weight-value-btn { background: none; border: none; cursor: pointer; font-size: 22px; font-weight: 700; color: var(--text-primary); padding: 0; display: flex; align-items: baseline; gap: 4px; }
+  .weight-value-btn { background: none; border: none; cursor: pointer; font-size: 18px; font-weight: 700; color: var(--text-primary); padding: 0; display: flex; align-items: baseline; gap: 3px; }
   .weight-value-btn:active { opacity: 0.7; }
   .weight-edit-hint { font-size: 12px; color: var(--text-tertiary); font-weight: 400; margin-left: 4px; }
-  .weight-input { width: 100px; padding: 4px 8px; border-radius: 6px; background: var(--surface-raised); border: 1px solid var(--border-default); color: var(--text-primary); font-size: 22px; font-weight: 700; }
+  .weight-input { width: 84px; padding: 3px 6px; border-radius: 6px; background: var(--surface-raised); border: 1px solid var(--border-default); color: var(--text-primary); font-size: 18px; font-weight: 700; }
   .weight-input:focus { border-color: var(--status-info); outline: none; }
   /* Weight mini stats — compact inline metrics */
   .weight-mini-stats { display: flex; flex-wrap: wrap; gap: 4px 8px; }
   .wms { font-size: 10px; color: var(--text-tertiary); display: flex; align-items: baseline; gap: 2px; }
   .wms b { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
 
-  .nutrition-kcal { display:flex; align-items:baseline; gap:4px; min-height:29px; }
-  .nutrition-kcal span { font-size:22px; font-weight:700; color:var(--text-primary); line-height:1.2; }
-  .nutrition-kcal small,.nutrition-status { margin:0; color:var(--text-tertiary); font-size:11px; line-height:1.4; }
-  .nutrition-macros { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; padding-top:6px; border-top:1px solid var(--border-subtle); }
-  .nutrition-macros span { display:grid; gap:1px; min-width:0; color:var(--text-tertiary); font-size:9px; line-height:1.25; }
-  .nutrition-macros b { color:var(--text-primary); font-size:11px; white-space:nowrap; }
+  .nutrition-kcal { display:flex; align-items:baseline; gap:3px; min-height:22px; }
+  .nutrition-kcal span { font-size:18px; font-weight:700; color:var(--text-primary); line-height:1.1; }
+  .nutrition-kcal small,.nutrition-status { margin:0; color:var(--text-tertiary); font-size:10px; line-height:1.25; }
+  .nutrition-macros { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px; padding-top:3px; border-top:1px solid var(--border-subtle); }
+  .nutrition-macros span { display:grid; gap:1px; min-width:0; color:var(--text-tertiary); font-size:8px; line-height:1.15; }
+  .nutrition-macros b { color:var(--text-primary); font-size:10px; white-space:nowrap; }
 
   /* Sleep donut */
-  .sleep-donut-row { display: flex; align-items: center; gap: 12px; }
-  .sleep-donut { width: 80px; height: 80px; flex-shrink: 0; }
-  .sleep-legend-col { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
-  .sleep-leg-row { display: flex; align-items: center; gap: 6px; font-size: 11px; line-height: 1.4; }
+  .sleep-donut-row { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 4px; }
+  .sleep-donut { width: 52px; height: 52px; }
+  .sleep-legend-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 6px; width: 100%; }
+  .sleep-leg-row { display: flex; align-items: center; gap: 4px; font-size: 9px; line-height: 1.2; }
   .sleep-leg-label { color: var(--text-secondary); flex: 1; white-space: nowrap; }
-  .sleep-leg-time { color: var(--text-primary); font-weight: 600; text-align: right; min-width: 42px; }
-  .sleep-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sleep-leg-time { color: var(--text-primary); font-weight: 600; text-align: right; min-width: 34px; }
+  .sleep-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 
   .quickadd { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border-subtle); }
   .quickadd input { flex: 1; padding: 8px 12px; border-radius: 8px; background: var(--surface-raised); border: 1px solid var(--border-default); color: var(--text-primary); font-size: 14px; }
@@ -882,7 +969,8 @@
   .modal-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
 
   .action-overlay { position: fixed; inset: 0; background: var(--overlay-backdrop); z-index: 1000; display: flex; align-items: flex-end; justify-content: center; animation: fadeIn 0.15s; }
-  .modal-overlay, .action-overlay { margin: 0; max-width: none; max-height: none; width: auto; height: auto; border: 0; padding: 0; }
+  .modal-overlay, .action-overlay { margin: 0; max-width: none; max-height: none; width: auto; height: auto; border: 0; }
+  .action-overlay { padding: 0; }
   .action-sheet { background: var(--surface-default); border:1px solid var(--border-default); border-radius:var(--radius-modal) var(--radius-modal) 0 0; width:100%; max-width:420px; box-shadow:var(--shadow-modal); animation:slideUp var(--motion-standard); }
   .action-header h2 { max-width:290px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .action-btn { display:flex; align-items:center; gap:12px; width:100%; min-height:var(--control-min); padding:12px; border:1px solid var(--border-default); border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-primary); font-size:14px; font-weight:600; cursor:pointer; transition:background var(--motion-fast); }
@@ -899,7 +987,6 @@
   .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
   .modal-primary { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--action-primary); color: var(--text-on-accent); border: none; font-weight: 600; cursor: pointer; font-size: 14px; }
   .modal-secondary { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--surface-raised); color: var(--text-secondary); border: 1px solid var(--border-default); font-weight: 500; cursor: pointer; font-size: 14px; }
-  .compact-overlay { align-items:center; justify-content:center; padding:16px; }
   .compact-detail { width:min(100%, 420px); max-height:min(58dvh, 520px); overflow:auto; border-radius:var(--radius-modal); }
   .detail-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
   .detail-header h2,.detail-header p { margin:0; }
@@ -907,10 +994,6 @@
   .detail-kind,.detail-meta,.detail-empty { color:var(--text-secondary); font-size:13px; line-height:1.45; }
   .detail-close { width:32px; min-height:32px; border:1px solid var(--border-default); border-radius:50%; background:var(--surface-raised); color:var(--text-primary); font-size:20px; line-height:1; }
   .detail-section { display:grid; gap:8px; color:var(--text-primary); font-size:14px; line-height:1.45; }
-  .detail-section ol { display:grid; gap:7px; margin:0; padding-left:22px; color:var(--text-secondary); }
-  .trend-overlay { align-items:center; justify-content:center; padding:16px; }
-  .trend-overlay.overlay-top,.compact-overlay.overlay-top { align-items:flex-start; padding-top:max(32px, 10dvh); }
-  .trend-overlay.overlay-bottom,.compact-overlay.overlay-bottom { align-items:flex-end; padding-bottom:max(24px, env(safe-area-inset-bottom, 0px)); }
   .trend-detail { width:min(100%, 560px); max-height:min(76dvh, 620px); overflow:auto; border-radius:var(--radius-modal); }
   .trend-summary { grid-template-columns:repeat(3, 1fr); gap:8px; }
   .trend-summary span { display:grid; gap:2px; padding:9px; border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-tertiary); font-size:11px; }
@@ -923,11 +1006,13 @@
   .nutrition-detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
   .nutrition-detail-grid span { display:grid; gap:2px; color:var(--text-tertiary); font-size:12px; }
   .nutrition-detail-grid b { color:var(--text-primary); font-size:15px; }
-  .nutrition-meal-list > div { display:flex; justify-content:space-between; gap:var(--space-3); color:var(--text-secondary); font-size:13px; }
-  .nutrition-meal-list > div + div { padding-top:var(--space-2); border-top:1px solid var(--border-subtle); }
-  .nutrition-meal-list b { color:var(--text-primary); white-space:nowrap; }
-  @media (min-width: 700px) { .trend-overlay { padding:24px; } }
-  @media (min-width: 700px) { .compact-overlay { padding:24px; } .compact-detail { max-width:360px; } }
+  .nutrition-intro { margin:0; color:var(--text-secondary); font-size:13px; line-height:1.45; }
+  .nutrient-group { display:grid; gap:var(--space-2); }
+  .nutrient-group h3 { margin:0; font-size:13px; color:var(--text-secondary); }
+  .nutrition-detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .nutrition-detail-grid span { min-height:58px; }
+  @media (min-width:560px) { .nutrition-detail-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+  @media (min-width: 700px) { .modal-overlay { padding:32px 24px; } .compact-detail { max-width:360px; } }
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }

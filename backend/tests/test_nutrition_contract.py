@@ -20,6 +20,13 @@ class NutritionContractTests(unittest.TestCase):
         self.assertEqual(nutrition.sugar_g, Decimal("18"))
         self.assertEqual(nutrition.free_sugar_g, Decimal("6"))
 
+    def test_nutrition_contract_supports_micronutrients_without_inventing_defaults(self):
+        nutrition = Nutrition(sodium_mg=Decimal("320"), vitamin_b12_ug=Decimal("1.2"))
+
+        self.assertEqual(nutrition.sodium_mg, Decimal("320"))
+        self.assertEqual(nutrition.vitamin_b12_ug, Decimal("1.2"))
+        self.assertIsNone(nutrition.calcium_mg)
+
 
 if __name__ == "__main__":
     unittest.main()

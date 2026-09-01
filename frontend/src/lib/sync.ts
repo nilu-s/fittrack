@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 import { db } from './db';
 import { api } from './api';
 import { onlineStatus } from './stores';
-import type { SyncPayload, SyncResponse, SyncQueueEntry, DayEntry, Meal, Todo } from './types';
+import type { SyncPayload, SyncResponse, SyncQueueEntry, DayEntry, Todo } from './types';
 
 export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'error';
 

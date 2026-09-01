@@ -32,7 +32,12 @@ def _sum_int(values: list[Optional[int]]) -> int:
     return sum(v for v in values if v is not None)
 
 
-_MEAL_NUTRIENTS = ("kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g", "free_sugar_g")
+_MEAL_NUTRIENTS = (
+    "kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g", "free_sugar_g",
+    "saturated_fat_g", "sodium_mg", "potassium_mg", "calcium_mg", "magnesium_mg",
+    "iron_mg", "zinc_mg", "vitamin_a_ug", "vitamin_c_mg", "vitamin_d_ug",
+    "vitamin_b12_ug", "folate_ug",
+)
 
 
 async def _meal_totals_by_date(session, account_id, start: date_type, end: date_type) -> dict[date_type, dict[str, Decimal | None]]:

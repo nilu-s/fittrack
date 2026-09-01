@@ -20,12 +20,6 @@ from app.services.ownership import reset_current_account, set_current_account
 
 logger = logging.getLogger(__name__)
 
-LEGACY_OWNED_TABLES = (
-    "day_entries", "meals", "todos", "meal_templates", "training_units",
-    "training_rotation", "training_sets", "exercises", "sync_log", "photos",
-    "google_tokens", "exercise_progress", "dishes", "goals",
-)
-
 router = APIRouter(prefix="/auth", tags=["auth"])
 # Separate router for /google/* paths (matching Google Console redirect URI)
 google_router = APIRouter(prefix="/google", tags=["auth"])
@@ -174,34 +168,6 @@ async def get_valid_access_token(session, account_id) -> str | None:
     return new_access
 
 
-async def _migrate_legacy_owner_rows(session, account: Account) -> None:
-    """One-way, fail-safe mapping of pre-account `luis` rows to their owner."""
-    legacy_email = settings.LEGACY_OWNER_EMAIL.casefold()
-    if not legacy_email or account.email.casefold() != legacy_email:
-        return
-    candidates = (await session.execute(select(Account).where(Account.email == legacy_email))).scalars().all()
-    if len(candidates) != 1 or candidates[0].id != account.id:
-        raise HTTPException(status_code=409, detail="Legacy owner account is not uniquely resolved")
-    from sqlalchemy import text
-    # Revision 021 removes the old column. Keeping this compatibility check
-    # lets the same release authenticate the owner between revisions 019 and
-    # 021 without leaving a post-cutover runtime dependency on that column.
-    has_legacy_column = await session.scalar(
-        text(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.columns "
-            "WHERE table_schema = current_schema() "
-            "AND table_name = 'day_entries' AND column_name = 'user_id')"
-        )
-    )
-    if not has_legacy_column:
-        return
-    for table in LEGACY_OWNED_TABLES:
-        await session.execute(
-            text(f"UPDATE {table} SET account_id = :account_id WHERE account_id IS NULL AND user_id = 'luis'"),
-            {"account_id": account.id},
-        )
-
-
 # --- Routes ---
 
 
@@ -335,7 +301,6 @@ async def google_callback(request: Request):
                 upper_offset_kg=27.5 if is_legacy_owner else 20.0,
             )
             session.add(range_row)
-        await _migrate_legacy_owner_rows(session, account)
         result = await session.execute(select(GoogleToken).where(GoogleToken.account_id == account.id))
         existing = result.scalar_one_or_none()
 

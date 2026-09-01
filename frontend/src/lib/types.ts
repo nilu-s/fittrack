@@ -29,45 +29,12 @@ export interface DayEntry {
   updated_at?: string;
 }
 
-export interface Meal {
-  id?: string;
-  date: string; // YYYY-MM-DD
-  meal_slot: number;
-  name?: string;
-  default_time?: string; // HH:MM:SS
-  kcal?: number | string | null;
-  protein_g?: number | string | null;
-  carbs_g?: number | string | null;
-  fat_g?: number | string | null;
-  fiber_g?: number | string | null;
-  sugar_g?: number | string | null;
-  free_sugar_g?: number | string | null;
-  is_standard?: boolean;
-  is_done?: boolean;
-  replaced_by?: string | null;
-  photo_url?: string | null;
-  photo_analysis?: any;
-  assigned_via_photo?: boolean;
-  deleted?: boolean;
-  portion_factor?: number;
-  dish_id?: string | null;
-  updated_at?: string;
-  /** True when this row is backed by the account-scoped MealEntry API. */
-  meal_entry?: boolean;
-  meal_entry_status?: 'planned' | 'consumed' | 'skipped';
-  category_name?: string;
-  recipe_instructions?: string[];
-  /** New meal-domain fields used by the daily editor. */
-  category_id?: string;
-  meal_entry_items?: MealEntryItem[];
-}
-
 export interface Todo {
   id?: string;
   title: string;
   category?: string | null;
   priority: number; // 1=low, 2=medium, 3=high
-  status: 'open' | 'done';
+  status: "open" | "done";
   due_date?: string | null;
   due_time?: string | null;
   start_time?: string | null;
@@ -143,7 +110,7 @@ export interface TrainingUnit {
   id?: string;
   name: string;
   description?: string | null;
-  unit_type?: 'gym' | 'cardio' | string;
+  unit_type?: "gym" | "cardio" | string;
   cardio_minutes?: number | null;
   is_active?: boolean;
 }
@@ -207,19 +174,6 @@ export interface TrainingCompleteResponse {
   next_training: TrainingSuggestion | null;
 }
 
-export interface MealTemplate {
-  id?: string;
-  slot: number;
-  name: string;
-  kcal?: number | null;
-  protein_g?: number | null;
-  carbs_g?: number | null;
-  fat_g?: number | null;
-  fiber_g?: number | null;
-  sugar_g?: number | null;
-  free_sugar_g?: number | null;
-}
-
 /** Target v1 meal domain.  These types intentionally have no account/user fields. */
 export interface MealCategory {
   id: string;
@@ -241,8 +195,20 @@ export interface Food {
   fiber_g?: number | null;
   sugar_g?: number | null;
   free_sugar_g?: number | null;
-  source?: 'manual' | 'photo' | 'import';
-  confidence?: 'verified' | 'estimated' | 'unknown';
+  saturated_fat_g?: number | null;
+  sodium_mg?: number | null;
+  potassium_mg?: number | null;
+  calcium_mg?: number | null;
+  magnesium_mg?: number | null;
+  iron_mg?: number | null;
+  zinc_mg?: number | null;
+  vitamin_a_ug?: number | null;
+  vitamin_c_mg?: number | null;
+  vitamin_d_ug?: number | null;
+  vitamin_b12_ug?: number | null;
+  folate_ug?: number | null;
+  source?: "manual" | "photo" | "import";
+  confidence?: "verified" | "estimated" | "unknown";
   is_archived?: boolean;
   tags?: string[];
   updated_at?: string;
@@ -254,14 +220,14 @@ export interface RecipeIngredient {
   nested_recipe_id?: string | null;
   name?: string;
   quantity: number;
-  unit: 'g' | 'ml' | 'serving';
+  unit: "g" | "ml" | "serving";
   sort_order?: number;
 }
 
 export interface Recipe {
   id: string;
   name: string;
-  status: 'draft' | 'active' | 'archived';
+  status: "draft" | "active" | "archived";
   servings: number;
   ingredients: RecipeIngredient[];
   notes?: string | null;
@@ -297,15 +263,18 @@ export interface MealEntry {
   id: string;
   date: string;
   category_id: string;
-  status: 'planned' | 'consumed' | 'skipped';
+  status: "planned" | "consumed" | "skipped";
   consumed_at?: string | null;
   name?: string | null;
-  source: 'manual' | 'plan' | 'photo';
+  source: "manual" | "plan" | "photo";
   nutrition?: Nutrition;
   items?: MealEntryItem[];
   updated_at?: string;
   /** Optimistic-locking value accepted by the update command. */
   expected_updated_at?: string;
+  /** Client-side display metadata derived from the account-owned category. */
+  category_name?: string;
+  category_sort_order?: number;
 }
 
 export interface Nutrition {
@@ -316,6 +285,18 @@ export interface Nutrition {
   fiber_g?: number | null;
   sugar_g?: number | null;
   free_sugar_g?: number | null;
+  saturated_fat_g?: number | null;
+  sodium_mg?: number | null;
+  potassium_mg?: number | null;
+  calcium_mg?: number | null;
+  magnesium_mg?: number | null;
+  iron_mg?: number | null;
+  zinc_mg?: number | null;
+  vitamin_a_ug?: number | null;
+  vitamin_c_mg?: number | null;
+  vitamin_d_ug?: number | null;
+  vitamin_b12_ug?: number | null;
+  folate_ug?: number | null;
 }
 
 export interface MealEntryItem {
@@ -323,7 +304,7 @@ export interface MealEntryItem {
   food_id?: string | null;
   recipe_id?: string | null;
   quantity: number;
-  unit: 'g' | 'ml' | 'serving';
+  unit: "g" | "ml" | "serving";
   nutrition_snapshot?: Nutrition;
   source_snapshot?: Record<string, unknown>;
 }
@@ -332,7 +313,7 @@ export interface MealEntryItem {
 export interface MealPhotoAnalysis {
   id: string;
   meal_entry_id: string;
-  state: 'pending' | 'accepted' | 'rejected' | 'failed';
+  state: "pending" | "accepted" | "rejected" | "failed";
   analysis?: Record<string, unknown> | null;
   error_code?: string | null;
   created_at: string;
@@ -387,7 +368,15 @@ export interface PhotoAnalysisItem {
 
 export interface PhotoAnalysis {
   items: PhotoAnalysisItem[];
-  total: { kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g?: number; sugar_g?: number; free_sugar_g?: number };
+  total: {
+    kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    fiber_g?: number;
+    sugar_g?: number;
+    free_sugar_g?: number;
+  };
 }
 
 export interface PhotoAnalysisResponse {
@@ -402,7 +391,7 @@ export interface SyncQueueEntry {
   id?: number;
   entityType: string;
   entityLocalId: number;
-  action: 'create' | 'update' | 'delete';
+  action: "create" | "update" | "delete";
   clientTimestamp: number;
   synced: boolean;
 }
@@ -475,7 +464,7 @@ export interface SyncResponse {
     change_index: number;
     entity_type: string;
     entity_id: string;
-    status: 'applied' | 'duplicate' | 'conflict' | 'validation_error';
+    status: "applied" | "duplicate" | "conflict" | "validation_error";
     detail?: string | null;
   }>;
   sync_token: string;
@@ -483,7 +472,7 @@ export interface SyncResponse {
 
 export interface DayData {
   dayEntry: DayEntry | null;
-  meals: Meal[];
+  mealEntries: MealEntry[];
   todos: Todo[];
   trainingSuggestion: TrainingSuggestion | null;
   nextTraining: TrainingSuggestion | null;
@@ -494,12 +483,12 @@ export interface BodyProfile {
   id?: string;
   height_cm: number | null;
   birth_date: string | null;
-  calculation_sex: 'male' | 'female' | null;
+  calculation_sex: "male" | "female" | null;
 }
 
 export interface ScaleMeasurement {
   id: string;
   measured_at: string;
   weight_kg: number;
-  status: 'assigned';
+  status: "assigned";
 }

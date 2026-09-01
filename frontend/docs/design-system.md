@@ -37,7 +37,11 @@ The daily page (`/`) is FitTrack’s visual source of truth. Secondary routes in
 | `ui-empty`, `ui-loading`, `ui-spinner` | Empty and loading states |
 | `modal-overlay`, `modal-card`, `ui-dialog` | Standard dialog surface/layer with shared header, eyebrow, close control, content section and action row |
 
-Detail overlays opened from a day-feed card use the trigger position: upper, middle and lower third of the viewport map to upper, centred and lower dialog placement. Bottom action sheets remain bottom-aligned by contract.
+Detail overlays follow their trigger within the currently visible area and are
+clamped between the header and lower navigation. Their content scrolls within
+the dialog when needed; opening moves focus to the close control and closing
+restores it to the trigger. Bottom action sheets remain bottom-aligned by
+contract.
 
 ## Verification
 

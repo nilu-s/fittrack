@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from fastapi import HTTPException
 
 from app.routes.configurable_meals import _MAX_PHOTO_BYTES, _image_metadata, _sum, _vision_proposal
-from app.schemas import MealCategoryRecipePresetUpdate, MealCategoryReorder, MealEntryItemInput, MealPhotoAnalysisAccept, MealEntryStatusCommand, RecipeCreate, RecipeIngredientInput, RecipeUpdate
+from app.schemas import MealCategoryRecipePresetUpdate, MealCategoryReorder, MealEntryItemInput, MealPhotoAnalysisAccept, MealEntryStatusCommand, MealPlanCreate, RecipeCreate, RecipeIngredientInput, RecipeUpdate
 from app.main import app
 from app.services.meal_plan_projections import is_current_plan_projection
 
@@ -35,6 +35,7 @@ class ConfigurableMealsContractTests(unittest.TestCase):
         ])
         self.assertEqual(total["kcal"], Decimal("170"))
         self.assertIsNone(total["protein_g"])
+        self.assertIsNone(total["sodium_mg"])
 
     def test_item_requires_exactly_one_owned_source(self):
         with self.assertRaises(ValidationError):
@@ -63,6 +64,19 @@ class ConfigurableMealsContractTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             MealCategoryRecipePresetUpdate(recipe_ids=[first, second, "00000000-0000-0000-0000-000000000003"])
 
+    def test_plan_rejects_two_items_for_the_same_slot_on_one_weekday(self):
+        category = "00000000-0000-0000-0000-000000000001"
+        with self.assertRaises(ValidationError):
+            MealPlanCreate(name="Doppelt", items=[
+                {"category_id": category, "weekdays": [1]},
+                {"category_id": category, "weekdays": [1]},
+            ])
+        plan = MealPlanCreate(name="Getrennt", items=[
+            {"category_id": category, "weekdays": [1]},
+            {"category_id": category, "weekdays": [2]},
+        ])
+        self.assertEqual(len(plan.items), 2)
+
     def test_photo_accept_requires_user_selected_snapshot_items(self):
         with self.assertRaises(ValidationError):
             MealPhotoAnalysisAccept(items=[])
@@ -84,6 +98,12 @@ class ConfigurableMealsContractTests(unittest.TestCase):
         self.assertIn(path, paths)
         self.assertIn("get", paths[path])
         self.assertIn("put", paths[path])
+
+    def test_historical_nutrient_enrichment_is_an_explicit_account_scoped_command(self):
+        paths = app.openapi()["paths"]
+        path = "/api/meal-entries/enrich-historical-nutrients"
+        self.assertIn(path, paths)
+        self.assertIn("post", paths[path])
 
     def test_legacy_meal_and_dish_routes_are_not_public(self):
         paths = app.openapi()["paths"]

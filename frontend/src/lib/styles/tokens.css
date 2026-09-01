@@ -1,12 +1,12 @@
 :root {
-  --color-bg: #c9cbc0;
-  --surface-default: #dedfd4;
-  --surface-raised: #d1d3c7;
-  --surface-pressed: #bfc1b5;
-  --surface-navigation: #c3c5b9;
-  --border-subtle: #b9bbb0;
-  --border-default: #a5a79c;
-  --border-strong: #7f8378;
+  --color-bg: #b8bab2;
+  --surface-default: #c9cbc3;
+  --surface-raised: #bdc0b7;
+  --surface-pressed: #adb0a7;
+  --surface-navigation: #b1b4ab;
+  --border-subtle: #a4a79e;
+  --border-default: #90938a;
+  --border-strong: #6f736a;
 
   --text-primary: #192019;
   --text-secondary: #4e584e;
@@ -28,9 +28,9 @@
   --border-info: color-mix(in srgb, var(--status-info) 32%, var(--border-default));
   --border-danger: color-mix(in srgb, var(--status-danger) 32%, var(--border-default));
   --overlay-backdrop: rgba(31, 35, 29, 0.48);
-  --data-sleep-deep: #3d5e92;
+  --data-sleep-deep: #496957;
   --data-sleep-rem: #72518c;
-  --data-sleep-light: #5783a2;
+  --data-sleep-light: #7c9471;
   --data-sleep-awake: #747a72;
   --data-nutrition-energy: #956422;
   --data-nutrition-protein: #326d69;

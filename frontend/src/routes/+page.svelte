@@ -7,7 +7,7 @@
 
   function formatLastSync(ts: number | null): string { if (!ts) return ''; const d = new Date(ts); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
   function onUnifiedUpdate(e: CustomEvent) { if (!data) return; const { field, value } = e.detail; dayData.set({ ...data, dayEntry: { ...(data.dayEntry ?? { date: $currentDate }), [field]: value } }); }
-  function onMealToggle(e: CustomEvent) { if (!data) return; const { id, is_done, data: mealData } = e.detail; dayData.set({ ...data, meals: data.meals.map((m) => m.id === id ? { ...m, ...(mealData ?? {}), is_done } : m) }); }
+  function onMealEntryChange(e: CustomEvent) { if (!data) return; const entry = e.detail.entry; dayData.set({ ...data, mealEntries: data.mealEntries.map((current) => current.id === entry.id ? { ...current, ...entry } : current) }); }
   function onTodoToggle(e: CustomEvent) { if (!data) return; const { id, status } = e.detail; dayData.set({ ...data, todos: (data.todos ?? []).map((t) => String(t.id) === String(id) ? { ...t, status: status ?? (t.status === 'open' ? 'done' : 'open') } : t) }); }
   function onTodoAdd(e: CustomEvent) { if (!data) return; dayData.set({ ...data, todos: [...(data.todos ?? []), e.detail] }); }
 
@@ -21,7 +21,7 @@
       <div class="day-slide">
         <UnifiedDay dayData={data} currentDate={$currentDate}
           on:update={onUnifiedUpdate}
-          on:mealtoggle={onMealToggle}
+          on:mealentrychange={onMealEntryChange}
           on:trainingtoggle={(e) => onUnifiedUpdate(new CustomEvent('update', { detail: { field: 'training_done', value: e.detail } }))}
           on:cardiotoggle={(e) => onUnifiedUpdate(new CustomEvent('update', { detail: { field: 'cardio_done', value: e.detail } }))}
           on:todotoggle={onTodoToggle}

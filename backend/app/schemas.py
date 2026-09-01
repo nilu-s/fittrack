@@ -133,6 +133,18 @@ class Nutrition(_Base):
     fiber_g: NutritionValue = Field(default=None, ge=0)
     sugar_g: NutritionValue = Field(default=None, ge=0)
     free_sugar_g: NutritionValue = Field(default=None, ge=0)
+    saturated_fat_g: NutritionValue = Field(default=None, ge=0)
+    sodium_mg: NutritionValue = Field(default=None, ge=0)
+    potassium_mg: NutritionValue = Field(default=None, ge=0)
+    calcium_mg: NutritionValue = Field(default=None, ge=0)
+    magnesium_mg: NutritionValue = Field(default=None, ge=0)
+    iron_mg: NutritionValue = Field(default=None, ge=0)
+    zinc_mg: NutritionValue = Field(default=None, ge=0)
+    vitamin_a_ug: NutritionValue = Field(default=None, ge=0)
+    vitamin_c_mg: NutritionValue = Field(default=None, ge=0)
+    vitamin_d_ug: NutritionValue = Field(default=None, ge=0)
+    vitamin_b12_ug: NutritionValue = Field(default=None, ge=0)
+    folate_ug: NutritionValue = Field(default=None, ge=0)
 
 
 class MealCategoryCreate(_Base):
@@ -199,6 +211,10 @@ class FoodResponse(FoodCreate):
     id: uuid.UUID
     is_archived: bool
     updated_at: datetime
+
+
+class HistoricalNutrientEnrichmentResponse(_Base):
+    updated_item_count: int
 
 
 class RecipeIngredientInput(_Base):
@@ -284,6 +300,20 @@ class MealPlanCreate(_Base):
     name: str = Field(min_length=1, max_length=200)
     is_active: bool = False
     items: list[MealPlanItemInput] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def one_item_per_slot_and_weekday(self):
+        """A weekly plan may project at most one meal into a slot each day."""
+        if self.items is None:  # MealPlanUpdate may intentionally omit items.
+            return self
+        occupied: set[tuple[uuid.UUID, int]] = set()
+        for item in self.items:
+            for weekday in (item.weekdays if item.weekdays is not None else range(7)):
+                key = (item.category_id, weekday)
+                if key in occupied:
+                    raise ValueError("only one meal-plan item is allowed per category and weekday")
+                occupied.add(key)
+        return self
 
 
 class MealPlanUpdate(MealPlanCreate):

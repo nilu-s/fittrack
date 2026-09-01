@@ -22,15 +22,22 @@ from app.database import async_session
 from app.models import Food, MealCategory, MealCategoryRecipePreset, MealEntry, MealEntryItem, MealPhotoAnalysis, MealPlan, MealPlanItem, MealPlanVersion, Photo, Recipe, RecipeIngredient
 from app.routes.auth import get_current_user
 from app.services.meal_plan_projections import discard_stale_plan_projections
+from app.services.nutrition_backfill import enrich_historical_meal_nutrients
 from app.schemas import (
     FoodCreate, FoodResponse, FoodUpdate, MealCategoryCreate, MealCategoryResponse, MealCategoryRecipePresetUpdate, MealCategoryReorder, MealCategoryUpdate,
     MealEntryCreate, MealEntryItemInput, MealEntryItemResponse, MealEntryResponse, MealEntryUpdate,
     MealPlanCreate, MealPlanItemInput, MealPlanItemResponse, MealPlanResponse, MealPlanUpdate,
-    Nutrition, RecipeCreate, RecipeIngredientInput, RecipeIngredientResponse, RecipeResponse, RecipeUpdate, MealPhotoAnalysisAccept, MealPhotoAnalysisResponse, MealEntryStatusCommand, MealPlanVersionResponse,
+    Nutrition, RecipeCreate, RecipeIngredientInput, RecipeIngredientResponse, RecipeResponse, RecipeUpdate, MealPhotoAnalysisAccept, MealPhotoAnalysisResponse, MealEntryStatusCommand, MealPlanVersionResponse, HistoricalNutrientEnrichmentResponse,
 )
 
 router = APIRouter(tags=["configurable-meals"])
-_NUTRIENTS = ("kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g", "free_sugar_g")
+_NUTRIENTS = (
+    "kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g", "free_sugar_g",
+    "saturated_fat_g", "sodium_mg", "potassium_mg", "calcium_mg", "magnesium_mg",
+    "iron_mg", "zinc_mg", "vitamin_a_ug", "vitamin_c_mg", "vitamin_d_ug",
+    "vitamin_b12_ug", "folate_ug",
+)
+_REQUIRED_RECIPE_NUTRIENTS = ("kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g", "free_sugar_g")
 logger = logging.getLogger(__name__)
 
 _MAX_PHOTO_BYTES = 10 * 1024 * 1024
@@ -105,7 +112,7 @@ def _nutrition_from_snapshot(snapshot: dict) -> Nutrition:
 
 def _sum(parts: list[dict[str, Decimal | None]]) -> dict[str, Decimal | None]:
     # Unknown is contagious: a total never falsely claims a known zero.
-    return {key: None if any(p[key] is None for p in parts) else sum((p[key] for p in parts), Decimal("0")) for key in _NUTRIENTS}
+    return {key: None if any(p.get(key) is None for p in parts) else sum((p[key] for p in parts), Decimal("0")) for key in _NUTRIENTS}
 
 
 async def _owned(session, model, resource_id: uuid.UUID, account_id: uuid.UUID):
@@ -132,7 +139,10 @@ async def _recipe_nutrition(session, recipe: Recipe, account_id: uuid.UUID, mult
             values.append(await _food_nutrition(food, ingredient.quantity))
         else:
             nested = await _owned(session, Recipe, ingredient.nested_recipe_id, account_id)
-            nested_total = await _recipe_nutrition(session, nested, account_id, ingredient.quantity / nested.servings, visited.copy())
+            # ``quantity`` is expressed in servings of the nested recipe.  The
+            # recursive helper already converts the nested batch to servings,
+            # so dividing here as well would understate the nested ingredient.
+            nested_total = await _recipe_nutrition(session, nested, account_id, ingredient.quantity, visited.copy())
             values.append(nested_total)
     if values:
         total = _sum(values)
@@ -195,17 +205,17 @@ async def _validate_active_recipe(session, recipe: Recipe, account_id: uuid.UUID
     ))).scalars().all()
     if not ingredients:
         snapshot = recipe.nutrition_per_serving or {}
-        if all(snapshot.get(key) is not None for key in _NUTRIENTS):
+        if all(snapshot.get(key) is not None for key in _REQUIRED_RECIPE_NUTRIENTS):
             return
         raise HTTPException(422, "An active recipe requires ingredients or complete per-serving nutrient values")
     for ingredient in ingredients:
         if ingredient.food_id is None:
             continue
         food = await _owned(session, Food, ingredient.food_id, account_id)
-        if food.confidence != "verified" or any(getattr(food, f"{key}_per_100g") is None for key in _NUTRIENTS):
+        if food.confidence != "verified" or any(getattr(food, f"{key}_per_100g") is None for key in _REQUIRED_RECIPE_NUTRIENTS):
             raise HTTPException(422, "Active recipe foods require verified, complete nutrient values")
     nutrition = await _recipe_nutrition(session, recipe, account_id)
-    if any(value is None for value in nutrition.values()):
+    if any(nutrition[key] is None for key in _REQUIRED_RECIPE_NUTRIENTS):
         raise HTTPException(422, "Active recipes require complete nutrient values, including nested recipes")
 
 
@@ -348,6 +358,15 @@ async def update_food(food_id: uuid.UUID, body: FoodUpdate, account_id: uuid.UUI
 async def archive_food(food_id: uuid.UUID, account_id: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
         row = await _owned(session, Food, food_id, account_id); row.is_archived = True; await session.commit()
+
+
+@router.post("/meal-entries/enrich-historical-nutrients", response_model=HistoricalNutrientEnrichmentResponse)
+async def enrich_historical_nutrients(account_id: uuid.UUID = Depends(get_current_user)):
+    """Explicitly enrich old snapshots from current, owned food nutrient data."""
+    async with async_session() as session:
+        updated_item_count = await enrich_historical_meal_nutrients(session, account_id)
+        await session.commit()
+        return HistoricalNutrientEnrichmentResponse(updated_item_count=updated_item_count)
 
 @router.get("/recipes", response_model=list[RecipeResponse])
 async def list_recipes(account_id: uuid.UUID = Depends(get_current_user)):
@@ -523,6 +542,10 @@ async def _entry_response(session, entry: MealEntry, account_id: uuid.UUID):
 async def instantiate_entries(day: date_type = Query(alias="date"), account_id: uuid.UUID = Depends(get_current_user)):
     """Explicit, idempotent active-plan projection; GET never creates data."""
     async with async_session() as session:
+        # A plan can be edited after entries have already been projected.  A
+        # stale pending row is disposable; clearing it here makes the repair
+        # independent of whether the edit request itself completed cleanup.
+        await discard_stale_plan_projections(session, account_id)
         plan = (await session.execute(select(MealPlan).where(MealPlan.account_id == account_id, MealPlan.is_active.is_(True)))).scalars().first()
         if not plan: return []
         items = (await session.execute(select(MealPlanItem).where(MealPlanItem.account_id == account_id, MealPlanItem.meal_plan_id == plan.id, MealPlanItem.is_active.is_(True)))).scalars().all()

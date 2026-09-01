@@ -2,7 +2,7 @@
 
 **Status:** implemented (online-first)  
 **Owner:** FitTrack household  
-**Last updated:** 2026-08-31
+**Last updated:** 2026-09-01
 
 ## 1. Zielbild
 
@@ -48,8 +48,8 @@ Solche Erweiterungen benötigen eine eigene Spezifikation.
 | `meal_entry_items` | Komponenten eines Eintrags | Lebensmittel- oder Rezept-Snapshot, Menge und eigene Nährwert-Summen. |
 | `meal_photos`, `meal_photo_analyses` | Foto und nachvollziehbare KI-Auswertung | Analyse enthält Modell-/Schema-Version, Ergebnis, Fehler und explizite Übernahmeentscheidung. |
 
-`Meal`, `Dish` und `MealTemplate` sind Übergangsmodelle. Sie bleiben während
-der Migration lesbar, sind aber nicht das Zielmodell.
+`Meal`, `Dish` und `MealTemplate` sind retired. Laufzeit, Browser und CLI
+verwenden ausschließlich das konto-gebundene `MealEntry`-Modell.
 
 ## 4. Verbindliche Regeln
 
@@ -107,6 +107,26 @@ Tages- und Wochenbilanz ein; „geplant“ bleibt als Plan sichtbar, wird aber
 separat ausgewiesen. Nutzer können zusätzliche Einträge in jeder Kategorie
 anlegen und Kategorien umbenennen, sortieren oder deaktivieren.
 
+Die Tageskachel heißt **„Nährstoffe“**. Ihre Detailansicht ist eine breite,
+nach Makro- und Mikronährstoffen gegliederte Bilanz der als verzehrt markierten
+Tagesmahlzeiten; sie zeigt keine Liste verzehrter Gerichte. Makros sind Energie, Protein, Kohlenhydrate, Fett,
+Ballaststoffe, Zucker, freie Zucker und gesättigte Fettsäuren. Mikros sind
+Natrium, Kalium, Calcium, Magnesium, Eisen, Zink sowie Vitamin A, C, D, B12
+und Folat. Mengen werden mit ihrer Einheit angezeigt. Alle Nährwerte sind
+Orientierungswerte, keine Messwerte oder medizinische Aussagen: Wenn eine
+exakte Referenz fehlt, darf ein plausibler Standardwert verwendet werden und
+muss als Schätzung gekennzeichnet sein. Die Übersicht gibt keine medizinischen
+Bewertungen oder Zielwert-Ampeln ab.
+
+Lebensmittel pflegen diese Werte pro 100 g. Die Migration ergänzt alle
+bestehenden Lebensmittel um die neuen Felder. Neue und geänderte Einträge
+übernehmen den gesamten Nährwert-Snapshot. Eine explizite, konto-gebundene
+Anreicherung ergänzt historische Mikronährstofffelder aus den aktuell
+gepflegten, konto-eigenen Lebensmittel- und Rezeptwerten. Sie verändert niemals
+die ursprünglichen Makro-Snapshots; verwendete Standardwerte bleiben als
+geschätzt nachvollziehbar. Die Oberfläche benennt sie als „nachträgliche
+Anreicherung“, nicht als historische Messung.
+
 Die Einstellungen erhalten einen eigenen Mahlzeitenbereich mit vier klaren
 Unterseiten: Kategorien, Lebensmittel, Rezepte und Pläne. Die Tagesansicht
 ist der Erfassungsort, nicht der alleinige Konfigurationsort. Der bestehende
@@ -128,9 +148,9 @@ Dann werden `dishes` als Rezepte und `meals` als Einträge mit erhaltenem
 Nährwert-Snapshot überführt; `meal_templates` werden in Planvorlagen
 überführt. Vorab prüft eine Rehearsal-Migration Konto-Zuordnung, doppelte
 Defaults, ungültige Slots, verwaiste `dish_id`/`meal_id`-Referenzen und
-Zeitzonen. Historische Tabellen und Endpunkte bleiben nur als dokumentierter
-Read-Adapter bis Frontend, Offline-Sync und Export umgestellt sind. Danach
-werden sie in einer separaten Entfernungsversion gelöscht.
+Zeitzonen. Die historischen Tabellen und Endpunkte wurden nach dem Cutover
+entfernt. Neue Änderungen dürfen keinen Read-Adapter, Offline-Sync oder
+CLI-Befehl für das alte Modell wieder einführen.
 
 ## 8. Akzeptanzkriterien
 

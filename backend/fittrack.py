@@ -11,8 +11,6 @@ Usage:
     fittrack log-training "Oberkörper B"   # Set training type
     fittrack check-creatine                # Mark creatine done
     fittrack note "Good day"               # Add note
-    fittrack meals                          # Show today's meals
-    fittrack meal 2 --done                  # Mark meal 2 done
     fittrack todos                          # List open todos
     fittrack todo "Buy groceries"           # Create todo
     fittrack todo-done <id>                 # Mark todo done
@@ -195,46 +193,6 @@ def print_day_table(data: dict):
     console.print(table)
 
 
-def print_meals_table(meals: list):
-    """Print meals as a table."""
-    table = Table(title="🍽️ Mahlzeiten", show_header=True)
-    table.add_column("Slot", style="cyan")
-    table.add_column("Name", style="white")
-    table.add_column("kcal", justify="right", style="yellow")
-    table.add_column("P", justify="right", style="blue")
-    table.add_column("KH", justify="right", style="magenta")
-    table.add_column("F", justify="right", style="red")
-    table.add_column("Done", justify="center")
-
-    total_kcal = 0
-    total_p = 0
-    total_kh = 0
-    total_f = 0
-
-    for meal in meals:
-        kcal = float(meal.get('kcal') or 0)
-        p = float(meal.get('protein_g') or 0)
-        kh = float(meal.get('carbs_g') or 0)
-        f = float(meal.get('fat_g') or 0)
-        total_kcal += kcal
-        total_p += p
-        total_kh += kh
-        total_f += f
-        done = "✅" if meal.get('is_done') else "☐"
-        table.add_row(
-            str(meal.get('meal_slot', '?')),
-            meal.get('name', '—'),
-            f"{kcal:.0f}",
-            f"{p:.0f}g",
-            f"{kh:.0f}g",
-            f"{f:.0f}g",
-            done,
-        )
-
-    table.add_row("Σ", "Total", f"{total_kcal:.0f}", f"{total_p:.0f}g", f"{total_kh:.0f}g", f"{total_f:.0f}g", "")
-    console.print(table)
-
-
 def print_todos_table(todos: list):
     """Print todos as a table."""
     if not todos:
@@ -404,16 +362,6 @@ def today(ctx):
     else:
         print_day_table(data)
 
-    # Also fetch meals and todos
-    try:
-        meals = api_get('/meals', date=today_str())
-        if ctx.obj.get('json'):
-            print_json(meals)
-        else:
-            print_meals_table(meals)
-    except Exception:
-        pass
-
     try:
         todos = api_get('/todos', date=today_str(), status='open')
         if ctx.obj.get('json'):
@@ -434,12 +382,6 @@ def day(ctx, date_str):
         print_json(data)
     else:
         print_day_table(data)
-
-    try:
-        meals = api_get('/meals', date=date_str)
-        print_meals_table(meals)
-    except Exception:
-        pass
 
     try:
         todos = api_get('/todos', date=date_str, status='open')
@@ -529,66 +471,6 @@ def note(ctx, text):
         print_json(data)
     else:
         console.print(f"[green]✅ Notiz hinzugefügt: {text}[/green]")
-
-
-@cli.command()
-@click.pass_context
-def meals(ctx):
-    """Show today's meals."""
-    data = api_get('/meals', date=today_str())
-    if ctx.obj.get('json'):
-        print_json(data)
-    else:
-        print_meals_table(data)
-
-
-@cli.command()
-@click.argument('slot', type=int)
-@click.option('--done', is_flag=True, help='Mark meal as done')
-@click.option('--replace', type=str, help='Replace meal name')
-@click.option('--kcal', type=float, help='Set kcal')
-@click.option('--protein', type=float, help='Set protein g')
-@click.option('--carbs', type=float, help='Set carbs g')
-@click.option('--fat', type=float, help='Set fat g')
-@click.pass_context
-def meal(ctx, slot, done, replace, kcal, protein, carbs, fat):
-    """Manage a meal by slot (1-4)."""
-    meals_data = api_get('/meals', date=today_str())
-    target = None
-    for m in meals_data:
-        if m.get('meal_slot') == slot:
-            target = m
-            break
-
-    if not target:
-        console.print(f"[red]Mahlzeit Slot {slot} nicht gefunden[/red]")
-        sys.exit(1)
-
-    meal_id = target['id']
-
-    if done:
-        api_post(f'/meals/{meal_id}/done')
-        console.print(f"[green]✅ Mahlzeit {slot} abgehakt[/green]")
-    elif replace or kcal or protein or carbs or fat:
-        update_data = {}
-        if replace:
-            update_data['name'] = replace
-            update_data['is_standard'] = False
-        if kcal:
-            update_data['kcal'] = kcal
-        if protein:
-            update_data['protein_g'] = protein
-        if carbs:
-            update_data['carbs_g'] = carbs
-        if fat:
-            update_data['fat_g'] = fat
-        api_put(f'/meals/{meal_id}', **update_data)
-        console.print(f"[green]✅ Mahlzeit {slot} aktualisiert[/green]")
-    else:
-        if ctx.obj.get('json'):
-            print_json(target)
-        else:
-            print_meals_table([target])
 
 
 @cli.command()
