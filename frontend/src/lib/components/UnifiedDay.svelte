@@ -922,7 +922,6 @@
   .nutrition-meal-list > div { display:flex; justify-content:space-between; gap:var(--space-3); color:var(--text-secondary); font-size:13px; }
   .nutrition-meal-list > div + div { padding-top:var(--space-2); border-top:1px solid var(--border-subtle); }
   .nutrition-meal-list b { color:var(--text-primary); white-space:nowrap; }
-  @media(max-width:420px) { .feature-card-row { grid-template-columns:1fr; } }
   @media (min-width: 700px) { .trend-overlay { padding:24px; } }
   @media (min-width: 700px) { .compact-overlay { padding:24px; } .compact-detail { max-width:360px; } }
 
