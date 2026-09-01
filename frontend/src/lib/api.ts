@@ -2,7 +2,7 @@ import type {
   DayEntry, Todo, Exercise, TrainingSet, TrainingRotation, TrainingUnit,
   TrainingSuggestion, TrainingCompleteRequest, ExerciseProgress,
   WeekStats, TrendData, SyncPayload, SyncResponse, Goals,
-  MealCategory, Food, Recipe, MealPlan, MealEntry, MealPhotoAnalysis,
+  MealCategory, Food, Recipe, MealPlan, MealEntry, MealPhotoAnalysis, BodyProfile, ScaleMeasurement, TodoRoutine,
 } from './types';
 import { db, queueSync, type DayEntryRecord, type TodoRecord } from './db';
 
@@ -279,6 +279,29 @@ class ApiClient {
     }
   }
 
+  // Recurring todos are deliberately online-only: they configure server-side
+  // schedule rules and must not be replayed as offline todo mutations.
+  async getTodoRoutines(): Promise<TodoRoutine[]> {
+    return (await this.request<TodoRoutine[]>('/todo-routines')) ?? [];
+  }
+
+  async createTodoRoutine(data: Omit<TodoRoutine, 'id' | 'created_at' | 'updated_at'>): Promise<TodoRoutine | null> {
+    return this.request<TodoRoutine>('/todo-routines', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateTodoRoutine(id: string, data: Partial<TodoRoutine>): Promise<TodoRoutine | null> {
+    return this.request<TodoRoutine>(`/todo-routines/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async deleteTodoRoutine(id: string): Promise<boolean> {
+    try {
+      await this.request(`/todo-routines/${id}`, { method: 'DELETE' });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // Training
   async getTraining(date: string): Promise<TrainingSuggestion | null> {
     return this.request<TrainingSuggestion>(`/training?date=${date}`);
@@ -392,7 +415,7 @@ class ApiClient {
     }
   }
 
-  async getScaleMeasurements(from?: string, to?: string): Promise<Array<{ id: string; measured_at: string; weight_kg: number; status: 'assigned' }> | null> {
+  async getScaleMeasurements(from?: string, to?: string): Promise<ScaleMeasurement[] | null> {
     const params = new URLSearchParams();
     if (from) params.set('from', from);
     if (to) params.set('to', to);
@@ -401,6 +424,14 @@ class ApiClient {
 
   async removeScaleMeasurement(id: string): Promise<{ id: string; status: 'rejected' } | null> {
     return this.request(`/scale-measurements/${id}/reject`, { method: 'POST' });
+  }
+
+  async getBodyProfile(): Promise<BodyProfile | null> {
+    return this.request<BodyProfile>('/account/body-profile');
+  }
+
+  async updateBodyProfile(profile: Omit<BodyProfile, 'id'>): Promise<BodyProfile | null> {
+    return this.request<BodyProfile>('/account/body-profile', { method: 'PUT', body: JSON.stringify(profile) });
   }
 
   // Goals
@@ -478,7 +509,13 @@ class ApiClient {
   }
   async createMealEntry(data: Omit<MealEntry, 'id'>): Promise<MealEntry | null> { return this.request('/meal-entries', { method: 'POST', body: JSON.stringify(data) }); }
   async updateMealEntry(id: string, data: Partial<MealEntry>): Promise<MealEntry | null> { return this.request(`/meal-entries/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
-  async setMealEntryStatus(id: string, status: 'consumed' | 'skipped', expectedUpdatedAt?: string): Promise<MealEntry | null> {
+  async setMealEntryStatus(id: string, status: 'planned' | 'consumed' | 'skipped', expectedUpdatedAt?: string): Promise<MealEntry | null> {
+    if (status === 'planned') {
+      return this.request(`/meal-entries/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status, expected_updated_at: expectedUpdatedAt }),
+      });
+    }
     return this.request(`/meal-entries/${id}/${status === 'consumed' ? 'consume' : 'skip'}`, {
       method: 'POST',
       body: expectedUpdatedAt ? JSON.stringify({ expected_updated_at: expectedUpdatedAt }) : undefined,

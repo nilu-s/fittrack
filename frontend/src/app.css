@@ -17,7 +17,6 @@ html, body {
   overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
-  user-select: none;
 }
 body { min-height: 100vh; min-height: 100dvh; }
 input, textarea, select, button { color: inherit; font: inherit; background: transparent; border: 0; outline: 0; }

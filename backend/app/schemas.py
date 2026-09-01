@@ -438,6 +438,46 @@ class TodoResponse(TodoBase):
     updated_at: Optional[datetime] = None
 
 
+class TodoRoutineBase(_Base):
+    title: str = Field(min_length=1, max_length=200)
+    weekdays: list[int] = Field(min_length=1, max_length=7)
+    due_time: Optional[time] = None
+    priority: int = Field(default=2, ge=1, le=3)
+    is_active: bool = True
+
+    @field_validator("weekdays")
+    @classmethod
+    def weekdays_are_unique_calendar_days(cls, value: list[int]) -> list[int]:
+        if any(day < 0 or day > 6 for day in value) or len(set(value)) != len(value):
+            raise ValueError("weekdays must contain distinct values from 0 to 6")
+        return sorted(value)
+
+
+class TodoRoutineCreate(TodoRoutineBase):
+    pass
+
+
+class TodoRoutineUpdate(_Base):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    weekdays: Optional[list[int]] = Field(default=None, min_length=1, max_length=7)
+    due_time: Optional[time] = None
+    priority: Optional[int] = Field(default=None, ge=1, le=3)
+    is_active: Optional[bool] = None
+
+    @field_validator("weekdays")
+    @classmethod
+    def updated_weekdays_are_valid(cls, value: Optional[list[int]]) -> Optional[list[int]]:
+        if value is not None and (any(day < 0 or day > 6 for day in value) or len(set(value)) != len(value)):
+            raise ValueError("weekdays must contain distinct values from 0 to 6")
+        return sorted(value) if value is not None else value
+
+
+class TodoRoutineResponse(TodoRoutineBase):
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+
 # ---------------------------------------------------------------------------
 # TrainingRotation
 # ---------------------------------------------------------------------------

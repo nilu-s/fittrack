@@ -4,8 +4,8 @@
   "description": "Fitness, Ernährung und To-Dos in einer Ansicht",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0b0c0e",
-  "theme_color": "#0b0c0e",
+  "background_color": "#c9cbc0",
+  "theme_color": "#c9cbc0",
   "orientation": "portrait",
   "icons": [
     {

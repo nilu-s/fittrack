@@ -50,16 +50,16 @@
 </script>
 
 <style>
-  .mrow { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); transition: opacity 0.15s; }
+  .mrow { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-subtle); transition: opacity 0.15s; }
   .mrow:last-child { border-bottom: none; }
   .mrow.checked { opacity: 0.5; }
-  .mrow-label { flex: 1; font-size: 14px; color: var(--text-dim); }
+  .mrow-label { flex: 1; font-size: 14px; color: var(--text-secondary); }
   .mrow-value { font-size: 15px; font-weight: 600; text-align: right; min-width: 60px; padding: 2px 6px; border-radius: 6px; border: 0; background: transparent; color: inherit; cursor: pointer; }
   .mrow-value:disabled { cursor: default; }
-  .mrow-value:active { background: var(--card-2); }
-  .mrow-unit { font-size: 12px; color: var(--text-faint); margin-left: 2px; font-weight: 400; }
-  .mrow-input { flex: 0 1 80px; text-align: right; padding: 2px 6px; border-radius: 6px; background: var(--card-2); border: 1px solid var(--blue); font-size: 15px; font-weight: 600; color: var(--text); }
-  .mrow-check { width: 28px; height: 28px; border-radius: 50%; background: transparent; border: 1.5px solid var(--border-2); color: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
-  .mrow-check.done { background: var(--green); border-color: var(--green); color: #000; }
+  .mrow-value:active { background: var(--surface-raised); }
+  .mrow-unit { font-size: 12px; color: var(--text-tertiary); margin-left: 2px; font-weight: 400; }
+  .mrow-input { flex: 0 1 80px; text-align: right; padding: 2px 6px; border-radius: 6px; background: var(--surface-raised); border: 1px solid var(--status-info); font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .mrow-check { width: 28px; height: 28px; border-radius: 50%; background: transparent; border: 1.5px solid var(--border-default); color: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+  .mrow-check.done { background: var(--status-success); border-color: var(--status-success); color: var(--text-on-accent); }
   .mrow-check:active { transform: scale(0.9); }
 </style>

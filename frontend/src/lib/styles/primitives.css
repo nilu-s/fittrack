@@ -7,6 +7,11 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
 }
+.ui-feature {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-surface);
+}
 .ui-section-header, .section-header {
   display: flex;
   align-items: center;
@@ -34,8 +39,8 @@
   border: 1px solid var(--border-default);
   color: var(--text-primary);
 }
-.ui-button--primary, .modal-primary { background: var(--status-success); color: #000; font-weight: 600; }
-.ui-button--danger { background: var(--status-danger); color: #000; font-weight: 600; }
+.ui-button--primary, .modal-primary { background: var(--action-primary); color: var(--text-on-accent); font-weight: 600; }
+.ui-button--danger { background: var(--status-danger); color: var(--text-on-accent); font-weight: 600; }
 .ui-button:active, .btn:active, .modal-secondary:active { background: var(--surface-pressed); }
 .ui-button--primary:active, .modal-primary:active, .ui-button--danger:active { opacity: .8; }
 .ui-icon-button {
@@ -63,7 +68,7 @@
 .ui-spinner, .spinner { border: 2.5px solid var(--surface-raised); border-top-color: var(--text-secondary); border-radius: 50%; animation: ui-spin .8s linear infinite; }
 .fade-in { animation: ui-fade-in var(--motion-fast) ease; }
 .slide-down { animation: ui-slide-down var(--motion-standard) ease; overflow: hidden; }
-.modal-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); z-index: var(--z-modal); animation: ui-fade-in var(--motion-fast) ease; }
+.modal-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--overlay-backdrop); z-index: var(--z-modal); animation: ui-fade-in var(--motion-fast) ease; }
 .modal-card { background: var(--surface-default); border: 1px solid var(--border-default); border-radius: var(--radius-modal); box-shadow: var(--shadow-modal); }
 .text-secondary, .muted { color: var(--text-secondary); }
 .text-sm { font-size: 13px; }

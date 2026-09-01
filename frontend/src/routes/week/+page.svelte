@@ -28,11 +28,11 @@
 <svelte:head><title>FitTrack - Woche</title></svelte:head>
 
 <div class="page">
-  <div class="hdr"><button class="back" onclick={goBack} aria-label="Zurück"><Icon name="chevron-left" size={20} /></button><h1>Wochenübersicht</h1></div>
+  <div class="hdr"><button class="back" onclick={goBack} aria-label="Zurück"><Icon name="chevron-left" size={20} /></button><div><p class="eyebrow">Rückblick</p><h1>Deine Woche</h1></div></div>
   {#if weekStats}
-    <section class="section-card"><div class="section-header"><span>Gewicht</span><span class="avg">{weekStats.avg_weight ? Number(weekStats.avg_weight).toFixed(1) : '—'} kg Ø</span></div><div class="body"><div class="chart">{#if weightData.length > 0}<Sparkline data={weightData} color="var(--blue)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
-    <section class="section-card"><div class="section-header"><span>Kalorien</span><span class="avg">{weekStats.avg_kcal ? Math.round(Number(weekStats.avg_kcal)) : '—'} kcal Ø</span></div><div class="body"><div class="chart">{#if kcalData.length > 0}<Sparkline data={kcalData} color="var(--amber)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
-    <section class="section-card"><div class="section-header"><span>Schritte</span><span class="avg">{weekStats.avg_steps ? Math.round(Number(weekStats.avg_steps)) : '—'} Ø</span></div><div class="body"><div class="chart">{#if stepsData.length > 0}<Sparkline data={stepsData} color="var(--green)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
+    <section class="section-card"><div class="section-header"><span>Gewicht</span><span class="avg">{weekStats.avg_weight ? Number(weekStats.avg_weight).toFixed(1) : '—'} kg Ø</span></div><div class="body"><div class="chart">{#if weightData.length > 0}<Sparkline data={weightData} color="var(--status-info)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
+    <section class="section-card"><div class="section-header"><span>Kalorien</span><span class="avg">{weekStats.avg_kcal ? Math.round(Number(weekStats.avg_kcal)) : '—'} kcal Ø</span></div><div class="body"><div class="chart">{#if kcalData.length > 0}<Sparkline data={kcalData} color="var(--status-warning)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
+    <section class="section-card"><div class="section-header"><span>Schritte</span><span class="avg">{weekStats.avg_steps ? Math.round(Number(weekStats.avg_steps)) : '—'} Ø</span></div><div class="body"><div class="chart">{#if stepsData.length > 0}<Sparkline data={stepsData} color="var(--status-success)" height={90} width={300} fill={true} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
     {#if weekStats.avg_protein != null || weekStats.avg_carbs != null || weekStats.avg_fat != null || weekStats.avg_fiber != null || weekStats.avg_sugar != null || weekStats.avg_free_sugar != null}
     <section class="section-card"><div class="section-header">Makros Ø</div><div class="body">
       <div class="stat-r"><span class="stat-l">Protein</span><span class="stat-v">{weekStats.avg_protein ? Math.round(Number(weekStats.avg_protein)) : '—'} g</span></div>
@@ -60,7 +60,7 @@
     <section class="section-card"><div class="section-header">Abschluss</div><div class="body">
       <div class="stat-r"><span class="stat-l">Trainingstage</span><span class="stat-v">{weekStats.training_days}<span class="stat-m">/7</span></span></div>
       <div class="stat-r"><span class="stat-l">To-Dos erledigt</span><span class="stat-v">{weekStats.todo_done}<span class="stat-m">/{weekStats.todo_total}</span></span></div>
-      {#if weekStats.todo_completion}<div class="comp"><ProgressBar current={Math.round(Number(weekStats.todo_completion))} target={100} label="Erledigungsrate" color="var(--green)" /></div>{/if}
+      {#if weekStats.todo_completion}<div class="comp"><ProgressBar current={Math.round(Number(weekStats.todo_completion))} target={100} label="Erledigungsrate" color="var(--status-success)" /></div>{/if}
     </div></section>
   {:else}
     <div class="loading"><div class="spinner"></div></div>
@@ -68,23 +68,24 @@
 </div>
 
 <style>
-  .page { display: flex; flex-direction: column; gap: 10px; }
-  .hdr { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
-  .back { width: 34px; height: 34px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .back:active { background: var(--card-2); }
-  h1 { font-size: 18px; font-weight: 600; }
+  .page { display: flex; flex-direction: column; gap: var(--space-3); padding-top:var(--space-2); }
+  .hdr { display: flex; align-items: center; gap: var(--space-2); padding:8px 0 var(--space-2); }
+  .back { width:var(--control-min); height:var(--control-min); border-radius:var(--radius-control); background:var(--surface-default); border:1px solid var(--border-subtle); color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .back:active { background:var(--surface-raised); }
+  .eyebrow { color:var(--status-success); font-size:11px; font-weight:750; letter-spacing:.07em; text-transform:uppercase; }
+  h1 { font-size:24px; letter-spacing:-.035em; font-weight:700; }
   .body { padding: 14px; }
-  .avg { font-size: 14px; font-weight: 600; color: var(--text); }
+  .avg { font-size:13px; font-weight:700; color:var(--text-primary); }
   .chart { width: 100%; overflow: hidden; display: flex; justify-content: center; }
   .chart :global(svg) { width: 100%; height: auto; }
-  .no-data { padding: 20px; text-align: center; color: var(--text-faint); font-size: 14px; }
-  .stat-r { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .no-data { padding: 20px; text-align: center; color: var(--text-tertiary); font-size: 14px; }
+  .stat-r { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border-subtle); }
   .stat-r:last-of-type { border-bottom: none; }
-  .stat-l { font-size: 14px; color: var(--text-dim); }
+  .stat-l { font-size: 14px; color: var(--text-secondary); }
   .stat-v { font-size: 15px; font-weight: 600; }
-  .stat-m { font-size: 12px; color: var(--text-faint); font-weight: 400; }
+  .stat-m { font-size: 12px; color: var(--text-tertiary); font-weight: 400; }
   .comp { margin-top: 12px; }
   .loading { display: flex; justify-content: center; padding: 40px; }
-  .spinner { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid var(--card-2); border-top-color: var(--text-dim); animation: spin 0.8s linear infinite; }
+  .spinner { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid var(--surface-raised); border-top-color: var(--text-secondary); animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>

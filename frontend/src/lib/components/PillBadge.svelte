@@ -1,7 +1,7 @@
 <script lang="ts">
   export let value: string | number;
   export let unit: string = '';
-  export let color: string = 'var(--text-dim)';
+  export let color: string = 'var(--text-secondary)';
 
   $: displayValue = typeof value === 'number' ? (Number.isInteger(value) ? String(value) : value.toFixed(1)) : value;
 </script>
@@ -18,7 +18,7 @@
     gap: 2px;
     padding: 2px 8px;
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-raised);
     color: var(--c);
     font-size: 12px;
     font-weight: 600;

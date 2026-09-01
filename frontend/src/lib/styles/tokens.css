@@ -1,27 +1,37 @@
 :root {
-  --color-bg: #0b0c0e;
-  --surface-default: #141518;
-  --surface-raised: #1b1c20;
-  --surface-pressed: #26272a;
-  --surface-navigation: #17181b;
-  --border-subtle: rgba(255, 255, 255, 0.055);
-  --border-default: rgba(255, 255, 255, 0.095);
-  --border-strong: rgba(255, 255, 255, 0.16);
+  --color-bg: #c9cbc0;
+  --surface-default: #dedfd4;
+  --surface-raised: #d1d3c7;
+  --surface-pressed: #bfc1b5;
+  --surface-navigation: #c3c5b9;
+  --border-subtle: #b9bbb0;
+  --border-default: #a5a79c;
+  --border-strong: #7f8378;
 
-  --text-primary: #f0f0f2;
-  --text-secondary: #85888f;
-  --text-tertiary: #4b4e54;
+  --text-primary: #192019;
+  --text-secondary: #4e584e;
+  --text-tertiary: #687267;
 
-  --status-success: #34c759;
-  --status-info: #0a84ff;
-  --status-warning: #ff9f0a;
-  --status-accent: #bf5af2;
-  --status-highlight: #ff375f;
-  --status-danger: #ff453a;
-  --data-sleep-deep: #1e40af;
-  --data-sleep-rem: #7c3aed;
-  --data-sleep-light: #60a5fa;
-  --data-sleep-awake: #6b7280;
+  --status-success: #1d7047;
+  --status-info: #285f8d;
+  --status-warning: #9d5c12;
+  --status-accent: #624a91;
+  --status-highlight: #9a4055;
+  --status-danger: #983832;
+  --action-primary: #5e478e;
+  --text-on-accent: #fff;
+  --surface-accent: color-mix(in srgb, var(--action-primary) 12%, var(--surface-raised));
+  --border-accent: color-mix(in srgb, var(--action-primary) 46%, var(--border-default));
+  --surface-info: color-mix(in srgb, var(--status-info) 11%, transparent);
+  --surface-warning: color-mix(in srgb, var(--status-warning) 11%, transparent);
+  --surface-danger: color-mix(in srgb, var(--status-danger) 11%, transparent);
+  --border-info: color-mix(in srgb, var(--status-info) 32%, var(--border-default));
+  --border-danger: color-mix(in srgb, var(--status-danger) 32%, var(--border-default));
+  --overlay-backdrop: rgba(31, 35, 29, 0.48);
+  --data-sleep-deep: #3d5e92;
+  --data-sleep-rem: #72518c;
+  --data-sleep-light: #5783a2;
+  --data-sleep-awake: #747a72;
 
   --space-1: 6px;
   --space-2: 10px;
@@ -36,30 +46,7 @@
   --shell-max: 480px;
   --motion-fast: 150ms;
   --motion-standard: 200ms;
-  --shadow-modal: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 12px 36px rgba(35, 39, 33, 0.2);
   --z-modal: 100;
 
-  /* Compatibility aliases: all existing feature components now resolve through this token source. */
-  --bg: var(--color-bg);
-  --card: var(--surface-default);
-  --card-2: var(--surface-raised);
-  --border: var(--border-subtle);
-  --border-2: var(--border-default);
-  --text: var(--text-primary);
-  --text-dim: var(--text-secondary);
-  --text-faint: var(--text-tertiary);
-  --green: var(--status-success);
-  --blue: var(--status-info);
-  --amber: var(--status-warning);
-  --purple: var(--status-accent);
-  --pink: var(--status-highlight);
-  --red: var(--status-danger);
-  --radius: var(--radius-surface);
-  --radius-sm: var(--radius-control);
-  --radius-md: var(--radius-surface);
-  --radius-lg: var(--radius-modal);
-  --radius-xl: 14px;
-  --gap-sm: var(--space-1);
-  --gap-md: var(--space-3);
-  --gap-lg: var(--space-4);
 }

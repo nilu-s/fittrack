@@ -22,8 +22,8 @@
   .page { display: flex; flex-direction: column; gap: 10px; }
   .body { padding: 12px; }
   .actions { display: flex; gap: 8px; }
-  button { flex: 1; padding: 11px 10px; border-radius: 8px; background: var(--card-2); border: 1px solid var(--border-2); color: var(--text-dim); cursor: pointer; }
-  .hint { padding: 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); }
+  button { flex: 1; padding: 11px 10px; border-radius: 8px; background: var(--surface-raised); border: 1px solid var(--border-default); color: var(--text-secondary); cursor: pointer; }
+  .hint { padding: 14px; border-radius: 12px; background: var(--surface-default); border: 1px solid var(--border-subtle); }
   .hint strong { display: block; margin-bottom: 5px; }
-  p { color: var(--text-dim); font-size: 13px; line-height: 1.4; }
+  p { color: var(--text-secondary); font-size: 13px; line-height: 1.4; }
 </style>

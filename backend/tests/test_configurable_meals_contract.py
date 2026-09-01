@@ -15,9 +15,19 @@ from fastapi import HTTPException
 from app.routes.configurable_meals import _MAX_PHOTO_BYTES, _image_metadata, _sum, _vision_proposal
 from app.schemas import MealCategoryRecipePresetUpdate, MealCategoryReorder, MealEntryItemInput, MealPhotoAnalysisAccept, MealEntryStatusCommand, RecipeCreate, RecipeIngredientInput, RecipeUpdate
 from app.main import app
+from app.services.meal_plan_projections import is_current_plan_projection
 
 
 class ConfigurableMealsContractTests(unittest.TestCase):
+    def test_only_pending_current_plan_entries_are_disposable_projections(self):
+        current_plan = "00000000-0000-0000-0000-000000000001"
+        from uuid import UUID
+        plan_id = UUID(current_plan)
+        self.assertTrue(is_current_plan_projection(source="plan", status="planned", entry_plan_id=plan_id, entry_plan_version=4, active_plan_id=plan_id, active_plan_version=4))
+        self.assertFalse(is_current_plan_projection(source="plan", status="planned", entry_plan_id=plan_id, entry_plan_version=3, active_plan_id=plan_id, active_plan_version=4))
+        self.assertFalse(is_current_plan_projection(source="plan", status="consumed", entry_plan_id=plan_id, entry_plan_version=3, active_plan_id=plan_id, active_plan_version=4))
+        self.assertFalse(is_current_plan_projection(source="manual", status="planned", entry_plan_id=None, entry_plan_version=None, active_plan_id=plan_id, active_plan_version=4))
+
     def test_nutrition_total_is_unknown_when_any_item_is_unknown(self):
         total = _sum([
             {"kcal": Decimal("120"), "protein_g": Decimal("20"), "carbs_g": Decimal("4"), "fat_g": Decimal("2"), "fiber_g": Decimal("1"), "sugar_g": Decimal("2"), "free_sugar_g": Decimal("0")},

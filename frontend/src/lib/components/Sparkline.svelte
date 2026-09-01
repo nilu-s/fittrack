@@ -1,6 +1,6 @@
 <script lang="ts">
   export let data: number[] = [];
-  export let color: string = 'var(--blue)';
+  export let color: string = 'var(--status-info)';
   export let height: number = 32;
   export let width: number = 80;
   export let fill: boolean = false;

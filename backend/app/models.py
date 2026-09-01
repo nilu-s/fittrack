@@ -143,6 +143,21 @@ class Todo(AccountOwned, Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class TodoRoutine(AccountOwned, Base):
+    """An account-private rule that creates one todo on matching calendar days."""
+
+    __tablename__ = "todo_routines"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    weekdays: Mapped[list[int]] = mapped_column(JSONB, nullable=False, default=list)
+    due_time: Mapped[time | None] = mapped_column(Time)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
 # Configurable meal records are immutable at use: nutritional values copied to
 # MealEntry/MealEntryItem remain historical facts.
 class MealCategory(AccountOwned, Base):

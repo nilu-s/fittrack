@@ -19,9 +19,9 @@
 
 <div class="login">
   <div class="login-card">
-    <div class="logo">FitTrack</div>
-    <h1>Willkommen</h1>
-    <p class="sub">Melde dich mit deinem Google-Konto an.</p>
+    <div class="brand-mark">F</div><div class="logo">FitTrack</div>
+    <p class="eyebrow">Privat für deinen Alltag</p><h1>Willkommen zurück</h1>
+    <p class="sub">Melde dich mit deinem freigegebenen Google-Konto an, um deine persönlichen Daten zu öffnen.</p>
     {#if loading}
       <div class="spinner"></div>
     {:else}
@@ -39,13 +39,15 @@
 </div>
 
 <style>
-  .login { display: flex; align-items: center; justify-content: center; min-height: 100vh; min-height: 100dvh; padding: 20px; }
-  .login-card { width: 100%; max-width: 340px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-  .logo { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; color: var(--text); margin-bottom: 20px; }
-  h1 { font-size: 18px; font-weight: 600; }
-  .sub { font-size: 14px; color: var(--text-dim); margin: 0 0 24px; text-align: center; }
-  .g-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 12px 16px; border-radius: 10px; background: #fff; color: #1a1a1a; font-size: 15px; font-weight: 600; border: none; cursor: pointer; transition: opacity 0.15s; }
+  .login { display:flex; align-items:center; justify-content:center; min-height:100vh; min-height:100dvh; padding:20px; }
+  .login-card { width:100%; max-width:360px; display:flex; flex-direction:column; align-items:center; gap:10px; padding:32px 24px; background:var(--surface-default); border:1px solid var(--border-subtle); border-radius:var(--radius-modal); }
+  .brand-mark { display:grid; place-items:center; width:42px; height:42px; border-radius:12px; background:var(--action-primary); color:var(--text-on-accent); font-size:19px; font-weight:750; }
+  .logo { font-size:22px; font-weight:750; letter-spacing:-.035em; color:var(--text-primary); }
+  .eyebrow { color:var(--status-success); font-size:11px; font-weight:750; letter-spacing:.07em; text-transform:uppercase; margin-top:10px; }
+  h1 { font-size:20px; font-weight:700; letter-spacing:-.025em; }
+  .sub { font-size:13px; color:var(--text-secondary); margin:0 0 16px; text-align:center; line-height:1.5; }
+  .g-btn { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; min-height:46px; padding:10px 16px; border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-primary); font-size:14px; font-weight:650; border:1px solid var(--border-default); cursor:pointer; transition:background var(--motion-fast); }
   .g-btn:active { opacity: 0.9; }
-  .spinner { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid var(--card-2); border-top-color: var(--text-dim); animation: spin 0.8s linear infinite; margin-top: 16px; }
+  .spinner { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid var(--surface-raised); border-top-color: var(--text-secondary); animation: spin 0.8s linear infinite; margin-top: 16px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>

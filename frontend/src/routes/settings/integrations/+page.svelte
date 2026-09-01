@@ -18,11 +18,11 @@
   .body { padding: 12px; }
   .connected { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .connected span, .connected strong { display: block; }
-  .connected span { color: var(--text-dim); font-size: 14px; }
-  .connected strong { color: var(--green); font-size: 12px; margin-top: 3px; }
-  button { padding: 8px 12px; border-radius: 8px; background: var(--card-2); border: 1px solid var(--border-2); color: var(--text-dim); cursor: pointer; }
-  .empty { color: var(--text-faint); font-size: 14px; }
-  .hint { padding: 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); }
+  .connected span { color: var(--text-secondary); font-size: 14px; }
+  .connected strong { color: var(--status-success); font-size: 12px; margin-top: 3px; }
+  button { padding: 8px 12px; border-radius: 8px; background: var(--surface-raised); border: 1px solid var(--border-default); color: var(--text-secondary); cursor: pointer; }
+  .empty { color: var(--text-tertiary); font-size: 14px; }
+  .hint { padding: 14px; border-radius: 12px; background: var(--surface-default); border: 1px solid var(--border-subtle); }
   .hint strong { display: block; margin-bottom: 5px; }
-  p { color: var(--text-dim); font-size: 13px; line-height: 1.4; }
+  p { color: var(--text-secondary); font-size: 13px; line-height: 1.4; }
 </style>

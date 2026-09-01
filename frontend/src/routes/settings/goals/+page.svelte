@@ -44,9 +44,9 @@
 <style>
   .page { display: flex; flex-direction: column; gap: 10px; }
   .body { padding: 12px; }
-  .row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-subtle); }
   .row:last-child { border-bottom: none; }
-  .row span { flex: 1; color: var(--text-dim); font-size: 14px; }
-  input { width: 76px; padding: 6px 10px; border-radius: 6px; background: var(--card-2); border: 1px solid var(--border-2); color: var(--text); font-size: 14px; text-align: right; }
-  em { width: 42px; color: var(--text-faint); font-size: 12px; font-style: normal; }
+  .row span { flex: 1; color: var(--text-secondary); font-size: 14px; }
+  input { width: 76px; padding: 6px 10px; border-radius: 6px; background: var(--surface-raised); border: 1px solid var(--border-default); color: var(--text-primary); font-size: 14px; text-align: right; }
+  em { width: 42px; color: var(--text-tertiary); font-size: 12px; font-style: normal; }
 </style>

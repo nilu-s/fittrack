@@ -22,6 +22,9 @@
   let touchStartY = 0;
   let mainEl: HTMLElement;
   $: isMealSettings = $page?.url?.pathname === '/settings/meals';
+  $: isLogin = $page?.url?.pathname === '/login';
+  $: isHome = $page?.url?.pathname === '/';
+  $: backTarget = $page?.url?.pathname?.startsWith('/settings/') ? '/settings' : '/';
 
 
   async function loadDayData(date: string) {
@@ -51,7 +54,9 @@
           kcal: nutrition.kcal, protein_g: nutrition.protein_g, carbs_g: nutrition.carbs_g,
           fat_g: nutrition.fat_g, fiber_g: nutrition.fiber_g, sugar_g: nutrition.sugar_g,
           free_sugar_g: nutrition.free_sugar_g,
-          is_done: entry.status === 'consumed', meal_entry: true,
+          // Both consumed and explicitly skipped meals are closed items.  Only
+          // planned meals belong in the day's open-count and open section.
+          is_done: entry.status !== 'planned', meal_entry: true,
           meal_entry_status: entry.status, category_name: category?.name,
           category_id: entry.category_id, meal_entry_items: entry.items,
           recipe_instructions: recipeId ? recipeById.get(recipeId)?.instructions ?? [] : [],
@@ -114,15 +119,20 @@
 </script>
 
 <div class:wide-shell={isMealSettings} class="shell">
-  <header class="hdr">
-    <a href="/" class="hdr-title">FitTrack</a>
+  {#if !isLogin}<header class="hdr">
+    {#if isHome}
+      <a href="/" class="hdr-title" aria-label="FitTrack Startseite"><span class="brand-mark">F</span><span>FitTrack</span></a>
+    {:else}
+      <a href={backTarget} class="header-back" aria-label="Zurück"><Icon name="chevron-left" size={20} /><span>Zurück</span></a>
+    {/if}
     <div class="hdr-spacer"></div>
     <div class="hdr-actions">
-      <a href="/settings" class="hdr-btn ui-icon-button" aria-label="Einstellungen"><Icon name="settings" size={18} /></a>
+      {#if $isAuthenticated}<a href="/settings/profile" class="account-chip" aria-label="Profil und Konto">{$authEmail?.slice(0, 1).toUpperCase() ?? 'K'}</a>{/if}
+      {#if $isAuthenticated}<a href="/settings" class="header-settings" aria-label="Einstellungen"><Icon name="settings" size={18} /></a>{/if}
       <UiIconButton onclick={handleRefresh} disabled={isRefreshing} ariaLabel="Aktualisieren"><Icon name="refresh" size={18} /></UiIconButton>
       {#if $isAuthenticated}<UiIconButton onclick={handleLogout} ariaLabel="Logout"><Icon name="logout" size={18} /></UiIconButton>{/if}
     </div>
-  </header>
+  </header>{/if}
 
   <main bind:this={mainEl} class="main">
     {#if pullDistance > 0 || isRefreshing}
@@ -136,17 +146,20 @@
 
 <style>
   .shell { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; max-width: 480px; margin: 0 auto; width: 100%; }
-  .hdr { display: flex; align-items: center; padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); gap: 8px; border-bottom: 1px solid var(--border); }
-  .hdr-title { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); text-decoration: none; }
+  .hdr { display: flex; align-items: center; padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); gap: 8px; border-bottom: 1px solid var(--border-subtle); }
+  .hdr-title { display:flex; align-items:center; gap:8px; font-size:17px; font-weight:720; letter-spacing:-.03em; color:var(--text-primary); text-decoration:none; }
+  .brand-mark { display:grid; place-items:center; width:27px; height:27px; border-radius:8px; color:var(--text-on-accent); background:var(--action-primary); font-size:13px; }
+  .header-back { display:flex; align-items:center; gap:3px; min-height:var(--control-min); padding:0 8px 0 3px; border-radius:var(--radius-control); color:var(--text-primary); font-size:14px; font-weight:700; }
+  .header-back:active, .header-back:focus-visible { background:var(--surface-raised); }
   .hdr-spacer { flex: 1; }
   .hdr-actions { display: flex; align-items: center; gap: 2px; }
-  .hdr-btn { color: var(--text-dim); text-decoration: none; cursor: pointer; background: none; border: none; padding: 6px; display: flex; align-items: center; border-radius: 6px; transition: background 0.15s; }
-  .hdr-btn:active { background: var(--card-2); }
-  .hdr-btn:disabled { opacity: 0.4; }
-  .main { flex: 1; padding: 0 12px calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; overscroll-behavior-y: contain; position: relative; }
-  .ptr { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; z-index: 10; transition: opacity 0.15s; pointer-events: none; color: var(--text-dim); }
+  .account-chip { display:grid; place-items:center; width:30px; height:30px; border-radius:50%; color:var(--action-primary); border:1px solid var(--border-accent); background:var(--surface-accent); font-size:12px; font-weight:750; }
+  .header-settings { display:grid; place-items:center; width:var(--control-min); height:var(--control-min); border-radius:var(--radius-control); color:var(--text-secondary); }
+  .header-settings:active, .header-settings:focus-visible { background:var(--surface-raised); color:var(--text-primary); }
+  .main { flex: 1; padding: 0 12px calc(24px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; overscroll-behavior-y: contain; position: relative; }
+  .ptr { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; z-index: 10; transition: opacity 0.15s; pointer-events: none; color: var(--text-secondary); }
   @media (min-width: 481px) {
-    .shell { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+    .shell { border-left: 1px solid var(--border-subtle); border-right: 1px solid var(--border-subtle); }
     .shell.wide-shell { max-width: 1180px; }
   }
 </style>

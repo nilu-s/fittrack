@@ -50,6 +50,7 @@ from app.routes.google_fit import router as google_fit_router
 from app.routes.scale_v2 import browser_router as scale_browser_router, device_router as scale_v2_router, profile_router
 from app.routes.sync import router as sync_router
 from app.routes.todos import router as todos_router
+from app.routes.todo_routines import router as todo_routines_router
 from app.routes.training import router as training_router
 from app.routes.goals import router as goals_router
 from app.routes.configurable_meals import router as configurable_meals_router
@@ -98,6 +99,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(auth_google_router, prefix="/api")
 app.include_router(day_entries_router, prefix="/api")
 app.include_router(todos_router, prefix="/api")
+app.include_router(todo_routines_router, prefix="/api")
 app.include_router(training_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")

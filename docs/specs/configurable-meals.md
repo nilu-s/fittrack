@@ -67,7 +67,11 @@ der Migration lesbar, sind aber nicht das Zielmodell.
    Werte und Gramm auf eine Nachkommastelle, niemals die gespeicherten Werte.
 6. Ein Plan instanziiert pro Konto, lokalem Datum, Planversion und
    Template-Item höchstens einen Eintrag. Der Vorgang ist idempotent und
-   erzeugt nur `planned`-Einträge.
+   erzeugt nur `planned`-Einträge. Nach einer Planänderung oder einem
+   Planwechsel werden offene Plan-Projektionen entfernt, die nicht exakt zur
+   aktiven Planversion gehören. Manuelle, verzehrte und übersprungene Einträge
+   bleiben unverändert; passende Einträge entstehen bei der nächsten
+   Instanziierung erneut.
 7. „Verzehrt“ und „übersprungen“ sind explizite Zustände; ein Toggle
    `is_done` ist kein Zieldatenmodell.
 8. Fotoanalyse kann einen Entwurf liefern, darf aber keinen Eintrag, kein
@@ -136,6 +140,8 @@ werden sie in einer separaten Entfernungsversion gelöscht.
   `meal_entry`-Summen oder -Items.
 - Mehrere Einträge je Kategorie und Tag funktionieren; Planinstanziierung
   bleibt bei Wiederholung idempotent.
+- Eine Planänderung entfernt nur veraltete offene Plan-Projektionen;
+  manuelle, verzehrte und übersprungene Einträge bleiben erhalten.
 - Portionen, Zutaten und Unterrezepte ergeben serverseitig korrekte Summen.
 - Fotoergebnisse werden erst nach Bestätigung sichtbar als Verzehrwert und
   bleiben als versionierte Schätzung nachvollziehbar.

@@ -11,6 +11,7 @@ from sqlalchemy import select
 
 from app.database import async_session
 from app.models import Todo
+from app.services.todo_routines import materialize_routines_for_date
 from app.routes.auth import get_current_user
 from app.schemas import TodoCreate, TodoResponse, TodoUpdate
 
@@ -29,6 +30,9 @@ async def list_todos(
     user: str = Depends(get_current_user),
 ):
     async with async_session() as session:
+        if date is not None:
+            await materialize_routines_for_date(session, user, date)
+            await session.commit()
         stmt = select(Todo).where(Todo.account_id == user, Todo.deleted == False)
         if date is not None:
             stmt = stmt.where(Todo.due_date == date)

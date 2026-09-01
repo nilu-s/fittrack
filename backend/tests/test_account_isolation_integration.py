@@ -14,7 +14,7 @@ from sqlalchemy import delete, select
 
 from app.database import async_session
 from app.main import app
-from app.models import Account, Todo
+from app.models import Account, Todo, TodoRoutine
 from app.routes.auth import SESSION_COOKIE_NAME, _create_session_jwt
 
 
@@ -38,6 +38,7 @@ class BrowserAccountIsolationIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         async with async_session() as session:
+            await session.execute(delete(TodoRoutine).where(TodoRoutine.account_id.in_([self.account_a.id, self.account_b.id])))
             await session.execute(delete(Todo).where(Todo.account_id.in_([self.account_a.id, self.account_b.id])))
             await session.execute(delete(Account).where(Account.id.in_([self.account_a.id, self.account_b.id])))
             await session.commit()
@@ -74,3 +75,19 @@ class BrowserAccountIsolationIntegrationTests(unittest.IsolatedAsyncioTestCase):
         async with async_session() as session:
             owner = await session.scalar(select(Todo.account_id).where(Todo.id == uuid.UUID(todo_id)))
         self.assertEqual(owner, self.account_a.id)
+
+    async def test_browser_cannot_read_update_or_delete_another_accounts_todo_routine(self) -> None:
+        async with self.client_for(self.account_a) as client_a:
+            created = await client_a.post("/api/todo-routines", json={"title": "private A routine", "weekdays": [0, 2]})
+        self.assertEqual(created.status_code, 201, created.text)
+        routine_id = created.json()["id"]
+
+        async with self.client_for(self.account_b) as client_b:
+            listed = await client_b.get("/api/todo-routines")
+            updated = await client_b.put(f"/api/todo-routines/{routine_id}", json={"title": "stolen"})
+            deleted = await client_b.delete(f"/api/todo-routines/{routine_id}")
+
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual(listed.json(), [])
+        self.assertEqual(updated.status_code, 404, updated.text)
+        self.assertEqual(deleted.status_code, 404, deleted.text)

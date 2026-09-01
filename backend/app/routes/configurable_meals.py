@@ -21,6 +21,7 @@ from app.config import settings
 from app.database import async_session
 from app.models import Food, MealCategory, MealCategoryRecipePreset, MealEntry, MealEntryItem, MealPhotoAnalysis, MealPlan, MealPlanItem, MealPlanVersion, Photo, Recipe, RecipeIngredient
 from app.routes.auth import get_current_user
+from app.services.meal_plan_projections import discard_stale_plan_projections
 from app.schemas import (
     FoodCreate, FoodResponse, FoodUpdate, MealCategoryCreate, MealCategoryResponse, MealCategoryRecipePresetUpdate, MealCategoryReorder, MealCategoryUpdate,
     MealEntryCreate, MealEntryItemInput, MealEntryItemResponse, MealEntryResponse, MealEntryUpdate,
@@ -446,6 +447,7 @@ async def create_plan(body: MealPlanCreate, account_id: uuid.UUID = Depends(get_
     async with async_session() as session:
         data = body.model_dump(exclude={"items"}); row = MealPlan(account_id=account_id, **data); session.add(row); await session.flush()
         await _set_active(session, row, account_id); await _replace_plan_items(session, row, body.items, account_id); await session.flush(); await _record_plan_version(session, row, account_id)
+        await discard_stale_plan_projections(session, account_id)
         await session.commit(); await session.refresh(row); return await _plan_response(session, row, account_id)
 
 @router.get("/meal-plans/{plan_id}", response_model=MealPlanResponse)
@@ -460,6 +462,7 @@ async def update_plan(plan_id: uuid.UUID, body: MealPlanUpdate, account_id: uuid
         if body.is_active is True: await _set_active(session, row, account_id)
         if body.items is not None:
             row.version += 1; await _replace_plan_items(session, row, body.items, account_id); await session.flush(); await _record_plan_version(session, row, account_id)
+        await discard_stale_plan_projections(session, account_id)
         await session.commit(); await session.refresh(row); return await _plan_response(session, row, account_id)
 
 @router.delete("/meal-plans/{plan_id}", status_code=204)
@@ -577,6 +580,7 @@ async def update_entry(entry_id: uuid.UUID, body: MealEntryUpdate, account_id: u
         if body.category_id: await _owned(session, MealCategory, body.category_id, account_id)
         for key, value in body.model_dump(exclude_unset=True, exclude={"items", "expected_updated_at"}).items(): setattr(entry, key, value)
         if entry.status == "consumed" and entry.consumed_at is None: entry.consumed_at = datetime.now(timezone.utc)
+        elif entry.status == "planned": entry.consumed_at = None
         if body.items is not None: await _replace_entry_items(session, entry, body.items, account_id)
         await session.commit(); await session.refresh(entry); return await _entry_response(session, entry, account_id)
 

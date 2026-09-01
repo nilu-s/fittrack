@@ -81,6 +81,18 @@ export interface Todo {
   updated_at?: string;
 }
 
+export interface TodoRoutine {
+  id?: string;
+  title: string;
+  /** Monday=0 through Sunday=6. */
+  weekdays: number[];
+  due_time?: string | null;
+  priority: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Exercise {
   id?: string;
   training_type: string;
@@ -476,4 +488,18 @@ export interface DayData {
   trainingSuggestion: TrainingSuggestion | null;
   nextTraining: TrainingSuggestion | null;
   weekStats?: WeekStats | null;
+}
+
+export interface BodyProfile {
+  id?: string;
+  height_cm: number | null;
+  birth_date: string | null;
+  calculation_sex: 'male' | 'female' | null;
+}
+
+export interface ScaleMeasurement {
+  id: string;
+  measured_at: string;
+  weight_kg: number;
+  status: 'assigned';
 }

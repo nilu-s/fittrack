@@ -42,14 +42,14 @@
 </div>
 
 <style>
-  .progression-help { grid-column: 1 / -1; padding: 11px; border: 1px solid rgba(10,132,255,.17); border-radius: 11px; background: rgba(10,132,255,.065); }
-  .help-top { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; color: #8ac3ff; }
+  .progression-help { grid-column: 1 / -1; padding: 11px; border: 1px solid var(--border-info); border-radius: 11px; background: var(--surface-info); }
+  .help-top { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; color: var(--status-info); }
   .help-top strong { font-size: 12px; }
-  .help-icon { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(10,132,255,.2); font-size: 11px; font-weight: 800; }
+  .help-icon { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--surface-info); font-size: 11px; font-weight: 800; }
   .help-flow { display: flex; flex-direction: column; gap: 6px; }
   .help-flow > div { display: grid; grid-template-columns: 20px 1fr; align-items: start; gap: 6px; }
-  .help-flow span { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(255,255,255,.06); color: var(--text-dim); font-size: 9px; font-weight: 750; }
-  p { margin: 0; color: var(--text-dim); font-size: 10px; line-height: 1.45; }
-  .help-use { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.055); color: var(--text-faint); }
-  .help-use strong { color: var(--text-dim); }
+  .help-flow span { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--surface-raised); color: var(--text-secondary); font-size: 9px; font-weight: 750; }
+  p { margin: 0; color: var(--text-secondary); font-size: 10px; line-height: 1.45; }
+  .help-use { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle); color: var(--text-tertiary); }
+  .help-use strong { color: var(--text-secondary); }
 </style>

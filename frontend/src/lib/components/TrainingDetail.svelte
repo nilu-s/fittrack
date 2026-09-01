@@ -77,46 +77,46 @@
 </div>
 
 <style>
-  .td { background: var(--card-2); border: 1px solid var(--border-2); border-radius: var(--radius); margin: 6px 0; padding: 14px; }
+  .td { background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: var(--radius-surface); margin: 6px 0; padding: 14px; }
   .td-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .td-title { font-size: 15px; font-weight: 600; }
-  .td-close { width: 28px; height: 28px; border-radius: 6px; background: var(--card); border: 1px solid var(--border-2); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .td-close:active { background: #26272a; }
-  .td-loading, .td-empty { padding: 20px 0; text-align: center; color: var(--text-faint); font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid var(--card); border-top-color: var(--text-dim); animation: spin 0.8s linear infinite; }
+  .td-close { width: 28px; height: 28px; border-radius: 6px; background: var(--surface-default); border: 1px solid var(--border-default); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .td-close:active { background: var(--surface-pressed); }
+  .td-loading, .td-empty { padding: 20px 0; text-align: center; color: var(--text-tertiary); font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid var(--surface-default); border-top-color: var(--text-secondary); animation: spin 0.8s linear infinite; }
   .carousel { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .car-btn { width: 32px; height: 32px; border-radius: 6px; background: var(--card); border: 1px solid var(--border-2); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .car-btn:active { background: #26272a; }
+  .car-btn { width: 32px; height: 32px; border-radius: 6px; background: var(--surface-default); border: 1px solid var(--border-default); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .car-btn:active { background: var(--surface-pressed); }
   .car-mid { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .car-count { font-size: 13px; color: var(--text-dim); }
+  .car-count { font-size: 13px; color: var(--text-secondary); }
   .car-dots { display: flex; gap: 4px; }
-  .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--border-2); }
-  .dot.active { background: var(--text); width: 14px; border-radius: 2px; }
-  .ex-card, .cardio-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-  .cardio-card p { color: var(--text-dim); margin: 8px 0 12px; }
-  .cardio-card label { display: block; color: var(--text-dim); font-size: 12px; margin-bottom: 5px; }
-  .cardio-card input { box-sizing: border-box; width: 100%; padding: 10px; background: var(--card-2); color: var(--text); border: 1px solid var(--border-2); border-radius: 6px; font-size: 16px; }
+  .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--border-default); }
+  .dot.active { background: var(--text-primary); width: 14px; border-radius: 2px; }
+  .ex-card, .cardio-card { background: var(--color-bg); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .cardio-card p { color: var(--text-secondary); margin: 8px 0 12px; }
+  .cardio-card label { display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 5px; }
+  .cardio-card input { box-sizing: border-box; width: 100%; padding: 10px; background: var(--surface-raised); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: 6px; font-size: 16px; }
   .ex-name { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
   .ex-targets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-  .tchip { display: flex; flex-direction: column; align-items: center; padding: 4px 8px; border-radius: 6px; background: var(--card-2); min-width: 48px; }
-  .tchip-l { font-size: 10px; color: var(--text-faint); text-transform: uppercase; }
+  .tchip { display: flex; flex-direction: column; align-items: center; padding: 4px 8px; border-radius: 6px; background: var(--surface-raised); min-width: 48px; }
+  .tchip-l { font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; }
   .tchip-v { font-size: 14px; font-weight: 600; }
-  .progress-hint { margin: -5px 0 10px; color: var(--text-faint); font-size: 11px; }
+  .progress-hint { margin: -5px 0 10px; color: var(--text-tertiary); font-size: 11px; }
   .set-hdr, .set-row { display: grid; grid-template-columns: 24px 42px 1fr 1fr 1fr 28px; gap: 6px; align-items: center; }
-  .set-hdr { margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid var(--border); font-size: 10px; color: var(--text-faint); font-weight: 600; text-transform: uppercase; }
+  .set-hdr { margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid var(--border-subtle); font-size: 10px; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; }
   .set-row { margin-bottom: 6px; }
-  .set-n { text-align: center; font-size: 13px; color: var(--text-dim); }
-  .set-row input, .set-row select { min-width: 0; width: 100%; padding: 8px 4px; border-radius: 6px; background: var(--card-2); border: 1px solid var(--border-2); color: var(--text); font-size: 14px; text-align: center; font-weight: 500; }
-  .set-row input:focus, .set-row select:focus { border-color: var(--blue); }
-  .set-remove { height: 32px; border: 0; border-radius: 6px; background: transparent; color: var(--red); cursor: pointer; font-size: 18px; }
-  .set-remove:disabled { color: var(--text-faint); cursor: not-allowed; }
-  .set-add { margin-top: 3px; border: 1px dashed var(--border-2); background: transparent; color: var(--text-dim); border-radius: 6px; padding: 7px; width: 100%; cursor: pointer; font-size: 12px; }
-  .rest-timer { display: flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--text-dim); font-size: 12px; }
+  .set-n { text-align: center; font-size: 13px; color: var(--text-secondary); }
+  .set-row input, .set-row select { min-width: 0; width: 100%; padding: 8px 4px; border-radius: 6px; background: var(--surface-raised); border: 1px solid var(--border-default); color: var(--text-primary); font-size: 14px; text-align: center; font-weight: 500; }
+  .set-row input:focus, .set-row select:focus { border-color: var(--status-info); }
+  .set-remove { height: 32px; border: 0; border-radius: 6px; background: transparent; color: var(--status-danger); cursor: pointer; font-size: 18px; }
+  .set-remove:disabled { color: var(--text-tertiary); cursor: not-allowed; }
+  .set-add { margin-top: 3px; border: 1px dashed var(--border-default); background: transparent; color: var(--text-secondary); border-radius: 6px; padding: 7px; width: 100%; cursor: pointer; font-size: 12px; }
+  .rest-timer { display: flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--text-secondary); font-size: 12px; }
   .rest-timer span { margin-right: auto; font-variant-numeric: tabular-nums; }
-  .rest-timer button { border: 1px solid var(--border-2); border-radius: 5px; background: var(--card-2); color: var(--text-dim); padding: 5px 7px; cursor: pointer; }
-  .top-hint { margin-top: 4px; font-size: 11px; color: var(--amber); }
-  .td-error { color: var(--red); text-align: center; margin-bottom: 8px; font-size: 14px; }
-  .td-complete { width: 100%; padding: 10px 14px; border-radius: 8px; background: var(--green); color: #000; border: none; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.15s; }
+  .rest-timer button { border: 1px solid var(--border-default); border-radius: 5px; background: var(--surface-raised); color: var(--text-secondary); padding: 5px 7px; cursor: pointer; }
+  .top-hint { margin-top: 4px; font-size: 11px; color: var(--status-warning); }
+  .td-error { color: var(--status-danger); text-align: center; margin-bottom: 8px; font-size: 14px; }
+  .td-complete { width: 100%; padding: 10px 14px; border-radius: 8px; background: var(--action-primary); color: var(--text-on-accent); border: none; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.15s; }
   .td-complete:active { opacity: 0.8; }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
