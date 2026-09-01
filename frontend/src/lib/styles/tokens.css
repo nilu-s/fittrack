@@ -15,10 +15,10 @@
   --status-success: #1d7047;
   --status-info: #285f8d;
   --status-warning: #9d5c12;
-  --status-accent: #624a91;
+  --status-accent: #74657e;
   --status-highlight: #9a4055;
   --status-danger: #983832;
-  --action-primary: #5e478e;
+  --action-primary: #4a6758;
   --text-on-accent: #fff;
   --surface-accent: color-mix(in srgb, var(--action-primary) 12%, var(--surface-raised));
   --border-accent: color-mix(in srgb, var(--action-primary) 46%, var(--border-default));
@@ -32,6 +32,10 @@
   --data-sleep-rem: #72518c;
   --data-sleep-light: #5783a2;
   --data-sleep-awake: #747a72;
+  --data-nutrition-energy: #956422;
+  --data-nutrition-protein: #326d69;
+  --data-nutrition-carbs: #74657e;
+  --data-nutrition-fat: #8c5a4e;
 
   --space-1: 6px;
   --space-2: 10px;

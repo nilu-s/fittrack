@@ -29,8 +29,8 @@
   $: if (date) load();
 
   const nutrientLabels: Array<[keyof NonNullable<MealEntry['nutrition']>, string, string]> = [
-    ['kcal', 'kcal', 'var(--status-warning)'], ['protein_g', 'Protein', 'var(--status-info)'],
-    ['carbs_g', 'KH', 'var(--status-accent)'], ['fat_g', 'Fett', 'var(--status-highlight)'],
+    ['kcal', 'kcal', 'var(--data-nutrition-energy)'], ['protein_g', 'Protein', 'var(--data-nutrition-protein)'],
+    ['carbs_g', 'KH', 'var(--data-nutrition-carbs)'], ['fat_g', 'Fett', 'var(--data-nutrition-fat)'],
   ];
 
   function sumNutrition(values: MealEntry['nutrition'][]): Record<string, number | null> {

@@ -85,6 +85,9 @@
   let metricTrendError = '';
   let metricTrendTrigger: HTMLElement | null = null;
   let metricTrendCloseButton: HTMLButtonElement | null = null;
+  let nutritionDetailsOpen = false;
+  let nutritionDetailsTrigger: HTMLElement | null = null;
+  let nutritionDetailsCloseButton: HTMLButtonElement | null = null;
 
   /** Only one task detail may be open in the daily list at a time. */
   function closeOpenTodoDetails() {
@@ -92,6 +95,7 @@
     editingTodo = null;
     detailItem = null;
     mealEntryEditorItem = null;
+    nutritionDetailsOpen = false;
   }
 
   function openMealEntryEditor(item: UnifiedItem, openCamera = false) {
@@ -248,6 +252,21 @@
     setTimeout(() => trigger?.focus(), 0);
   }
 
+  async function openNutritionDetails(trigger: HTMLElement) {
+    closeOpenTodoDetails();
+    nutritionDetailsTrigger = trigger;
+    nutritionDetailsOpen = true;
+    await tick();
+    nutritionDetailsCloseButton?.focus();
+  }
+
+  function closeNutritionDetails() {
+    nutritionDetailsOpen = false;
+    const trigger = nutritionDetailsTrigger;
+    nutritionDetailsTrigger = null;
+    setTimeout(() => trigger?.focus(), 0);
+  }
+
   function metricChart(points: TrendPoint[]) {
     if (!points.length) return null;
     const values = points.map((point) => Number(point.value));
@@ -280,6 +299,11 @@
   $: biometricItems = unifiedItems.filter((i) => i.biometric && i.id !== 'metric-weight');
   $: manualItems = unifiedItems.filter((i) => !i.biometric);
   $: openCount = manualItems.filter((i) => !i.done).length;
+  $: consumedMeals = meals.filter((meal) => meal.meal_entry_status === 'consumed');
+  $: nutritionTotals = consumedMeals.reduce((totals, meal) => ({
+    kcal: totals.kcal + (Number(meal.kcal) || 0), protein: totals.protein + (Number(meal.protein_g) || 0),
+    carbs: totals.carbs + (Number(meal.carbs_g) || 0), fat: totals.fat + (Number(meal.fat_g) || 0),
+  }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
 
   // Local date string (avoids UTC offset bug)
   function localDateStr(d: Date): string {
@@ -418,7 +442,7 @@
               {#if reached}
               <span class="bio-goal-reached">✓</span>
               {/if}
-              <button class="bio-trend-button" type="button" onpointerdown={(event) => event.stopPropagation()} onclick={(event) => { event.stopPropagation(); openMetricTrend(item, event.currentTarget); }} aria-label="Schritte-Verlauf anzeigen">Verlauf</button>
+              <button class="bio-trend-button" type="button" onpointerdown={(event) => event.stopPropagation()} onclick={(event) => { event.stopPropagation(); openMetricTrend(item, event.currentTarget); }} aria-label="Schritte-Verlauf anzeigen"><Icon name="chart" size={16} /></button>
             </div>
           </div>
           <div class="bio-value-lg">
@@ -443,7 +467,7 @@
           oncontextmenu={(event) => handleContextMenu(item, event)}>
           <div class="bio-hdr">
             <span class="bio-title"><Icon name={item.icon} size={14} /> {item.title}</span>
-            <button class="bio-trend-button" type="button" onpointerdown={(event) => event.stopPropagation()} onclick={(event) => { event.stopPropagation(); openMetricTrend(item, event.currentTarget); }} aria-label="Schlafverlauf anzeigen">Verlauf</button>
+            <button class="bio-trend-button" type="button" onpointerdown={(event) => event.stopPropagation()} onclick={(event) => { event.stopPropagation(); openMetricTrend(item, event.currentTarget); }} aria-label="Schlafverlauf anzeigen"><Icon name="chart" size={16} /></button>
           </div>
           <div class="sleep-donut-row">
             <svg class="sleep-donut" viewBox="0 0 100 100">
@@ -479,9 +503,10 @@
   </div>
 {/if}
 
-<!-- Weight section — direkt über der To-Do-Liste -->
+<!-- Tageswerte: Gewicht und Ernährung -->
+<div class="feature-card-row">
 {#if weightItem}
-  <div class="weight-section">
+  <section class="weight-section">
     <div class="bio-hdr">
       <span class="bio-title"><Icon name={weightItem.icon} size={14} /> {weightItem.title}</span>
       <div class="bio-hdr-right">
@@ -553,8 +578,22 @@
         </div>
       {/if}
     {/if}
-  </div>
+  </section>
 {/if}
+  <section class="nutrition-section" aria-labelledby="nutrition-title">
+    <div class="bio-hdr">
+      <span class="bio-title" id="nutrition-title"><Icon name="meal" size={14} /> Ernährung</span>
+      <button class="bio-trend-button" type="button" onclick={(event) => openNutritionDetails(event.currentTarget)} aria-label="Nährwertdetails anzeigen"><Icon name="chart" size={16} /></button>
+    </div>
+    <div class="nutrition-kcal"><span>{Math.round(nutritionTotals.kcal).toLocaleString('de-DE')}</span><small>kcal{goals.kcal ? ` / ${Number(goals.kcal).toLocaleString('de-DE')}` : ''}</small></div>
+    <div class="nutrition-macros" aria-label="Verzehrte Makronährstoffe">
+      <span><b>{Math.round(nutritionTotals.protein)} g</b> Protein</span>
+      <span><b>{Math.round(nutritionTotals.carbs)} g</b> KH</span>
+      <span><b>{Math.round(nutritionTotals.fat)} g</b> Fett</span>
+    </div>
+    <p class="nutrition-status">{consumedMeals.length ? `${consumedMeals.length} Mahlzeit${consumedMeals.length === 1 ? '' : 'en'} verzehrt` : 'Noch nichts verzehrt'}</p>
+  </section>
+</div>
 
 <!-- Day list -->
 <div class="daylist">
@@ -580,8 +619,8 @@
       <div class="item-body">
         <span class="item-title" class:strike={item.done}>{item.title}</span>
         <div class="item-badges">
-          {#if item.type === 'meal' && item.kcal}<PillBadge value={Math.round(item.kcal)} unit="kcal" color="var(--status-warning)" />{/if}
-          {#if item.type === 'meal' && item.protein}<PillBadge value={Math.round(item.protein)} unit="g P" color="var(--status-info)" />{/if}
+          {#if item.type === 'meal' && item.kcal}<PillBadge value={Math.round(item.kcal)} unit="kcal" color="var(--data-nutrition-energy)" />{/if}
+          {#if item.type === 'meal' && item.protein}<PillBadge value={Math.round(item.protein)} unit="g P" color="var(--data-nutrition-protein)" />{/if}
           {#if item.mealTime}<span class="item-time">{item.mealTime}</span>{/if}
           {#if item.type === 'meal'}<span class="recipe-marker" title="Lange drücken für Rezeptdetails">Rezeptdetails</span>{/if}
         </div>
@@ -611,20 +650,44 @@
 
 <MealEntryEditorSheet meal={mealEntryEditorItem ? getMealFromItem(mealEntryEditorItem) ?? null : null} open={Boolean(mealEntryEditorItem)} autoOpenCamera={mealEntryEditorCamera} on:close={closeMealEntryEditor} on:saved={(event) => { applyMealEntryUpdate(event.detail.entry); closeMealEntryEditor(); }} />
 
+{#if nutritionDetailsOpen}
+  <dialog class="modal-overlay trend-overlay" open aria-labelledby="nutrition-detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeNutritionDetails(); }} oncancel={(event) => { event.preventDefault(); closeNutritionDetails(); }}>
+    <section class="modal-card trend-detail ui-dialog">
+      <header class="detail-header ui-dialog__header"><div><p class="detail-kind ui-dialog__eyebrow">Tagesübersicht</p><h2 id="nutrition-detail-title">Nährwerte & Kalorien</h2></div><button bind:this={nutritionDetailsCloseButton} class="detail-close ui-dialog__close" type="button" aria-label="Nährwertdetails schließen" onclick={closeNutritionDetails}>×</button></header>
+      <div class="nutrition-detail-grid ui-dialog__section">
+        <span><b>{Math.round(nutritionTotals.kcal).toLocaleString('de-DE')}</b> kcal</span>
+        <span><b>{Math.round(nutritionTotals.protein)} g</b> Protein</span>
+        <span><b>{Math.round(nutritionTotals.carbs)} g</b> Kohlenhydrate</span>
+        <span><b>{Math.round(nutritionTotals.fat)} g</b> Fett</span>
+      </div>
+      {#if consumedMeals.length}
+        <section class="nutrition-meal-list ui-dialog__section" aria-labelledby="consumed-meals-title">
+          <strong id="consumed-meals-title">Verzehrte Mahlzeiten</strong>
+          {#each consumedMeals as meal (meal.id ?? meal.meal_slot)}
+            <div><span>{meal.name ?? meal.category_name ?? 'Mahlzeit'}</span><b>{Math.round(Number(meal.kcal) || 0)} kcal</b></div>
+          {/each}
+        </section>
+      {:else}
+        <p class="detail-empty">Noch keine verzehrte Mahlzeit für diesen Tag.</p>
+      {/if}
+    </section>
+  </dialog>
+{/if}
+
 {#if metricTrendItem}
   {@const chart = metricChart(metricTrend)}
   <dialog class="modal-overlay trend-overlay" open aria-labelledby="metric-trend-title" onclick={(event) => { if (event.target === event.currentTarget) closeMetricTrend(); }} oncancel={(event) => { event.preventDefault(); closeMetricTrend(); }}>
-    <section class="modal-card trend-detail">
-      <header class="detail-header">
-        <div><p class="detail-kind">Verlauf · letzte 365 Tage</p><h2 id="metric-trend-title">{metricTrendItem.title}</h2></div>
-        <button bind:this={metricTrendCloseButton} class="detail-close" type="button" aria-label="Verlauf schließen" onclick={closeMetricTrend}>×</button>
+    <section class="modal-card trend-detail ui-dialog">
+      <header class="detail-header ui-dialog__header">
+        <div><p class="detail-kind ui-dialog__eyebrow">Verlauf · letzte 365 Tage</p><h2 id="metric-trend-title">{metricTrendItem.title}</h2></div>
+        <button bind:this={metricTrendCloseButton} class="detail-close ui-dialog__close" type="button" aria-label="Verlauf schließen" onclick={closeMetricTrend}>×</button>
       </header>
       {#if metricTrendLoading}
         <p class="detail-meta">Verlauf wird geladen …</p>
       {:else if metricTrendError}
         <p class="detail-meta">{metricTrendError}</p>
       {:else if chart}
-        <div class="trend-summary" aria-label={`Zusammenfassung für ${metricTrendItem.title}`}>
+        <div class="trend-summary ui-dialog__section" aria-label={`Zusammenfassung für ${metricTrendItem.title}`}>
           <span><b>{formatTrendValue(chart.average, metricTrendItem)}</b> Ø</span>
           <span><b>{formatTrendValue(chart.min, metricTrendItem)}</b> min.</span>
           <span><b>{formatTrendValue(chart.max, metricTrendItem)}</b> max.</span>
@@ -646,22 +709,25 @@
 
 {#if detailItem}
   <dialog class="modal-overlay compact-overlay" open aria-labelledby="detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeItemDetails(); }} oncancel={(event) => { event.preventDefault(); closeItemDetails(); }}>
-    <div class="modal-card compact-detail">
-      <header class="detail-header"><div><p class="detail-kind">{detailItem.type === 'meal' ? 'Mahlzeit' : detailItem.type === 'training' ? 'Training' : detailItem.type === 'todo' ? 'To-do' : 'Tageswert'}</p><h2 id="detail-title">{detailItem.title}</h2></div><button class="detail-close" type="button" aria-label="Details schließen" onclick={closeItemDetails}>×</button></header>
+    <div class="modal-card compact-detail ui-dialog">
+      <header class="detail-header ui-dialog__header"><div><p class="detail-kind ui-dialog__eyebrow">{detailItem.type === 'meal' ? 'Mahlzeit' : detailItem.type === 'training' ? 'Training' : detailItem.type === 'todo' ? 'To-do' : 'Tageswert'}</p><h2 id="detail-title">{detailItem.title}</h2></div><button class="detail-close ui-dialog__close" type="button" aria-label="Details schließen" onclick={closeItemDetails}>×</button></header>
       {#if detailItem.type === 'meal'}
         {@const detailMeal = getMealFromItem(detailItem)}
         <div class="modal-pills">
-          {#if detailMeal?.kcal != null}<PillBadge value={Math.round(Number(detailMeal.kcal))} unit="kcal" color="var(--status-warning)" />{/if}
-          {#if detailMeal?.protein_g != null}<PillBadge value={Math.round(Number(detailMeal.protein_g))} unit="g Protein" color="var(--status-info)" />{/if}
-          {#if detailMeal?.carbs_g != null}<PillBadge value={Math.round(Number(detailMeal.carbs_g))} unit="g KH" color="var(--status-accent)" />{/if}
-          {#if detailMeal?.fat_g != null}<PillBadge value={Math.round(Number(detailMeal.fat_g))} unit="g Fett" color="var(--status-highlight)" />{/if}
+          {#if detailMeal?.kcal != null}<PillBadge value={Math.round(Number(detailMeal.kcal))} unit="kcal" color="var(--data-nutrition-energy)" />{/if}
+          {#if detailMeal?.protein_g != null}<PillBadge value={Math.round(Number(detailMeal.protein_g))} unit="g Protein" color="var(--data-nutrition-protein)" />{/if}
+          {#if detailMeal?.carbs_g != null}<PillBadge value={Math.round(Number(detailMeal.carbs_g))} unit="g KH" color="var(--data-nutrition-carbs)" />{/if}
+          {#if detailMeal?.fat_g != null}<PillBadge value={Math.round(Number(detailMeal.fat_g))} unit="g Fett" color="var(--data-nutrition-fat)" />{/if}
         </div>
         {#if detailMeal?.recipe_instructions?.length}
-          <div class="detail-section"><strong>Kochanleitung</strong><ol>{#each detailMeal.recipe_instructions as step}<li>{step}</li>{/each}</ol></div>
+          <div class="detail-section ui-dialog__section"><strong>Kochanleitung</strong><ol>{#each detailMeal.recipe_instructions as step}<li>{step}</li>{/each}</ol></div>
         {:else}<p class="detail-empty">Für diese Mahlzeit ist noch keine Kochanleitung hinterlegt.</p>{/if}
       {:else if detailItem.type === 'todo'}
-        {#if detailItem.todoData?.category}<p class="detail-meta">Kategorie: {detailItem.todoData.category}</p>{/if}
-        {#if detailItem.todoData?.due_time}<p class="detail-meta">Fällig um {detailItem.todoData.due_time}</p>{/if}
+        <div class="detail-section ui-dialog__section">
+          {#if detailItem.todoData?.category}<p class="detail-meta">Kategorie: {detailItem.todoData.category}</p>{/if}
+          {#if detailItem.todoData?.due_time}<p class="detail-meta">Fällig um {detailItem.todoData.due_time}</p>{/if}
+          {#if !detailItem.todoData?.category && !detailItem.todoData?.due_time}<p class="detail-meta">Keine zusätzlichen Angaben.</p>{/if}
+        </div>
         <button class="modal-secondary" onclick={() => { actionSheetItem = detailItem; closeItemDetails(); }}>Bearbeiten</button>
       {:else if detailItem.type === 'training'}
         <TrainingDetail training_type={trainingSuggestion?.training_type ?? entry?.training_type ?? 'Training'} date={currentDate} oncomplete={handleTrainingComplete} onclose={closeItemDetails} showClose={false} />
@@ -674,9 +740,8 @@
 
 {#if actionSheetItem}
   <dialog class="action-overlay" open aria-label="To-do-Aktionen" onclick={(event) => { if (event.target === event.currentTarget) actionSheetItem = null; }} oncancel={(event) => { event.preventDefault(); actionSheetItem = null; }}>
-    <div class="action-sheet">
-      <div class="action-handle"></div>
-      <div class="action-title">{actionSheetItem.title}</div>
+    <div class="action-sheet ui-dialog">
+      <header class="action-header ui-dialog__header"><div><p class="ui-dialog__eyebrow">To-do</p><h2>{actionSheetItem.title}</h2></div><button class="detail-close ui-dialog__close" type="button" aria-label="Aktionen schließen" onclick={() => (actionSheetItem = null)}>×</button></header>
       <button class="action-btn" onclick={startEdit}>
         <Icon name="edit" size={18} />
         <span>Bearbeiten</span>
@@ -692,8 +757,8 @@
 
 {#if editingTodo}
   <dialog class="modal-overlay" open aria-label="To-do bearbeiten" onclick={(event) => { if (event.target === event.currentTarget) cancelEdit(); }} oncancel={(event) => { event.preventDefault(); cancelEdit(); }}>
-    <div class="modal-card edit-card">
-      <div class="modal-title">To-Do bearbeiten</div>
+    <div class="modal-card edit-card ui-dialog">
+      <header class="ui-dialog__header"><div><p class="ui-dialog__eyebrow">To-do</p><h2>To-do bearbeiten</h2></div><button class="detail-close ui-dialog__close" type="button" aria-label="Bearbeiten schließen" onclick={cancelEdit}>×</button></header>
       <input class="edit-input" placeholder="Titel" bind:value={editTitle} />
       <div class="edit-row">
         <input class="edit-input" placeholder="Kategorie" bind:value={editCategory} />
@@ -707,7 +772,7 @@
         <input class="edit-input" type="date" bind:value={editDueDate} />
         <input class="edit-input" type="time" bind:value={editDueTime} />
       </div>
-      <div class="modal-actions">
+      <div class="modal-actions ui-dialog__actions">
         <button class="modal-primary" onclick={saveEdit}>Speichern</button>
         <button class="modal-secondary" onclick={cancelEdit}>Abbrechen</button>
       </div>
@@ -761,12 +826,15 @@
   .bio-source-badge { font-size: 9px; color: var(--status-success); font-weight: 600; background: color-mix(in srgb, var(--status-success) 15%, transparent); padding: 1px 5px; border-radius: 4px; }
   .bio-source-manual { font-size: 9px; color: var(--text-tertiary); font-weight: 500; }
   .bio-hdr-right { display: flex; align-items: center; gap: 4px; }
-  .bio-trend-button { min-height:28px; padding:3px 7px; border:1px solid var(--border-default); border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-secondary); font:inherit; font-size:11px; cursor:pointer; }
+  .bio-trend-button { display:grid; place-items:center; width:var(--control-min); min-height:var(--control-min); padding:0; border:1px solid var(--border-default); border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-secondary); cursor:pointer; }
   .bio-trend-button:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; }
   .bio-trend-button:active { background:var(--surface-pressed); }
 
-  /* Weight section — direkt über der To-Do-Liste */
-  .weight-section { display: flex; flex-direction: column; gap: 6px; padding: 14px; background: var(--surface-accent); border: 1px solid var(--border-accent); border-radius:var(--radius-surface); margin-bottom:4px; }
+  /* Tageswerte */
+  .feature-card-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:4px; }
+  .weight-section,.nutrition-section { display:flex; flex-direction:column; gap:6px; min-width:0; padding:14px; border-radius:var(--radius-surface); }
+  .weight-section { background:var(--surface-accent); border:1px solid var(--border-accent); }
+  .nutrition-section { background:var(--surface-default); border:1px solid var(--border-subtle); }
   .weight-value-row { display: flex; align-items: baseline; gap: 6px; }
   .weight-value-btn { background: none; border: none; cursor: pointer; font-size: 22px; font-weight: 700; color: var(--text-primary); padding: 0; display: flex; align-items: baseline; gap: 4px; }
   .weight-value-btn:active { opacity: 0.7; }
@@ -787,6 +855,13 @@
   .weight-range-tabs { display: flex; gap: 2px; }
   .weight-range-tabs button { font-size: 10px; font-weight: 600; padding: 2px 6px; border: 1px solid var(--border-default); border-radius: 4px; background: transparent; color: var(--text-tertiary); cursor: pointer; line-height: 1.4; }
   .weight-range-tabs button.active { background: var(--status-info); color: var(--color-bg); border-color: var(--status-info); }
+
+  .nutrition-kcal { display:flex; align-items:baseline; gap:4px; min-height:29px; }
+  .nutrition-kcal span { font-size:22px; font-weight:700; color:var(--text-primary); line-height:1.2; }
+  .nutrition-kcal small,.nutrition-status { margin:0; color:var(--text-tertiary); font-size:11px; line-height:1.4; }
+  .nutrition-macros { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; padding-top:6px; border-top:1px solid var(--border-subtle); }
+  .nutrition-macros span { display:grid; gap:1px; min-width:0; color:var(--text-tertiary); font-size:9px; line-height:1.25; }
+  .nutrition-macros b { color:var(--text-primary); font-size:11px; white-space:nowrap; }
 
   /* Sleep donut */
   .sleep-donut-row { display: flex; align-items: center; gap: 12px; }
@@ -809,14 +884,13 @@
 
   .action-overlay { position: fixed; inset: 0; background: var(--overlay-backdrop); z-index: 1000; display: flex; align-items: flex-end; justify-content: center; animation: fadeIn 0.15s; }
   .modal-overlay, .action-overlay { margin: 0; max-width: none; max-height: none; width: auto; height: auto; border: 0; padding: 0; }
-  .action-sheet { background: var(--surface-default); border-radius: 16px 16px 0 0; width: 100%; max-width: 420px; padding: 8px 0 20px; box-shadow: var(--shadow-modal); animation: slideUp 0.2s; }
-  .action-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border-default); margin: 8px auto 12px; }
-  .action-title { text-align: center; font-size: 14px; font-weight: 600; color: var(--text-secondary); padding: 0 16px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .action-btn { display: flex; align-items: center; gap: 12px; width: calc(100% - 16px); margin: 0 8px; padding: 14px 16px; border: none; border-radius: 10px; background: var(--surface-raised); color: var(--text-primary); font-size: 15px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
-  .action-btn:active { background: var(--color-bg); }
+  .action-sheet { background: var(--surface-default); border:1px solid var(--border-default); border-radius:var(--radius-modal) var(--radius-modal) 0 0; width:100%; max-width:420px; box-shadow:var(--shadow-modal); animation:slideUp var(--motion-standard); }
+  .action-header h2 { max-width:290px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .action-btn { display:flex; align-items:center; gap:12px; width:100%; min-height:var(--control-min); padding:12px; border:1px solid var(--border-default); border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-primary); font-size:14px; font-weight:600; cursor:pointer; transition:background var(--motion-fast); }
+  .action-btn:active { background:var(--surface-pressed); }
   .action-del { color: var(--status-danger); }
-  .action-cancel { display: block; width: calc(100% - 16px); margin: 12px 8px 0; padding: 14px 16px; border: none; border-radius: 10px; background: var(--surface-raised); color: var(--text-secondary); font-size: 15px; font-weight: 500; cursor: pointer; }
-  .action-cancel:active { background: var(--color-bg); }
+  .action-cancel { width:100%; min-height:var(--control-min); padding:8px 12px; border:1px solid var(--border-default); border-radius:var(--radius-control); background:transparent; color:var(--text-secondary); font-size:14px; font-weight:600; cursor:pointer; }
+  .action-cancel:active { background:var(--surface-pressed); }
 
   .edit-card { display: flex; flex-direction: column; gap: 10px; }
   .edit-input { flex: 1; padding: 8px 10px; border-radius: 8px; background: var(--color-bg); border: 1px solid var(--border-default); color: var(--text-primary); font-size: 14px; }
@@ -827,7 +901,7 @@
   .modal-primary { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--action-primary); color: var(--text-on-accent); border: none; font-weight: 600; cursor: pointer; font-size: 14px; }
   .modal-secondary { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--surface-raised); color: var(--text-secondary); border: 1px solid var(--border-default); font-weight: 500; cursor: pointer; font-size: 14px; }
   .compact-overlay { align-items:center; justify-content:center; padding:16px; }
-  .compact-detail { width:min(100%, 420px); max-height:min(58dvh, 520px); overflow:auto; display:flex; flex-direction:column; gap:14px; padding:16px; border-radius:16px; }
+  .compact-detail { width:min(100%, 420px); max-height:min(58dvh, 520px); overflow:auto; border-radius:var(--radius-modal); }
   .detail-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
   .detail-header h2,.detail-header p { margin:0; }
   .detail-header h2 { font-size:17px; line-height:1.3; }
@@ -836,12 +910,19 @@
   .detail-section { display:grid; gap:8px; color:var(--text-primary); font-size:14px; line-height:1.45; }
   .detail-section ol { display:grid; gap:7px; margin:0; padding-left:22px; color:var(--text-secondary); }
   .trend-overlay { align-items:center; justify-content:center; padding:16px; }
-  .trend-detail { width:min(100%, 560px); max-height:min(76dvh, 620px); overflow:auto; display:flex; flex-direction:column; gap:16px; padding:18px; border-radius:16px; }
-  .trend-summary { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+  .trend-detail { width:min(100%, 560px); max-height:min(76dvh, 620px); overflow:auto; border-radius:var(--radius-modal); }
+  .trend-summary { grid-template-columns:repeat(3, 1fr); gap:8px; }
   .trend-summary span { display:grid; gap:2px; padding:9px; border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-tertiary); font-size:11px; }
   .trend-summary b { color:var(--text-primary); font-size:13px; }
   .metric-trend-chart { width:100%; height:auto; min-height:160px; overflow:visible; }
   .trend-axis { display:flex; justify-content:space-between; gap:12px; color:var(--text-tertiary); font-size:11px; }
+  .nutrition-detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .nutrition-detail-grid span { display:grid; gap:2px; color:var(--text-tertiary); font-size:12px; }
+  .nutrition-detail-grid b { color:var(--text-primary); font-size:15px; }
+  .nutrition-meal-list > div { display:flex; justify-content:space-between; gap:var(--space-3); color:var(--text-secondary); font-size:13px; }
+  .nutrition-meal-list > div + div { padding-top:var(--space-2); border-top:1px solid var(--border-subtle); }
+  .nutrition-meal-list b { color:var(--text-primary); white-space:nowrap; }
+  @media(max-width:420px) { .feature-card-row { grid-template-columns:1fr; } }
   @media (min-width: 700px) { .trend-overlay { padding:24px; } }
   @media (min-width: 700px) { .compact-overlay { padding:24px; } .compact-detail { max-width:360px; } }
 

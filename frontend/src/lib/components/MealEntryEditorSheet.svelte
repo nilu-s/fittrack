@@ -121,11 +121,11 @@
   }
 </script>
 
-<dialog bind:this={dialog} class="meal-editor" aria-labelledby="meal-editor-title" onclose={handleClose}>
+<dialog bind:this={dialog} class="meal-editor ui-dialog" aria-labelledby="meal-editor-title" onclose={handleClose}>
   {#if meal}
-    <header>
+    <header class="ui-dialog__header">
       <div><p>{meal.category_name ?? 'Mahlzeit'} · {meal.meal_entry_status === 'consumed' ? 'verzehrt' : 'geplant'}</p><h2 id="meal-editor-title">Mahlzeit anpassen</h2></div>
-      <button class="close" type="button" onclick={close} aria-label="Mahlzeit anpassen schließen"><Icon name="x" size={20} /></button>
+      <button class="close ui-dialog__close" type="button" onclick={close} aria-label="Mahlzeit anpassen schließen"><Icon name="x" size={20} /></button>
     </header>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
     {#if loading}<p class="muted" role="status">Schnellauswahl wird geladen…</p>

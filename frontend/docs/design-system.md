@@ -20,6 +20,7 @@ The daily page (`/`) is FitTrack’s visual source of truth. Secondary routes in
   action or a key feature. Gradients, glow and glassmorphism are not part of
   the system.
 - **Semantic colour:** use `--status-*` for state and `--data-*` for stable data categories. Colour is always paired with readable text, an icon, or an accessible name.
+- **Interaction and nutrition:** `--action-primary` is the single muted interaction accent. Nutrition uses the dedicated `--data-nutrition-*` roles; it does not borrow warning or error colours.
 - **One token source:** tokens are defined in `src/lib/styles/tokens.css`; shared implementation is in `src/lib/styles/primitives.css`.
 - **Mobile interaction:** controls have at least `--control-min` (38px); press states are available without hover.
 - **Motion:** use `--motion-fast` or `--motion-standard`; reduced-motion support is global.
@@ -34,7 +35,7 @@ The daily page (`/`) is FitTrack’s visual source of truth. Secondary routes in
 | `ui-icon-button` / `UiIconButton` | Icon-only action with accessible name |
 | `ui-field` | Inputs/selects that need the shared field treatment |
 | `ui-empty`, `ui-loading`, `ui-spinner` | Empty and loading states |
-| `modal-overlay`, `modal-card` | Standard dialog surface/layer |
+| `modal-overlay`, `modal-card`, `ui-dialog` | Standard dialog surface/layer with shared header, eyebrow, close control, content section and action row |
 
 ## Verification
 
