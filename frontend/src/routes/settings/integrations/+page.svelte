@@ -5,7 +5,7 @@
   async function handleDisconnect() { await disconnectGoogle(); window.location.reload(); }
 </script>
 
-<svelte:head><title>Chronickel - Integrationen</title></svelte:head>
+<svelte:head><title>Cronicl - Integrationen</title></svelte:head>
 <div class="page">
   <SettingsHeader title="Integrationen" subtitle="Verbindungen und Synchronisation" />
   <section class="section-card"><div class="section-header">Google-Konto</div><div class="body">

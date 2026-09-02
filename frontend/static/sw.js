@@ -1,7 +1,7 @@
-/* Chronickel Service Worker */
-const CACHE_NAME = 'chronickel-v1';
-const STATIC_CACHE = 'chronickel-static-v1';
-const API_CACHE = 'chronickel-api-v1';
+/* Cronicl Service Worker */
+const CACHE_NAME = 'cronicl-v13';
+const STATIC_CACHE = 'cronicl-static-v13';
+const API_CACHE = 'cronicl-api-v13';
 
 const STATIC_ASSETS = [
   '/',
@@ -9,6 +9,8 @@ const STATIC_ASSETS = [
   '/icon.svg',
   '/icon-192.svg',
   '/icon-512.svg',
+  '/logo.svg',
+  '/brand-icon.svg',
   '/offline.html'
 ];
 

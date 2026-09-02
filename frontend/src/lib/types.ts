@@ -524,3 +524,32 @@ export interface ScaleMeasurement {
   weight_kg: number;
   status: "assigned";
 }
+
+export interface ShoppingItem {
+  id: string;
+  title: string;
+  food_id?: string | null;
+  category_key: string;
+  icon_key: string;
+  quantity?: number | null;
+  unit?: string | null;
+  note?: string | null;
+  status: "open" | "done";
+  source: "manual" | "meal_plan" | "mixed";
+  sort_order: number;
+  completed_at?: string | null;
+  updated_at: string;
+}
+
+export interface ShoppingList {
+  id: string;
+  name: string;
+  items: ShoppingItem[];
+}
+
+export interface ShoppingMealPreview {
+  from_date: string;
+  to_date: string;
+  plan_name?: string | null;
+  items: Array<Pick<ShoppingItem, "food_id" | "title" | "category_key" | "icon_key" | "quantity" | "unit"> & { needs_review: boolean }>;
+}

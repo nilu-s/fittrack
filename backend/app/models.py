@@ -335,6 +335,52 @@ class MealEntryItem(AccountOwned, Base):
     source_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
 
+class ShoppingList(AccountOwned, Base):
+    """An account-private shopping workspace; sharing is deliberately absent."""
+    __tablename__ = "shopping_lists"
+    __table_args__ = (UniqueConstraint("account_id", "name", name="uq_shopping_lists_account_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(Text, nullable=False, default="Einkauf")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class ShoppingItem(AccountOwned, Base):
+    __tablename__ = "shopping_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    shopping_list_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("shopping_lists.id", ondelete="CASCADE"), nullable=False)
+    food_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("foods.id"))
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    category_key: Mapped[str] = mapped_column(Text, nullable=False, default="other")
+    icon_key: Mapped[str] = mapped_column(Text, nullable=False, default="shopping")
+    quantity: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    unit: Mapped[str | None] = mapped_column(Text)
+    note: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="open")
+    source: Mapped[str] = mapped_column(Text, nullable=False, default="manual")
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class ShoppingMealImport(AccountOwned, Base):
+    """Records a confirmed plan period so repeated imports remain idempotent."""
+    __tablename__ = "shopping_meal_imports"
+    __table_args__ = (UniqueConstraint("shopping_list_id", "meal_plan_id", "meal_plan_version", "from_date", "to_date", name="uq_shopping_meal_import_period"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    shopping_list_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("shopping_lists.id", ondelete="CASCADE"), nullable=False)
+    meal_plan_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("meal_plans.id"), nullable=False)
+    meal_plan_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    from_date: Mapped[date] = mapped_column(Date, nullable=False)
+    to_date: Mapped[date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class TrainingUnit(AccountOwned, Base):
     __tablename__ = "training_units"
     __table_args__ = (UniqueConstraint("account_id", "name", name="uq_training_units_account_name"),)

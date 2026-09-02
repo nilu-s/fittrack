@@ -1,4 +1,4 @@
-"""Chronickel baseline
+"""Cronicl baseline
 
 Revision ID: 7095ad546555
 Revises: 

@@ -11,7 +11,7 @@
     const data = { goals, exportedAt: new Date().toISOString() };
     const content = format === 'json' ? JSON.stringify(data, null, 2) : ['key,value', ...Object.entries(goals).map(([key, value]) => `${key},${value}`)].join('\n');
     const blob = new Blob([content], { type: format === 'json' ? 'application/json' : 'text/csv' });
-    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `chronickel-export.${format}`; a.click(); URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `cronicl-export.${format}`; a.click(); URL.revokeObjectURL(url);
   }
 
   async function applyDevelopmentPreset() {
@@ -32,9 +32,9 @@
   }
 </script>
 
-<svelte:head><title>Chronickel - Daten & Export</title></svelte:head>
+<svelte:head><title>Cronicl - Daten & Export</title></svelte:head>
 <div class="page">
-  <SettingsHeader title="Daten & Export" subtitle="Deine Chronickel-Daten" />
+  <SettingsHeader title="Daten & Export" subtitle="Deine Cronicl-Daten" />
   <section class="section-card"><div class="section-header">Daten exportieren</div><div class="body"><div class="actions"><button onclick={() => exportData('json')}>JSON exportieren</button><button onclick={() => exportData('csv')}>CSV exportieren</button></div></div></section>
   <section class="section-card preset"><div class="section-header">Entwicklungs-Preset</div><div class="body"><p>Legt für dein Konto 14 Tage Historie und 14 Tage Vorschau ab heute an – mit To-dos, Anreise, Lebensmitteln, Rezepten, Wochenplan und konkreten Mahlzeiten.</p><button class="preset-button" onclick={applyDevelopmentPreset} disabled={presetLoading}>{presetLoading ? 'Beispieldaten werden angelegt…' : '29 Tage Beispieldaten laden'}</button>{#if presetMessage}<p class="success" aria-live="polite">{presetMessage} Öffne die Tagesansicht, um sie zu sehen.</p>{/if}{#if presetError}<p class="error" aria-live="assertive">{presetError}</p>{/if}</div></section>
   <section class="hint"><strong>Keine Löschung hier</strong><p>Historische Sport-, Ernährungs- und Tagesdaten bleiben in ihren jeweiligen Bereichen getrennt erhalten.</p></section>

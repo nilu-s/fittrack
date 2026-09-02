@@ -1,12 +1,12 @@
-# Chronickel: Multi-account, shared scale and body-composition specification
+# Cronicl: Multi-account, shared scale and body-composition specification
 
 **Status:** approved
-**Owner:** Chronickel household
+**Owner:** Cronicl household
 **Last updated:** 2026-08-31
 
 ## 1. Intent and outcome
 
-Chronickel becomes a private, two-person application.  Each person signs in with
+Cronicl becomes a private, two-person application.  Each person signs in with
 their own approved Google account and sees only their own fitness, nutrition,
 training, integration and scale data.  The shared Renpho scale continues to
 send measurements through one ESP32 bridge.  The backend assigns a measurement
@@ -24,7 +24,7 @@ available only if the scale protocol supplies genuine BIA impedance data.
 - Google OAuth accounts, restricted to an allow-list maintained in server
   configuration.
 - Strict data ownership for all existing account-owned models and integrations.
-- A fresh Chronickel baseline schema; no predecessor data is carried forward.
+- A fresh Cronicl baseline schema; no predecessor data is carried forward.
 - Shared-scale ingestion with automatic, privacy-preserving weight-range
   assignment and an owner-only removal workflow for wrongly assigned events.
 - Per-account body-profile settings and BMI.
@@ -61,7 +61,7 @@ state that the result is reference-only, not medical advice.
 
 ### Accounts and access
 
-1. A Chronickel account is created on the first successful Google login from an
+1. A Cronicl account is created on the first successful Google login from an
    allowed Google identity.  The persistent external identity is the OIDC
    `sub`, not email; email is display/contact data and may change.
 2. The session carries the internal `account_id`, OIDC `sub` and expiry.  The
@@ -73,7 +73,7 @@ state that the result is reference-only, not medical advice.
    to day entries, meals, templates, dishes, todos, training units, rotations,
    exercises, progress, goals, photos, sync log, Google tokens, Google Fit,
    Calendar imports and scale events.
-5. Chronickel starts from an empty database. There is no compatibility account,
+5. Cronicl starts from an empty database. There is no compatibility account,
    legacy user identifier or data backfill path.
 
 ### Shared scale
@@ -153,7 +153,7 @@ Renpho BLE -> ESP32 bridge -> raw scale event -> assignment service
 
 ### 5.2 Clean-slate baseline
 
-Chronickel has one baseline migration that creates the current schema against
+Cronicl has one baseline migration that creates the current schema against
 an empty database. Every account-owned table uses a non-null UUID `account_id`
 from its first version; no browser-visible compatibility owner or `user_id`
 column exists. Seed data runs only when a new account is explicitly initialized,

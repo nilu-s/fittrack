@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Cronicl — organische Bewegung</title>
+  <desc id="desc">Ein weiches CNL-Monogramm: ein dunkelgrünes C trägt ein fließendes N und eine ruhige L-Basis, die von einem salbeigrünen Haken als Zeichen für Fortschritt durchzogen wird.</desc>
+  <g id="organic-cnl" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- The open C is deliberately broad and asymmetrical, like a protective, living orbit. -->
+    <path id="c-orbit" d="M377 145C335 105 271 88 207 105C128 126 87 203 106 281C125 360 203 405 282 386C320 377 350 357 374 329" stroke="#264235" stroke-width="32"/>
+    <!-- N rises from the C's inner rhythm; the lifted end keeps the mark buoyant rather than boxed-in. -->
+    <path id="n-flow" d="M161 312V201C161 187 178 181 187 192L278 319V216" stroke="#264235" stroke-width="28"/>
+    <!-- A compact L anchors household order without closing the monogram into a rigid frame. -->
+    <path id="l-anchor" d="M278 293V339H329" stroke="#264235" stroke-width="28"/>
+    <!-- The checkmark crosses the letterforms in one confident, friendly upward gesture. -->
+    <path id="progress-check" d="M177 267L239 329L363 190" stroke="#8ba47d" stroke-width="34"/>
+  </g>
+</svg>

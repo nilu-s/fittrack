@@ -2,7 +2,7 @@
   import SettingsTile from '$lib/components/SettingsTile.svelte';
 </script>
 
-<svelte:head><title>Chronickel - Einstellungen</title></svelte:head>
+<svelte:head><title>Cronicl - Einstellungen</title></svelte:head>
 
 <div class="page">
   <div class="intro"><p class="eyebrow">Dein Bereich</p><h1>Einstellungen</h1><p>Persönliche Daten, Routinen und Verbindungen an einem Ort.</p></div>
@@ -21,7 +21,7 @@
   <div class="section-label">Konto &amp; Daten</div>
   <section class="settings-list" aria-label="Konto und Daten">
     <SettingsTile href="/settings/integrations" icon="refresh" title="Integrationen" description="Google-Konto und Synchronisation" />
-    <SettingsTile href="/settings/data" icon="calendar" title="Daten & Export" description="Chronickel-Daten exportieren" />
+    <SettingsTile href="/settings/data" icon="calendar" title="Daten & Export" description="Cronicl-Daten exportieren" />
   </section>
 </div>
 

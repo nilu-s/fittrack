@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { isAuthenticated, checkAuth, googleLogin } from '$lib/auth';
-  import { APP_INITIAL, APP_NAME, pageTitle } from '$lib/brand';
+  import { APP_NAME, pageTitle } from '$lib/brand';
 
   let loading = true;
 
@@ -20,7 +20,7 @@
 
 <div class="login">
   <div class="login-card">
-    <div class="brand-mark">{APP_INITIAL}</div><div class="logo">{APP_NAME}</div>
+    <img class="brand-logo" src="/logo.svg" alt={APP_NAME} />
     <p class="eyebrow">Privat für deinen Alltag</p><h1>Willkommen zurück</h1>
     <p class="sub">Melde dich mit deinem freigegebenen Google-Konto an, um deine persönlichen Daten zu öffnen.</p>
     {#if loading}
@@ -42,8 +42,7 @@
 <style>
   .login { display:flex; align-items:center; justify-content:center; min-height:100vh; min-height:100dvh; padding:20px; }
   .login-card { width:100%; max-width:360px; display:flex; flex-direction:column; align-items:center; gap:10px; padding:32px 24px; background:var(--surface-default); border:1px solid var(--border-subtle); border-radius:var(--radius-modal); }
-  .brand-mark { display:grid; place-items:center; width:42px; height:42px; border-radius:12px; background:var(--action-primary); color:var(--text-on-accent); font-size:19px; font-weight:750; }
-  .logo { font-size:22px; font-weight:750; letter-spacing:-.035em; color:var(--text-primary); }
+  .brand-logo { display:block; width:160px; height:auto; }
   .eyebrow { color:var(--status-success); font-size:11px; font-weight:750; letter-spacing:.07em; text-transform:uppercase; margin-top:10px; }
   h1 { font-size:20px; font-weight:700; letter-spacing:-.025em; }
   .sub { font-size:13px; color:var(--text-secondary); margin:0 0 16px; text-align:center; line-height:1.5; }

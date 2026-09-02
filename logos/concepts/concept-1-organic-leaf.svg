@@ -1,0 +1,21 @@
+<svg viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Cronicl organic progress monogram</title>
+  <desc id="description">A soft forest-green C ribbon surrounds a sage checkmark that finishes as a leaf.</desc>
+  <g id="icon">
+    <g id="c-ribbon" fill="none" stroke="#264235" stroke-linecap="round" stroke-linejoin="round" stroke-width="52">
+      <path d="M365 128C330 96 284 80 234 90C144 108 91 193 109 283C127 373 212 426 301 408C330 402 356 388 377 368"/>
+    </g>
+    <g id="cnl-construction" fill="none" stroke="#264235" stroke-linecap="round" stroke-linejoin="round" stroke-width="28">
+      <path d="M177 294V222L253 322V274"/>
+    </g>
+    <g id="completion-leaf" fill="none" stroke="#8BA47D" stroke-linecap="round" stroke-linejoin="round" stroke-width="42">
+      <path d="M160 280L235 355L354 213"/>
+    </g>
+    <g id="leaf-tip" fill="#8BA47D">
+      <path d="M346 216C352 159 391 126 436 116C430 163 399 204 346 216Z"/>
+    </g>
+    <g id="leaf-vein" fill="none" stroke="#264235" stroke-linecap="round" stroke-width="13">
+      <path d="M356 204L411 143"/>
+    </g>
+  </g>
+</svg>

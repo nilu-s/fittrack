@@ -1,12 +1,12 @@
-# Chronickel: frischer Produktionsstart
+# Cronicl: frischer Produktionsstart
 
-Chronickel verwendet eine neue, leere Datenbank und übernimmt keine Daten aus
+Cronicl verwendet eine neue, leere Datenbank und übernimmt keine Daten aus
 der früheren Laufzeit. Die technischen Namen sind absichtlich neutral (`app`,
 `db`, `api`, `web`), während `APP_NAME` die sichtbare Marke festlegt.
 
 Die frühere Daten- und Migrationshistorie ist für den aktiven Betrieb
 superseded. Sie wird in einem eigenen, geprüften Bereinigungsschritt durch eine
-einzige Chronickel-Baseline ersetzt; nicht mehr verwendete Migrationen,
+einzige Cronicl-Baseline ersetzt; nicht mehr verwendete Migrationen,
 Kompatibilitätscode und Verträge werden dabei gemeinsam entfernt.
 
 ## Einmalige Konfiguration
@@ -15,7 +15,7 @@ In der produktiven, nicht versionierten `.env` müssen mindestens diese Werte
 gesetzt sein. Keine Geheimnisse in dieses Repository oder in den Chat kopieren.
 
 ```env
-APP_NAME=Chronickel
+APP_NAME=Cronicl
 APP_PUBLIC_ORIGIN=https://DEIN-ENDGUELTIGER-HOSTNAME
 APP_DB_PASSWORD=...
 APP_JWT_SECRET=...

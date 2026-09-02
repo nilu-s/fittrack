@@ -874,3 +874,81 @@ class GoalUpdate(_Base):
 
 class GoalsBatchUpdate(_Base):
     goals: dict[str, Decimal]
+
+
+# ---------------------------------------------------------------------------
+# Shopping
+# ---------------------------------------------------------------------------
+class ShoppingItemCreate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=1, max_length=200)
+    food_id: Optional[uuid.UUID] = None
+    category_key: Optional[Literal["produce", "dairy", "bakery", "pantry", "frozen", "beverage", "household", "other"]] = None
+    icon_key: Optional[Literal["produce", "dairy", "bakery", "pantry", "frozen", "beverage", "household", "shopping"]] = None
+    quantity: Optional[Decimal] = Field(default=None, gt=0, max_digits=12, decimal_places=3)
+    unit: Optional[str] = Field(default=None, max_length=24)
+    note: Optional[str] = Field(default=None, max_length=500)
+
+
+class ShoppingItemUpdate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    category_key: Optional[Literal["produce", "dairy", "bakery", "pantry", "frozen", "beverage", "household", "other"]] = None
+    icon_key: Optional[Literal["produce", "dairy", "bakery", "pantry", "frozen", "beverage", "household", "shopping"]] = None
+    quantity: Optional[Decimal] = Field(default=None, gt=0, max_digits=12, decimal_places=3)
+    unit: Optional[str] = Field(default=None, max_length=24)
+    note: Optional[str] = Field(default=None, max_length=500)
+    status: Optional[Literal["open", "done"]] = None
+
+
+class ShoppingItemResponse(_Base):
+    id: uuid.UUID
+    title: str
+    food_id: Optional[uuid.UUID]
+    category_key: str
+    icon_key: str
+    quantity: Optional[Decimal]
+    unit: Optional[str]
+    note: Optional[str]
+    status: Literal["open", "done"]
+    source: Literal["manual", "meal_plan", "mixed"]
+    sort_order: int
+    completed_at: Optional[datetime]
+    updated_at: datetime
+
+
+class ShoppingListResponse(_Base):
+    id: uuid.UUID
+    name: str
+    items: list[ShoppingItemResponse]
+
+
+class ShoppingMealPreviewItem(_Base):
+    food_id: Optional[uuid.UUID]
+    title: str
+    category_key: str
+    icon_key: str
+    quantity: Optional[Decimal]
+    unit: Optional[str]
+    needs_review: bool = False
+
+
+class ShoppingMealPreviewResponse(_Base):
+    from_date: date
+    to_date: date
+    plan_name: Optional[str]
+    items: list[ShoppingMealPreviewItem]
+
+
+class ShoppingMealImportCommand(_Base):
+    model_config = ConfigDict(extra="forbid")
+    from_date: date
+    to_date: date
+
+    @model_validator(mode="after")
+    def valid_period(self):
+        if self.to_date < self.from_date:
+            raise ValueError("to_date must not precede from_date")
+        if (self.to_date - self.from_date).days >= 14:
+            raise ValueError("shopping import period must not exceed 14 days")
+        return self

@@ -5,6 +5,9 @@
   import { api } from '$lib/api';
   import TodoDetailsSheet from '$lib/components/TodoDetailsSheet.svelte';
   import AssistantChatSheet from '$lib/components/AssistantChatSheet.svelte';
+  import ShoppingQuickPanel from '$lib/components/ShoppingQuickPanel.svelte';
+  import ShoppingItemEditor from '$lib/components/ShoppingItemEditor.svelte';
+  import ShoppingMealImport from '$lib/components/ShoppingMealImport.svelte';
   import { pageTitle } from '$lib/brand';
 
   $: data = $dayData;
@@ -15,6 +18,12 @@
   let suggestedPlaceQuery = '';
   let suggestedTravelMode: import('$lib/types').Todo['travel_mode'] = null;
   let assistantOpen = false;
+  let shoppingOpen = false;
+  let shoppingTitle = '';
+  let shoppingAdding = false;
+  let shopping: import('$lib/types').ShoppingList | null = null;
+  let editingShopping: import('$lib/types').ShoppingItem | null = null;
+  let mealImportOpen = false;
 
   function formatLastSync(ts: number | null): string { if (!ts) return ''; const d = new Date(ts); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
   function onUnifiedUpdate(e: CustomEvent) { if (!data) return; const { field, value } = e.detail; dayData.set({ ...data, dayEntry: { ...(data.dayEntry ?? { date: $currentDate }), [field]: value } }); }
@@ -61,10 +70,16 @@
     const updated = event.detail;
     dayData.set({ ...data, todos: (data.todos ?? []).map((todo) => String(todo.id) === String(updated.id) ? updated : todo) });
   }
+  async function loadShopping() { shopping = await api.getShoppingList(); }
+  async function addShopping(event: CustomEvent<string>) { if (shoppingAdding || !event.detail.trim()) return; shoppingAdding = true; const item = await api.createShoppingItem({ title: event.detail.trim() }); if (item) { shopping = shopping ? { ...shopping, items: [...shopping.items, item] } : await api.getShoppingList(); shoppingTitle = ''; } shoppingAdding = false; }
+  async function toggleShopping(item: import('$lib/types').ShoppingItem) { const updated = await api.toggleShoppingItem(item.id); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === updated.id ? updated : value) }; }
+  async function removeShopping(item: import('$lib/types').ShoppingItem) { if (await api.deleteShoppingItem(item.id) && shopping) shopping = { ...shopping, items: shopping.items.filter((value) => value.id !== item.id) }; }
+  async function saveShopping(event: CustomEvent<{ id: string; data: Partial<import('$lib/types').ShoppingItem> }>) { const updated = await api.updateShoppingItem(event.detail.id, event.detail.data); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === updated.id ? updated : value) }; }
 
 </script>
 
 <svelte:head><title>{pageTitle()}</title></svelte:head>
+<svelte:body class:shopping-open={shoppingOpen} />
 
 <div class="page">
   {#if data}
@@ -88,7 +103,10 @@
   {:else}
     <div class="loading"><div class="spinner"></div></div>
   {/if}
-  <DateNav bind:todoTitle {todoAdding} {todoAddError} on:todoadd={addFooterTodo} on:aiplan={() => assistantOpen = true} />
+  <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} on:todoadd={addFooterTodo} on:shoppingtoggle={() => { shoppingOpen = !shoppingOpen; if (shoppingOpen) loadShopping(); }} on:shoppingadd={addShopping} on:aiplan={() => assistantOpen = true} />
+  <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} query={shoppingTitle} on:close={() => { shoppingOpen = false; document.querySelector<HTMLButtonElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
+  <ShoppingItemEditor bind:item={editingShopping} on:close={() => editingShopping = null} on:save={saveShopping} />
+  <ShoppingMealImport bind:open={mealImportOpen} startDate={$currentDate} on:close={() => mealImportOpen = false} on:imported={(event) => shopping = event.detail} />
   <TodoDetailsSheet bind:todo={todoDetails} {suggestedPlaceQuery} {suggestedTravelMode} on:close={() => { todoDetails = null; suggestedPlaceQuery = ''; suggestedTravelMode = null; }} on:updated={onTodoDetailsUpdate} />
   <AssistantChatSheet bind:open={assistantOpen} date={$currentDate} initialText={todoTitle} on:close={() => assistantOpen = false} />
 </div>
@@ -103,6 +121,7 @@
   .sync.ok { color: var(--status-success); }
   .sync.syncing { color: var(--status-warning); }
   .sync.err { color: var(--status-danger); }
+  @media (min-width:900px) { :global(body.shopping-open .shell) { max-width:1180px; } :global(body.shopping-open .page) { padding-right:380px; } }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes slideIn { from { opacity: 0; transform: translateX(0) scale(0.98); } to { opacity: 1; transform: translateX(0) scale(1); } }
 </style>

@@ -1,4 +1,4 @@
-# Contributing to Chronickel
+# Contributing to Cronicl
 
 Use a separate branch or worktree for each implementation task. Before editing,
 record the following in the pull request or task description:

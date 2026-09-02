@@ -1,0 +1,21 @@
+<svg viewBox="0 0 512 512" role="img" aria-labelledby="title description" xmlns="http://www.w3.org/2000/svg">
+  <title id="title">Cronicl organic compact icon</title>
+  <desc id="description">A rounded forest-green C enclosing a sage-green completion check that grows into a leaf.</desc>
+  <g id="organic-monogram" fill="none" stroke="#264235" stroke-linecap="round" stroke-linejoin="round">
+    <!-- The open circular stroke quietly establishes the C while framing the check. -->
+    <path d="M355 118C313 81 257 70 204 91C127 121 93 210 125 286C157 363 247 399 323 366" stroke-width="62"/>
+  </g>
+  <g id="completion-sprout" fill="#8ba47d">
+    <!-- Broad, unbroken check silhouette remains recognizable at favicon scale. -->
+    <path d="M143 242C153 232 170 232 181 242L225 286L333 176C344 165 362 165 373 177C384 188 383 206 372 217L243 349C233 359 216 360 205 349L143 287C131 275 132 253 143 242Z"/>
+    <!-- A soft leaf replaces a decorative terminal and hints at daily growth. -->
+    <path d="M322 137C353 106 397 106 421 122C418 157 393 188 357 194C335 197 316 189 303 177C305 162 312 147 322 137Z"/>
+  </g>
+  <g id="leaf-vein" fill="none" stroke="#264235" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M318 176C346 163 370 145 393 123" stroke-width="14"/>
+  </g>
+  <g id="nl-hint" fill="none" stroke="#264235" stroke-linecap="round" stroke-linejoin="round" opacity=".92">
+    <!-- Subtle lower strokes suggest N and L without competing with the icon at small sizes. -->
+    <path d="M277 365V392M277 365L302 392M302 365V392M326 365V392H351" stroke-width="12"/>
+  </g>
+</svg>

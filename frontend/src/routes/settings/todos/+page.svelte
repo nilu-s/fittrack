@@ -46,7 +46,7 @@
   }
 </script>
 
-<svelte:head><title>Chronickel – Wiederkehrende To-dos</title></svelte:head>
+<svelte:head><title>Cronicl – Wiederkehrende To-dos</title></svelte:head>
 
 <div class="page">
   <SettingsHeader title="Wiederkehrende To-dos" subtitle="Lege fest, welche To-dos an bestimmten Tagen automatisch in deiner Tagesliste erscheinen." />

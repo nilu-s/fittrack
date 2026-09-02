@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Chronickel API",
+    "title": "Cronicl API",
     "version": "1.0.0"
   },
   "paths": {
@@ -3801,6 +3801,48 @@
         }
       }
     },
+    "/api/todo-planning/assistant": {
+      "post": {
+        "tags": [
+          "todo-planning"
+        ],
+        "summary": "Assistant Reply",
+        "description": "General, opt-in assistant: it can advise, never mutate account data.",
+        "operationId": "assistant_reply_api_todo_planning_assistant_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/todo-planning/places": {
       "get": {
         "tags": [
@@ -3900,10 +3942,330 @@
           }
         }
       }
+    },
+    "/api/shopping": {
+      "get": {
+        "tags": [
+          "shopping"
+        ],
+        "summary": "Get Shopping List",
+        "operationId": "get_shopping_list_api_shopping_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/shopping/items": {
+      "post": {
+        "tags": [
+          "shopping"
+        ],
+        "summary": "Create Item",
+        "operationId": "create_item_api_shopping_items_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingItemCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingItemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/shopping/items/{item_id}": {
+      "put": {
+        "tags": [
+          "shopping"
+        ],
+        "summary": "Update Item",
+        "operationId": "update_item_api_shopping_items__item_id__put",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingItemUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingItemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "shopping"
+        ],
+        "summary": "Delete Item",
+        "operationId": "delete_item_api_shopping_items__item_id__delete",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/shopping/items/{item_id}/toggle": {
+      "post": {
+        "tags": [
+          "shopping"
+        ],
+        "summary": "Toggle Item",
+        "operationId": "toggle_item_api_shopping_items__item_id__toggle_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingItemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/shopping/meal-preview": {
+      "get": {
+        "tags": [
+          "shopping"
+        ],
+        "summary": "Meal Preview",
+        "operationId": "meal_preview_api_shopping_meal_preview_get",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingMealPreviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/shopping/meal-import": {
+      "post": {
+        "tags": [
+          "shopping"
+        ],
+        "summary": "Import Meal Plan",
+        "operationId": "import_meal_plan_api_shopping_meal_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingMealImportCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AssistantRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "date"
+        ],
+        "title": "AssistantRequest"
+      },
+      "AssistantResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "AssistantResponse"
+      },
       "BodyProfileResponse": {
         "properties": {
           "height_cm": {
@@ -8128,6 +8490,509 @@
         ],
         "title": "ScaleSyncV2Request",
         "description": "Raw device-only payload. Extra fields are rejected deliberately."
+      },
+      "ShoppingItemCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "food_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Food Id"
+          },
+          "category_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "produce",
+                  "dairy",
+                  "bakery",
+                  "pantry",
+                  "frozen",
+                  "beverage",
+                  "household",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Key"
+          },
+          "icon_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "produce",
+                  "dairy",
+                  "bakery",
+                  "pantry",
+                  "frozen",
+                  "beverage",
+                  "household",
+                  "shopping"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon Key"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,9}|(?=[\\d.]{1,13}0*$)\\d{0,9}\\.\\d{0,3}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 24
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "ShoppingItemCreate"
+      },
+      "ShoppingItemResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "food_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Food Id"
+          },
+          "category_key": {
+            "type": "string",
+            "title": "Category Key"
+          },
+          "icon_key": {
+            "type": "string",
+            "title": "Icon Key"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "meal_plan",
+              "mixed"
+            ],
+            "title": "Source"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "food_id",
+          "category_key",
+          "icon_key",
+          "quantity",
+          "unit",
+          "note",
+          "status",
+          "source",
+          "sort_order",
+          "completed_at",
+          "updated_at"
+        ],
+        "title": "ShoppingItemResponse"
+      },
+      "ShoppingItemUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "category_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "produce",
+                  "dairy",
+                  "bakery",
+                  "pantry",
+                  "frozen",
+                  "beverage",
+                  "household",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Key"
+          },
+          "icon_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "produce",
+                  "dairy",
+                  "bakery",
+                  "pantry",
+                  "frozen",
+                  "beverage",
+                  "household",
+                  "shopping"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon Key"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,9}|(?=[\\d.]{1,13}0*$)\\d{0,9}\\.\\d{0,3}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 24
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "done"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ShoppingItemUpdate"
+      },
+      "ShoppingListResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ShoppingItemResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "items"
+        ],
+        "title": "ShoppingListResponse"
+      },
+      "ShoppingMealImportCommand": {
+        "properties": {
+          "from_date": {
+            "type": "string",
+            "format": "date",
+            "title": "From Date"
+          },
+          "to_date": {
+            "type": "string",
+            "format": "date",
+            "title": "To Date"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "from_date",
+          "to_date"
+        ],
+        "title": "ShoppingMealImportCommand"
+      },
+      "ShoppingMealPreviewItem": {
+        "properties": {
+          "food_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Food Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "category_key": {
+            "type": "string",
+            "title": "Category Key"
+          },
+          "icon_key": {
+            "type": "string",
+            "title": "Icon Key"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "title": "Needs Review",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "food_id",
+          "title",
+          "category_key",
+          "icon_key",
+          "quantity",
+          "unit"
+        ],
+        "title": "ShoppingMealPreviewItem"
+      },
+      "ShoppingMealPreviewResponse": {
+        "properties": {
+          "from_date": {
+            "type": "string",
+            "format": "date",
+            "title": "From Date"
+          },
+          "to_date": {
+            "type": "string",
+            "format": "date",
+            "title": "To Date"
+          },
+          "plan_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Name"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ShoppingMealPreviewItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_date",
+          "to_date",
+          "plan_name",
+          "items"
+        ],
+        "title": "ShoppingMealPreviewResponse"
       },
       "SyncChangeItem": {
         "properties": {

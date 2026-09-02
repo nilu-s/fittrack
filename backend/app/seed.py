@@ -249,10 +249,10 @@ async def _seed_development_meals(session: AsyncSession, account_id, anchor: dat
                                                  recipe_id=by_recipe[recipe_name].id, rank=0))
 
     plan = (await session.execute(select(MealPlan).where(
-        MealPlan.account_id == account_id, MealPlan.name == "Chronickel Entwicklungswoche"
+        MealPlan.account_id == account_id, MealPlan.name == "Cronicl Entwicklungswoche"
     ))).scalars().first()
     if plan is None:
-        plan = MealPlan(account_id=account_id, name="Chronickel Entwicklungswoche", version=1, is_active=True)
+        plan = MealPlan(account_id=account_id, name="Cronicl Entwicklungswoche", version=1, is_active=True)
         session.add(plan)
         await session.flush()
         plan_rows = (("Frühstück", "Protein-Porridge", time(8, 0)), ("Mittagessen", "Hähnchen-Reis-Bowl", time(12, 30)),

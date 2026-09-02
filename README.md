@@ -1,4 +1,4 @@
-# Chronickel
+# Cronicl
 
 Offline-first PWA für Fitness-, Ernährungs- und To-Do-Tracking.
 
@@ -38,6 +38,6 @@ the generated `config.h`.
 
 ## Datenbankstart
 
-Chronickel wird mit einer leeren Datenbank und der einzelnen Baseline-Migration
+Cronicl wird mit einer leeren Datenbank und der einzelnen Baseline-Migration
 gestartet. Kontodaten entstehen erst nach der Google-Anmeldung; Browserdaten
 werden bei einem Konto-Wechsel im selben Browserprofil gelöscht.

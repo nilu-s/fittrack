@@ -25,7 +25,7 @@
   });
 </script>
 
-<svelte:head><title>Chronickel - Tagesziele</title></svelte:head>
+<svelte:head><title>Cronicl - Tagesziele</title></svelte:head>
 <div class="page">
   <SettingsHeader title="Tagesziele" subtitle="Ernährung, Schritte und Schlaf" />
   <section class="section-card"><div class="section-header">Ziele</div><div class="body">

@@ -5,7 +5,7 @@
 
 ## Entscheidung
 
-Chronickel entwickelt die Produktoberfläche als gedämpft helles, datenorientiertes
+Cronicl entwickelt die Produktoberfläche als gedämpft helles, datenorientiertes
 Interface weiter. Es wird kein reinweißes Theme und kein zweites paralleles
 Theme-System eingeführt.
 
@@ -34,5 +34,5 @@ starke Schatten oder dekorative Effekte.
 
 ## Verwandte Dokumente
 
-- `docs/design/chronickel-ui-direction.md`
-- `docs/design/chronickel-day-feed-interaction.md`
+- `docs/design/cronicl-ui-direction.md`
+- `docs/design/cronicl-day-feed-interaction.md`

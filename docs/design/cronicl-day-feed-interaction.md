@@ -1,4 +1,4 @@
-# Chronickel Day Feed: Interaktionsvertrag
+# Cronicl Day Feed: Interaktionsvertrag
 
 ## Zweck
 

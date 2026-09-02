@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cronicl Logo Preview — Organische Konzepte</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 2rem; transition: background-color .3s, color .3s; }
+  body.light { background: #eef0ea; color: #192019; }
+  body.dark { background: #17201a; color: #edf3eb; }
+  .header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+  h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; }
+  .toggle { padding: .5rem 1rem; border: 1px solid currentColor; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; font-size: .875rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; }
+  .card { border: 1px solid rgba(100, 118, 102, .38); border-radius: 14px; overflow: hidden; }
+  .card-img { display: flex; align-items: center; justify-content: center; min-height: 280px; padding: 2rem; }
+  body.light .card-img { background: #c9cbc3; }
+  body.dark .card-img { background: #29362c; }
+  .card-img img { width: min(100%, 220px); height: auto; }
+  .card-label { padding: 1rem; border-top: 1px solid rgba(100, 118, 102, .38); }
+  body.light .card-label { background: #f7f8f4; }
+  body.dark .card-label { background: #202b22; }
+  .card-label strong { display: block; margin-bottom: .25rem; }
+  .card-label p { color: #536054; font-size: .875rem; line-height: 1.4; }
+  body.dark .card-label p { color: #bcc8b9; }
+</style>
+</head>
+<body class="light">
+  <div class="header">
+    <h1>Cronicl — organischere Logo-Richtungen</h1>
+    <button class="toggle" onclick="document.body.classList.toggle('dark'); document.body.classList.toggle('light'); this.textContent = document.body.classList.contains('dark') ? '☀️ Hell' : '🌙 Dunkel';">🌙 Dunkel</button>
+  </div>
+  <main class="grid">
+    <article class="card"><div class="card-img"><img src="concepts/concept-1-organic-leaf.svg" alt="Weiches CNL-Monogramm mit Blatt-Haken"></div><div class="card-label"><strong>1 · Blatt-Ribbon</strong><p>Ruhig, nahbar und gesundheitsorientiert.</p></div></article>
+    <article class="card"><div class="card-img"><img src="concepts/concept-2-organic-motion.svg" alt="Fließendes CNL-Monogramm mit Fortschritts-Haken"></div><div class="card-label"><strong>2 · Bewegter Fortschritt</strong><p>Etwas sportlicher, mit klarer Aufwärtsenergie.</p></div></article>
+    <article class="card"><div class="card-img"><img src="concepts/concept-3-organic-compact.svg" alt="Kompaktes C- und Blatt-Haken-Icon"></div><div class="card-label"><strong>3 · Kompakt &amp; cool</strong><p>Die stärkste App-Icon-Option für kleine Größen.</p></div></article>
+  </main>
+</body>
+</html>

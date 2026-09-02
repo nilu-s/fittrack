@@ -25,6 +25,9 @@ import type {
   TodoDraft,
   PlaceSuggestion,
   TravelEstimate,
+  ShoppingItem,
+  ShoppingList,
+  ShoppingMealPreview,
 } from "./types";
 import { db, queueSync, type DayEntryRecord, type TodoRecord } from "./db";
 
@@ -426,6 +429,36 @@ class ApiClient {
     } catch {
       return false;
     }
+  }
+
+  // Shopping stays online-first: a meal import is an explicit, account-scoped
+  // command and must never be replayed through the legacy todo sync queue.
+  async getShoppingList(): Promise<ShoppingList | null> {
+    return this.request<ShoppingList>("/shopping");
+  }
+
+  async createShoppingItem(data: Partial<ShoppingItem>): Promise<ShoppingItem | null> {
+    return this.request<ShoppingItem>("/shopping/items", { method: "POST", body: JSON.stringify(data) });
+  }
+
+  async updateShoppingItem(id: string, data: Partial<ShoppingItem>): Promise<ShoppingItem | null> {
+    return this.request<ShoppingItem>(`/shopping/items/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  }
+
+  async toggleShoppingItem(id: string): Promise<ShoppingItem | null> {
+    return this.request<ShoppingItem>(`/shopping/items/${id}/toggle`, { method: "POST" });
+  }
+
+  async deleteShoppingItem(id: string): Promise<boolean> {
+    try { await this.request(`/shopping/items/${id}`, { method: "DELETE" }); return true; } catch { return false; }
+  }
+
+  async getShoppingMealPreview(from: string, to: string): Promise<ShoppingMealPreview | null> {
+    return this.request<ShoppingMealPreview>(`/shopping/meal-preview?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  }
+
+  async importShoppingMealPlan(from_date: string, to_date: string): Promise<ShoppingList | null> {
+    return this.request<ShoppingList>("/shopping/meal-import", { method: "POST", body: JSON.stringify({ from_date, to_date }) });
   }
 
   // Training

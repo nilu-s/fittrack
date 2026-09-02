@@ -1,7 +1,7 @@
-# Chronickel: Konfigurierbare Mahlzeiten
+# Cronicl: Konfigurierbare Mahlzeiten
 
 **Status:** implemented (online-first)  
-**Owner:** Chronickel household
+**Owner:** Cronicl household
 **Last updated:** 2026-09-01
 
 ## 1. Zielbild
@@ -28,10 +28,12 @@ Lebensmittel, Rezepte mit Zutaten, Tages-/Wochenpläne, Portionen, Planung und
 Verzehr, Nährwert-Summen, Fotos und die Übernahme einer Fotoanalyse nach
 expliziter Bestätigung.
 
-Nicht Bestandteil des ersten Releases sind ein öffentlicher Rezeptmarktplatz,
-soziales Teilen, Einkaufsliste, Barcode- oder externe Lebensmittelkataloge,
-automatische KI-Übernahme ohne Bestätigung sowie medizinische Bewertungen.
-Solche Erweiterungen benötigen eine eigene Spezifikation.
+Nicht Bestandteil dieses Bereichs sind ein öffentlicher Rezeptmarktplatz,
+soziales Teilen, Barcode- oder externe Lebensmittelkataloge, automatische
+KI-Übernahme ohne Bestätigung sowie medizinische Bewertungen. Die
+Einkaufslisten-Erweiterung wird durch
+[`shopping-list.md`](shopping-list.md) geregelt; sie liest den Mahlzeitenplan,
+ohne ihn oder seine historischen Einträge zu verändern.
 
 ## 3. Fachmodell
 

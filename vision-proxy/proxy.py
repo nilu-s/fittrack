@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Vision Proxy: bridges Chronickel backend → Codex/GPT-5.5 vision API.
+Vision Proxy: bridges Cronicl backend → Codex/GPT-5.5 vision API.
 Reads OAuth token from Hermes auth.json, refreshes if needed, calls Codex responses API.
 Listens on 127.0.0.1:8100 — only accessible from localhost (Docker containers via host gateway).
 """
@@ -110,7 +110,7 @@ async def draft_todo(req: TodoDraftRequest):
 
     This receives only the user's free text and selected calendar day; account
     identity, session cookies, coordinates and Google tokens never leave the
-    Chronickel API.
+    Cronicl API.
     """
     prompt = (
         "Create a German todo draft from the text below. Respond ONLY with valid JSON "
@@ -164,7 +164,7 @@ async def draft_todo(req: TodoDraftRequest):
 @app.post("/assistant")
 async def assistant(req: TodoDraftRequest):
     """Answer an explicit user question without receiving account data."""
-    prompt = ("You are Chronickel's concise German planning assistant. Answer the user's question helpfully. "
+    prompt = ("You are Cronicl's concise German planning assistant. Answer the user's question helpfully. "
               "Do not claim to have changed data, do not request secrets, and suggest the relevant app area when useful. "
               f"Selected date: {req.date}\nUser: {req.text}")
     token = get_codex_token()

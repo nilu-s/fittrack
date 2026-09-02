@@ -95,7 +95,7 @@
   function activatePlan(plan: MealPlan) { save(() => api.updateMealPlan(plan.id, { is_active: true, updated_at: plan.updated_at }), 'Plan aktiviert.'); }
 </script>
 
-<svelte:head><title>Chronickel – Mahlzeiten planen</title></svelte:head>
+<svelte:head><title>Cronicl – Mahlzeiten planen</title></svelte:head>
 <div class="page">
   <SettingsHeader title="Mahlzeiten" subtitle="Plane die Woche, verwalte Rezepte bei Bedarf" />
   <nav class="section-nav" aria-label="Mahlzeitenbereich"><button class:active={section === 'plan'} aria-current={section === 'plan' ? 'page' : undefined} onclick={() => section = 'plan'}>Wochenplan</button><button class:active={section !== 'plan'} aria-current={section !== 'plan' ? 'page' : undefined} onclick={() => section = 'recipes'}>Verwalten</button></nav>

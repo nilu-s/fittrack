@@ -1,4 +1,4 @@
-"""Verify the single Chronickel baseline against a disposable database."""
+"""Verify the single Cronicl baseline against a disposable database."""
 from __future__ import annotations
 
 import os

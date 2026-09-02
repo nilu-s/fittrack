@@ -9,7 +9,7 @@
   import { db } from '$lib/db';
   import { isAuthenticated, authEmail, checkAuth, logout } from '$lib/auth';
   import Icon from '$lib/components/Icon.svelte';
-  import { APP_INITIAL, APP_NAME } from '$lib/brand';
+  import { APP_NAME } from '$lib/brand';
   import UiIconButton from '$lib/components/ui/UiIconButton.svelte';
   import type { DayData, DayEntry, MealCategory, MealEntry, Todo, TrainingSuggestion } from '$lib/types';
 
@@ -23,6 +23,7 @@
   let touchStartY = 0;
   let mainEl: HTMLElement;
   $: isMealSettings = $page?.url?.pathname === '/settings/meals';
+  $: isShopping = $page?.url?.pathname === '/shopping';
   $: isLogin = $page?.url?.pathname === '/login';
   $: isHome = $page?.url?.pathname === '/';
   $: backTarget = $page?.url?.pathname?.startsWith('/settings/') ? '/settings' : '/';
@@ -107,10 +108,10 @@
   async function onTouchEnd() { if (!isPulling || isRefreshing) return; isPulling = false; if (pullDistance >= pullThreshold) { isRefreshing = true; pullDistance = pullThreshold; await loadDayData($currentDate); if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30); isRefreshing = false; } pullDistance = 0; }
 </script>
 
-<div class:wide-shell={isMealSettings} class="shell">
+<div class:wide-shell={isMealSettings || isShopping} class="shell">
   {#if !isLogin}<header class="hdr">
     {#if isHome}
-      <a href="/" class="hdr-title" aria-label={`${APP_NAME} Startseite`}><span class="brand-mark">{APP_INITIAL}</span><span>{APP_NAME}</span></a>
+      <a href="/" class="hdr-title" aria-label={`${APP_NAME} Startseite`}><img class="brand-icon" src="/brand-icon.svg" alt="" /><span>{APP_NAME}</span></a>
     {:else}
       <a href={backTarget} class="header-back" aria-label="Zurück"><Icon name="chevron-left" size={20} /><span>Zurück</span></a>
     {/if}
@@ -135,9 +136,9 @@
 
 <style>
   .shell { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; max-width: 480px; margin: 0 auto; width: 100%; }
-  .hdr { display: flex; align-items: center; padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); gap: 8px; border-bottom: 1px solid var(--border-subtle); }
-  .hdr-title { display:flex; align-items:center; gap:8px; font-size:17px; font-weight:720; letter-spacing:-.03em; color:var(--text-primary); text-decoration:none; }
-  .brand-mark { display:grid; place-items:center; width:27px; height:27px; border-radius:8px; color:var(--text-on-accent); background:var(--action-primary); font-size:13px; }
+  .hdr { display: flex; align-items: center; min-height: 52px; padding: 2px 16px; padding-top: calc(2px + env(safe-area-inset-top, 0px)); gap: 10px; background:var(--surface-navigation); border-bottom: 1px solid var(--border-strong); }
+  .hdr-title { display:flex; align-items:center; gap:10px; font-size:17px; font-weight:720; letter-spacing:-.03em; text-transform:uppercase; color:var(--text-primary); text-decoration:none; }
+  .brand-icon { display:block; width:48px; height:48px; flex:none; }
   .header-back { display:flex; align-items:center; gap:3px; min-height:var(--control-min); padding:0 8px 0 3px; border-radius:var(--radius-control); color:var(--text-primary); font-size:14px; font-weight:700; }
   .header-back:active, .header-back:focus-visible { background:var(--surface-raised); }
   .hdr-spacer { flex: 1; }

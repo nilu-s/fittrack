@@ -28,7 +28,7 @@
   });
 </script>
 
-<svelte:head><title>Chronickel - Woche</title></svelte:head>
+<svelte:head><title>Cronicl - Woche</title></svelte:head>
 
 <div class="page">
   <div class="hdr"><button class="back" onclick={goBack} aria-label="Zurück"><Icon name="chevron-left" size={20} /></button><div><p class="eyebrow">Rückblick</p><h1>Letzte 7 Tage</h1></div></div>

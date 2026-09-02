@@ -1,5 +1,5 @@
 /*
- * Chronickel Scale Bridge -- RENPHO ES-CS20M AABB broadcast variant.
+ * Cronicl Scale Bridge -- RENPHO ES-CS20M AABB broadcast variant.
  *
  * This hardware revision is not GATT-connectable. It broadcasts a 0xAABB
  * manufacturer-data frame; final frames contain weight only. The ESP32 scans
@@ -158,17 +158,17 @@ static bool sendToApi(float weightKg, const String& eventId, const String& measu
     delay(10);
   }
   if (response.indexOf("HTTP/1.1 200") >= 0 || response.indexOf("HTTP/1.1 201") >= 0) {
-    Serial.printf("Chronickel API: OK (%.2f kg)\n", weightKg);
+    Serial.printf("Cronicl API: OK (%.2f kg)\n", weightKg);
     return true;
   }
-  Serial.printf("Chronickel API error: %s\n", response.substring(0, 200).c_str());
+  Serial.printf("Cronicl API error: %s\n", response.substring(0, 200).c_str());
   return false;
 }
 
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("\n=== Chronickel Scale Bridge: RENPHO AABB Broadcast ===\n");
+  Serial.println("\n=== Cronicl Scale Bridge: RENPHO AABB Broadcast ===\n");
   if (String(WIFI_SSID).isEmpty() || String(API_HOST).isEmpty() ||
       String(DEVICE_ID).isEmpty() || String(DEVICE_KEY).isEmpty() ||
       String(SCALE_BLE_ADDRESS).isEmpty()) {
@@ -178,7 +178,7 @@ void setup() {
   WiFi.mode(WIFI_STA);
   ensureWifi();
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-  NimBLEDevice::init("Chronickel-Scale-Bridge");
+  NimBLEDevice::init("Cronicl-Scale-Bridge");
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
   NimBLEScan* scan = NimBLEDevice::getScan();
   scan->setScanCallbacks(&scanCallbacks, true);

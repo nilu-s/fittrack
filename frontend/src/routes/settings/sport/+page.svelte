@@ -182,7 +182,7 @@
   onMount(() => { loadUnits(); loadRotation(); });
 </script>
 
-<svelte:head><title>Chronickel - Sportprogramm</title></svelte:head>
+<svelte:head><title>Cronicl - Sportprogramm</title></svelte:head>
 <div class="page">
   <SettingsHeader title="Sportprogramm" subtitle="Planen, aufbauen, trainieren" />
 

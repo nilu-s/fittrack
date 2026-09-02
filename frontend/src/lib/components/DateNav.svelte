@@ -1,12 +1,16 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, tick } from 'svelte';
   import { currentDate } from '$lib/stores';
   import Icon from '$lib/components/Icon.svelte';
 
   export let todoTitle = '';
   export let todoAdding = false;
   export let todoAddError = '';
-  const dispatch = createEventDispatcher<{ todoadd: string; aiplan: string }>();
+  export let shoppingOpen = false;
+  export let shoppingTitle = '';
+  export let shoppingAdding = false;
+  export let shoppingCount = 0;
+  const dispatch = createEventDispatcher<{ todoadd: string; aiplan: string; shoppingtoggle: void; shoppingadd: string }>();
   const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
   const daysFull = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
   $: dateLabel = formatDateLabel($currentDate);
@@ -17,6 +21,8 @@
   let suppressClickUntil = 0;
   let pickerDialog: HTMLDialogElement;
   let calendarButton: HTMLButtonElement;
+  let shoppingInput: HTMLInputElement;
+  $: if (shoppingOpen) tick().then(() => shoppingInput?.focus());
   let pickerMonth = new Date();
 
   function formatDate(d: Date) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
@@ -45,14 +51,22 @@
   function onTouchEnd(e: TouchEvent) { const dx = e.changedTouches[0].clientX - touchStartX; const dy = e.changedTouches[0].clientY - touchStartY; if (Math.abs(dx) >= 44 && Math.abs(dx) > Math.abs(dy) * 1.4) { suppressClickUntil = Date.now() + 400; changeDate(dx > 0 ? -1 : 1); } }
   function guarded(action: () => void, e: MouseEvent) { if (Date.now() < suppressClickUntil) { e.preventDefault(); e.stopPropagation(); return; } action(); }
   function submitTodo() { dispatch('todoadd', todoTitle); }
+  function submitShopping() { dispatch('shoppingadd', shoppingTitle); }
 </script>
 
 <footer class="day-footer" aria-label="Tagesaktionen">
-  <form class="todo-add" onsubmit={(event) => { event.preventDefault(); submitTodo(); }}>
-    <label class="sr-only" for="footer-todo-title">To-do für {dateLabel} hinzufügen</label>
-    <input id="footer-todo-title" placeholder="+ To-do hinzufügen…" bind:value={todoTitle} disabled={todoAdding} aria-describedby={todoAddError ? 'footer-todo-error' : undefined} />
-    <button type="submit" disabled={!todoTitle.trim() || todoAdding} aria-label="To-do hinzufügen"><Icon name="plus" size={16} /></button>
-    <button class="todo-ai" type="button" disabled={todoAdding} aria-label="KI-Assistent öffnen" title="Mit KI besprechen" onclick={() => dispatch('aiplan', todoTitle)}>✦</button>
+  <form class="todo-add" onsubmit={(event) => { event.preventDefault(); shoppingOpen ? submitShopping() : submitTodo(); }}>
+    <button class:active={shoppingOpen} class="shopping-toggle" type="button" onclick={() => dispatch('shoppingtoggle')} aria-expanded={shoppingOpen} aria-controls="shopping-quick-panel" aria-label="Einkaufsliste öffnen oder schließen"><Icon name="shopping" size={18} /><span>{shoppingCount}</span></button>
+    {#if shoppingOpen}
+      <label class="sr-only" for="footer-shopping-title">Artikel suchen oder hinzufügen</label>
+      <input bind:this={shoppingInput} id="footer-shopping-title" placeholder="Artikel suchen oder hinzufügen…" bind:value={shoppingTitle} disabled={shoppingAdding} />
+      <button type="submit" disabled={!shoppingTitle.trim() || shoppingAdding} aria-label="Artikel hinzufügen"><Icon name="plus" size={16} /></button>
+    {:else}
+      <label class="sr-only" for="footer-todo-title">To-do für {dateLabel} hinzufügen</label>
+      <input id="footer-todo-title" placeholder="+ To-do hinzufügen…" bind:value={todoTitle} disabled={todoAdding} aria-describedby={todoAddError ? 'footer-todo-error' : undefined} />
+      <button type="submit" disabled={!todoTitle.trim() || todoAdding} aria-label="To-do hinzufügen"><Icon name="plus" size={16} /></button>
+      <button class="todo-ai" type="button" disabled={todoAdding} aria-label="KI-Assistent öffnen" title="Mit KI besprechen" onclick={() => dispatch('aiplan', todoTitle)}>✦</button>
+    {/if}
   </form>
   {#if todoAddError}<p id="footer-todo-error" class="todo-add-error" role="status">{todoAddError}</p>{/if}
   <nav class="dnav" aria-label="Tagesnavigation" ontouchstart={onTouchStart} ontouchend={onTouchEnd}>
@@ -79,11 +93,13 @@
   .todo-add input:focus-visible,.todo-add button:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; }
   .todo-add input::placeholder { color:var(--text-tertiary); }
   .todo-add button { display:grid; place-items:center; width:40px; min-height:40px; border:0; border-radius:var(--radius-control); background:var(--action-primary); color:var(--text-on-accent); cursor:pointer; }
+  .todo-add .shopping-toggle { display:flex; width:auto; min-width:40px; gap:3px; padding:0 9px; border:1px solid var(--border-accent); background:var(--surface-accent); color:var(--action-primary); font-size:11px; font-weight:750; }
+  .todo-add .shopping-toggle.active { background:var(--action-primary); color:var(--text-on-accent); }
   .todo-add .todo-ai { border:1px solid var(--border-accent); background:var(--surface-accent); color:var(--action-primary); font-size:18px; }
   .todo-add button:disabled { opacity:.4; cursor:default; }
   .todo-add-error { margin:0; padding:7px 10px; border-radius:var(--radius-control); background:var(--surface-navigation); color:var(--status-danger); font-size:12px; }
   .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
-  .dnav { min-height:52px; display:grid; grid-template-columns:78px minmax(0,1fr) 44px 78px; align-items:center; gap:4px; padding:4px; background:var(--surface-navigation); border:1px solid var(--border-default); border-radius:var(--radius-surface); touch-action:pan-y; }
+  .dnav { min-height:52px; display:grid; grid-template-columns:78px minmax(0,1fr) 44px 78px; align-items:center; gap:4px; padding:4px; background:var(--surface-accent); border:1px solid var(--border-default); border-radius:var(--radius-surface); touch-action:pan-y; }
   .dnav-btn { width:44px; height:44px; border:1px solid var(--border-default); border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-primary); cursor:pointer; display:flex; align-items:center; justify-content:center; }
   .dnav-btn:active,.dnav-btn:focus-visible { background:var(--surface-pressed); }
   .dnav-step { width:78px; gap:2px; padding:0 5px; font-size:11px; font-weight:700; }

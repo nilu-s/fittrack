@@ -20,7 +20,7 @@ services:
     environment:
       ENVIRONMENT: production
       TZ: Europe/Berlin
-      APP_NAME: ${APP_NAME:-Chronickel}
+      APP_NAME: ${APP_NAME:-Cronicl}
       APP_PUBLIC_ORIGIN: ${APP_PUBLIC_ORIGIN:?set APP_PUBLIC_ORIGIN in .env}
       DATABASE_URL: postgresql+asyncpg://app:${APP_DB_PASSWORD}@db:5432/app
       VISION_PROXY_URL: http://vision-proxy:8100
@@ -47,7 +47,7 @@ services:
     build:
       context: ./frontend
       args:
-        PUBLIC_APP_NAME: ${APP_NAME:-Chronickel}
+        PUBLIC_APP_NAME: ${APP_NAME:-Cronicl}
     depends_on:
       - api
     networks:

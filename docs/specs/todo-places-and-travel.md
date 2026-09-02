@@ -1,7 +1,7 @@
 # To-dos mit Ort, KI-Zuordnung und Anreise
 
 **Status:** approved
-**Owner:** Chronickel household
+**Owner:** Cronicl household
 **Last updated:** 2026-09-01
 
 ## Ziel

@@ -1,8 +1,8 @@
-# Chronickel agent guide
+# Cronicl agent guide
 
 ## Product intent
 
-Chronickel is a private household organizer with fitness tracking. Each approved
+Cronicl is a private household organizer with fitness tracking. Each approved
 Google account owns and can access only its own data. A shared ESP32/Renpho scale is
 an untrusted device source; it must never select or impersonate an account.
 

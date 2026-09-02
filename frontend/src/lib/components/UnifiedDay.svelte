@@ -26,8 +26,6 @@
 
   $: goals = $dailyGoals;
 
-  let expandedSleep = false;
-  let expandedWeight = false;
   let weightEditing = false;
 
   type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; fiber?: number | null; sugar?: number | null; mealTime?: string | null; entryData?: MealEntry; todoData?: Todo; travelLabel?: string | null; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bmi: number | null }; weightEstimate?: { value: number; beforeDate: string; afterDate: string }; };
@@ -245,8 +243,6 @@
   function handleTap(item: UnifiedItem, e: MouseEvent) {
     if (longPressTriggered) { longPressTriggered = false; return; }
     if (item.type === 'training' || item.type === 'meal' || item.type === 'todo') return;
-    if (item.id === 'metric-sleep') { expandedSleep = !expandedSleep; return; }
-    if (item.id === 'metric-weight' && item.weightDetails) { expandedWeight = !expandedWeight; return; }
   }
 
   function handleItemKey(item: UnifiedItem, e: KeyboardEvent) {
@@ -352,6 +348,7 @@
   }
   function closeItemDetails() {
     detailItem = null;
+    weightEditing = false;
     detailItemOverlayTop = null;
     const trigger = detailItemTrigger;
     detailItemTrigger = null;
@@ -662,27 +659,6 @@
     return { verifiedPathD, assumedPathD, fullPathD, fullAreaD, dots, labels };
   }
 
-  // Precompute sleep donut segments
-  function sleepDonut(sd: { deep: number; rem: number; light: number; awake: number } | undefined) {
-    if (!sd) return [];
-    const r = 38;
-    const circ = 2 * Math.PI * r;
-    const phases = [
-      { val: sd.deep, color: 'var(--data-sleep-deep)', label: 'Tief' },
-      { val: sd.rem, color: 'var(--data-sleep-rem)', label: 'REM' },
-      { val: sd.light, color: 'var(--data-sleep-light)', label: 'Leicht' },
-      { val: sd.awake, color: 'var(--data-sleep-awake)', label: 'Wach' },
-    ].filter((p) => p.val > 0);
-    const total = phases.reduce((s, p) => s + p.val, 0) || 1;
-    let offset = 0;
-    return phases.map((p) => {
-      const frac = p.val / total;
-      const dash = frac * circ;
-      const seg = { ...p, dash, offset: -offset, frac };
-      offset += dash;
-      return seg;
-    });
-  }
 </script>
 
 <div class="daily-overview" aria-label="Tagesübersicht">
@@ -692,7 +668,6 @@
     {#each biometricItems as item (item.id)}
       {#if item.id === 'metric-steps'}
         {@const reached = (item.progressCurrent ?? 0) >= (item.progressTarget ?? 1)}
-        {@const remaining = Math.max(0, (item.progressTarget ?? 1) - (item.progressCurrent ?? 0))}
         <div class="bio-section biometric-trend-target" role="group" aria-label="Schritte"
           onpointerdown={(event) => handlePressStart(item, event)}
           onpointerup={handlePressEnd}
@@ -702,21 +677,13 @@
           oncontextmenu={(event) => handleContextMenu(item, event)}>
           <div class="bio-hdr">
             <span class="bio-title"><Icon name={item.icon} size={14} /> {item.title}</span>
-            <div class="bio-hdr-right">
-              {#if reached}
-              <span class="bio-goal-reached">✓</span>
-              {/if}
-              <button class="bio-trend-button" type="button" onpointerdown={(event) => event.stopPropagation()} onclick={(event) => { event.stopPropagation(); openMetricTrend(item, event.currentTarget); }} aria-label="Schritte-Verlauf anzeigen"><Icon name="chart" size={16} /></button>
-            </div>
+            <button class="longpress-indicator" type="button" onpointerdown={(event) => event.stopPropagation()} onclick={(event) => { event.stopPropagation(); openMetricTrend(item, event.currentTarget); }} aria-label="Schritte-Details anzeigen. Langes Drücken auf die Kachel öffnet sie ebenfalls."><span aria-hidden="true"></span></button>
           </div>
           <div class="bio-value-lg">
             {(item.metricValue ?? 0).toLocaleString('de')}
             <span class="bio-target">/ {item.progressTarget?.toLocaleString('de') ?? '—'}</span>
           </div>
           <ProgressBar current={item.progressCurrent ?? 0} target={item.progressTarget ?? 1} color={reached ? 'var(--status-success)' : 'var(--text-secondary)'} />
-          {#if !reached && item.metricValue != null}
-            <div class="bio-status"><span class="bio-pending">noch {remaining.toLocaleString('de')}</span></div>
-          {/if}
         </div>
       {:else if item.id === 'metric-sleep'}
         {@const sd = item.sleepDetails}
@@ -731,36 +698,10 @@
           oncontextmenu={(event) => handleContextMenu(item, event)}>
           <div class="bio-hdr">
             <span class="bio-title"><Icon name={item.icon} size={14} /> {item.title}</span>
-            <button class="bio-trend-button" type="button" onpointerdown={(event) => event.stopPropagation()} onclick={(event) => { event.stopPropagation(); openMetricTrend(item, event.currentTarget); }} aria-label="Schlafverlauf anzeigen"><Icon name="chart" size={16} /></button>
+            <button class="longpress-indicator" type="button" onpointerdown={(event) => event.stopPropagation()} onclick={(event) => { event.stopPropagation(); openMetricTrend(item, event.currentTarget); }} aria-label="Schlaf-Details anzeigen. Langes Drücken auf die Kachel öffnet sie ebenfalls."><span aria-hidden="true"></span></button>
           </div>
-          <div class="sleep-donut-row">
-            <svg class="sleep-donut" viewBox="0 0 100 100">
-              {#if sd && sleepTotal > 0}
-                {#each sleepDonut(sd) as seg}
-                  <circle cx="50" cy="50" r="38" fill="none" stroke={seg.color} stroke-width="10"
-                    stroke-dasharray="{seg.dash.toFixed(2)} {(2 * Math.PI * 38 - seg.dash).toFixed(2)}"
-                    stroke-dashoffset={seg.offset.toFixed(2)} transform="rotate(-90 50 50)" />
-                {/each}
-                <text x="50" y="47" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="700">{fmtShort(sleepTotal)}</text>
-                <text x="50" y="59" text-anchor="middle" fill="var(--text-tertiary)" font-size="7">Schlaf</text>
-              {:else}
-                <!-- Gray empty donut -->
-                <circle cx="50" cy="50" r="38" fill="none" stroke="var(--border-default)" stroke-width="10" />
-                <text x="50" y="52" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">—</text>
-              {/if}
-            </svg>
-            {#if sd && sleepTotal > 0}
-              <div class="sleep-legend-col">
-                {#each [{ val: sd.deep, color: 'var(--data-sleep-deep)', label: 'Tief' }, { val: sd.rem, color: 'var(--data-sleep-rem)', label: 'REM' }, { val: sd.light, color: 'var(--data-sleep-light)', label: 'Leicht' }, { val: sd.awake, color: 'var(--data-sleep-awake)', label: 'Wach' }] as p}
-                  <div class="sleep-leg-row">
-                    <span class="sleep-dot" style="background:{p.color}"></span>
-                    <span class="sleep-leg-label">{p.label}</span>
-                    <span class="sleep-leg-time">{fmtShort(p.val)}</span>
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </div>
+          <div class="bio-value-lg">{sleepTotal > 0 ? fmtShort(sleepTotal) : '—'}</div>
+          <ProgressBar current={item.progressCurrent ?? 0} target={item.progressTarget ?? 1} color="var(--text-secondary)" />
         </div>
       {/if}
     {/each}
@@ -770,61 +711,28 @@
 <!-- Tageswerte: Gewicht und Ernährung -->
 <div class="feature-card-row">
 {#if weightItem}
-  <section class="weight-section">
+  <section class="weight-section" role="group" aria-label="Gewicht"
+    onpointerdown={(event) => handlePressStart(weightItem, event)}
+    onpointerup={handlePressEnd}
+    onpointermove={handlePressMove}
+    onpointerleave={handlePressEnd}
+    onpointercancel={handlePressEnd}
+    oncontextmenu={(event) => handleContextMenu(weightItem, event)}>
     <div class="bio-hdr">
       <span class="bio-title"><Icon name={weightItem.icon} size={14} /> {weightItem.title}</span>
-      <div class="bio-hdr-right">
-        {#if weightItem.weightEstimate}
-          <span class="bio-source-estimate" aria-label="Geschätztes Gewicht, keine Messung">~ Schätzung</span>
-        {:else if weightItem.weightSource === 'scale_esp'}
-          <span class="bio-source-badge">Waage ✓</span>
-        {:else if weightItem.weightSource === 'manual'}
-          <span class="bio-source-manual">manuell</span>
-        {/if}
-        <button class="bio-trend-button" type="button" onclick={(event) => openMetricTrend(weightItem, event.currentTarget)} aria-label="Gewichtsverlauf anzeigen"><Icon name="chart" size={16} /></button>
-      </div>
+      <button class="longpress-indicator" type="button" onpointerdown={(event) => event.stopPropagation()} onclick={(event) => { event.stopPropagation(); openItemDetails(weightItem, event.currentTarget); }} aria-label="Gewichts-Details anzeigen. Langes Drücken auf die Kachel öffnet sie ebenfalls."><span aria-hidden="true"></span></button>
     </div>
     <div class="weight-value-row">
-      {#if weightEditing}
-        <input class="weight-input" type="number" step="0.1" min="0" max="300"
-          value={entry.weight_kg ?? ''}
-          placeholder="Gewicht eingeben"
-          onblur={(e) => finishWeightEdit(e.currentTarget.value)}
-          onkeydown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } if (e.key === 'Escape') { weightEditing = false; } }}
-          onclick={(e) => e.stopPropagation()}
-        />
-        <span class="bio-unit">kg</span>
-      {:else}
-        <button class="weight-value-btn" onclick={() => { weightEditing = true; }}>
-          {weightItem.metricValue != null ? Number(weightItem.metricValue).toFixed(1) : '—'}
-          <span class="bio-unit">kg</span>
-          <span class="weight-edit-hint">✎</span>
-        </button>
-      {/if}
+      <span class="weight-value">{weightItem.metricValue != null ? Number(weightItem.metricValue).toFixed(1) : '—'} <span class="bio-unit">kg</span></span>
     </div>
-    {#if weightItem.weightDetails && !weightEditing}
-      {@const wd = weightItem.weightDetails}
-      <div class="weight-mini-stats">
-        {#if wd.bmi != null}<span class="wms"><b>{wd.bmi}</b> BMI</span>{/if}
-      </div>
-    {/if}
-    {#if weightItem.weightEstimate && !weightEditing}
-      <p class="weight-estimate-note">Interpoliert aus Messungen vom {formatTrendDate(weightItem.weightEstimate.beforeDate)} und {formatTrendDate(weightItem.weightEstimate.afterDate)}.</p>
-    {/if}
   </section>
 {/if}
   <section class="nutrition-section" aria-labelledby="nutrition-title">
     <div class="bio-hdr">
-      <span class="bio-title" id="nutrition-title"><Icon name="meal" size={14} /> Nährstoffe</span>
-      <button class="bio-trend-button" type="button" onclick={(event) => openNutritionDetails(event.currentTarget)} aria-label="Nährwertdetails anzeigen"><Icon name="chart" size={16} /></button>
+      <span class="bio-title" id="nutrition-title"><Icon name="meal" size={14} /> Energie</span>
+      <button class="longpress-indicator" type="button" onclick={(event) => openNutritionDetails(event.currentTarget)} aria-label="Nährwertdetails anzeigen"><span aria-hidden="true"></span></button>
     </div>
     <div class="nutrition-kcal"><span>{nutritionTotals.kcal == null ? '—' : Math.round(nutritionTotals.kcal).toLocaleString('de-DE')}</span><small>kcal{goals.kcal ? ` / ${Number(goals.kcal).toLocaleString('de-DE')}` : ''}</small></div>
-    <div class="nutrition-macros" aria-label="Verzehrte Makronährstoffe">
-      <span><b>{nutritionDisplay.protein_g}</b> Protein</span>
-      <span><b>{nutritionDisplay.carbs_g}</b> KH</span>
-      <span><b>{nutritionDisplay.fat_g}</b> Fett</span>
-    </div>
-    <p class="nutrition-status">{nutritionDayEntries.length ? 'Nährstoffbilanz der verzehrten Mahlzeiten' : 'Noch keine Mahlzeit verzehrt'}</p>
   </section>
 </div>
 
@@ -882,18 +790,11 @@
           {#if item.type === 'meal' && item.kcal}<PillBadge value={Math.round(item.kcal)} unit="kcal" color="var(--data-nutrition-energy)" />{/if}
           {#if item.type === 'meal' && item.protein}<PillBadge value={Math.round(item.protein)} unit="g P" color="var(--data-nutrition-protein)" />{/if}
           {#if item.mealTime}<span class="item-time">{item.mealTime}</span>{/if}
-          {#if item.type === 'meal'}<span class="recipe-marker" title="Lange drücken für Mahlzeitdetails">Mahlzeitdetails</span>{/if}
           {#if item.type === 'todo' && item.travelLabel}<span class="item-travel">{item.travelLabel}</span>{/if}
         </div>
       </div>
-      {#if item.type === 'meal' && !item.done}
-        <div class="meal-row-actions">
-          <button class="meal-action-icon" onclick={(e) => { e.stopPropagation(); openMealEntryEditor(item); }} aria-label="Mahlzeit anpassen" title="Mahlzeit anpassen"><Icon name="edit" size={16} /></button>
-          <button class="meal-action-icon" onclick={(e) => { e.stopPropagation(); openMealEntryEditor(item, true); }} aria-label="Mahlzeit fotografieren" title="Foto analysieren"><Icon name="camera" size={16} /></button>
-        </div>
-      {/if}
-      {#if item.type === 'todo'}
-        <button class="more-action" onclick={(e) => { e.stopPropagation(); toggleTodoActions(item); }} aria-label={`${item.title} bearbeiten oder löschen`}>•••</button>
+      {#if item.type === 'meal' || item.type === 'todo' || item.type === 'training'}
+        <button class="longpress-indicator item-detail-indicator" type="button" onpointerdown={(event) => event.stopPropagation()} onclick={(event) => { event.stopPropagation(); openItemDetails(item, event.currentTarget); }} aria-label={`Details zu ${item.title} anzeigen. Langes Drücken auf die Zeile öffnet sie ebenfalls.`}><span aria-hidden="true"></span></button>
       {/if}
       {#if item.type === 'metric'}
         <MetricRow icon="" label="" value={item.metricValue} unit={item.metricUnit ?? ''} editable={item.metricEditable ?? false} checkable={false} on:change={(e) => updateMetric(item.metricField!, e.detail)} />
@@ -983,7 +884,7 @@
           {#if detailMeal?.nutrition?.carbs_g != null}<PillBadge value={Math.round(Number(detailMeal.nutrition.carbs_g))} unit="g KH" color="var(--data-nutrition-carbs)" />{/if}
           {#if detailMeal?.nutrition?.fat_g != null}<PillBadge value={Math.round(Number(detailMeal.nutrition.fat_g))} unit="g Fett" color="var(--data-nutrition-fat)" />{/if}
         </div>
-        <button class="modal-secondary" onclick={() => { mealEntryEditorItem = detailItem; closeItemDetails(); }}>Mahlzeit anpassen</button>
+        <div class="modal-actions ui-dialog__actions"><button class="modal-secondary" onclick={() => { mealEntryEditorItem = detailItem; closeItemDetails(); }}>Mahlzeit anpassen</button><button class="modal-primary" onclick={() => { mealEntryEditorCamera = true; mealEntryEditorItem = detailItem; closeItemDetails(); }}>Mahlzeit fotografieren</button></div>
       {:else if detailItem.type === 'todo'}
         <div class="detail-section ui-dialog__section">
           {#if detailItem.todoData?.category}<p class="detail-meta">Kategorie: {detailItem.todoData.category}</p>{/if}
@@ -999,6 +900,18 @@
         <button class="modal-secondary" onclick={() => { actionSheetItem = detailItem; closeItemDetails(); }}>Bearbeiten</button>
       {:else if detailItem.type === 'training'}
         <TrainingDetail training_type={trainingSuggestion?.training_type ?? entry?.training_type ?? 'Training'} date={currentDate} oncomplete={handleTrainingComplete} onclose={closeItemDetails} showClose={false} />
+      {:else if detailItem.id === 'metric-weight'}
+        <div class="detail-section ui-dialog__section">
+          <p class="detail-meta">{detailItem.metricValue != null ? `${Number(detailItem.metricValue).toFixed(1)} kg` : 'Noch kein Gewicht erfasst'}</p>
+          {#if detailItem.weightDetails?.bmi != null}<p class="detail-meta">BMI: {detailItem.weightDetails.bmi}</p>{/if}
+          {#if detailItem.weightSource === 'scale_esp'}<p class="detail-meta">Quelle: Waage</p>{:else if detailItem.weightSource === 'manual'}<p class="detail-meta">Quelle: manuell</p>{:else if detailItem.weightEstimate}<p class="detail-meta">Schätzung aus Messungen vom {formatTrendDate(detailItem.weightEstimate.beforeDate)} und {formatTrendDate(detailItem.weightEstimate.afterDate)}.</p>{/if}
+          {#if weightEditing}
+            <label class="detail-field">Gewicht in kg<input class="weight-input" type="number" step="0.1" min="0" max="300" value={entry.weight_kg ?? ''} onblur={(event) => finishWeightEdit(event.currentTarget.value)} onkeydown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') weightEditing = false; }}></label>
+          {:else}
+            <button class="modal-secondary" type="button" onclick={() => weightEditing = true}>Gewicht erfassen</button>
+          {/if}
+        </div>
+        <button class="modal-primary" type="button" onclick={(event) => openMetricTrend(detailItem!, event.currentTarget)}>Verlauf öffnen</button>
       {:else}
         <p class="detail-meta">{detailItem.metricValue ?? 'Noch kein Wert erfasst'}{detailItem.metricUnit ? ` ${detailItem.metricUnit}` : ''}</p>
       {/if}
@@ -1049,11 +962,9 @@
 {/if}
 
 <style>
-  .daily-overview { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; overflow-x:auto; padding-bottom:3px; scrollbar-width:thin; }
+  .daily-overview { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
   .daily-overview > .biometrics-row,.daily-overview > .feature-card-row { display:contents; }
-  .daily-overview .bio-section,.daily-overview .weight-section,.daily-overview .nutrition-section { min-width:0; scroll-snap-align:start; }
-  .daily-overview .sleep-legend-col { display:none; }
-  .daily-overview .sleep-donut { width:44px; height:44px; }
+  .daily-overview .bio-section,.daily-overview .weight-section,.daily-overview .nutrition-section { min-width:0; }
   .todo-highlight { display:grid; gap:10px; padding:12px; border:1px solid var(--border-default); border-radius:var(--radius-surface); background:var(--surface-accent); }
   .todo-highlight-copy { display:grid; gap:3px; min-width:0; }
   .todo-highlight-copy p { margin:0; color:var(--text-secondary); font-size:10px; font-weight:750; letter-spacing:.06em; }
@@ -1064,7 +975,6 @@
   .highlight-primary { border:0; background:var(--action-primary); color:var(--text-on-accent); }
   .highlight-secondary { border:1px solid var(--border-default); background:var(--surface-raised); color:var(--text-primary); }
   .todo-highlight-error { margin:0; color:var(--status-danger); }
-  @media (max-width:540px) { .daily-overview { grid-template-columns:repeat(4,minmax(126px,1fr)); scroll-snap-type:x proximity; } }
   .daylist { background: var(--surface-default); border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); overflow: hidden; }
   .daylist-hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border-subtle); font-size: 12px; color: var(--text-secondary); font-weight: 700; }
 
@@ -1086,35 +996,23 @@
   .item-badges { display: flex; align-items: center; gap: 4px; }
   .item-time { font-size: 11px; color: var(--text-tertiary); font-weight: 500; }
   .item-travel { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-tertiary); font-size:11px; }
-  .recipe-marker { font-size:10px; color:var(--status-success); border:1px solid color-mix(in srgb, var(--status-success) 55%, var(--border-default)); border-radius:999px; padding:2px 6px; white-space:nowrap; }
   .item-prog { flex: 0 0 70px; }
-  .meal-row-actions { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
-  .meal-action-icon { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--text-tertiary); cursor: pointer; }
-  .meal-action-icon:hover, .meal-action-icon:focus-visible { background: var(--surface-raised); color: var(--text-secondary); }
-  .meal-action-icon:focus-visible { outline: 2px solid var(--status-info); outline-offset: 1px; }
-  .meal-action-icon:active { background: var(--border-subtle); color: var(--text-primary); }
-  .more-action { width:34px; height:34px; border-radius:var(--radius-control); color:var(--text-tertiary); font-size:15px; letter-spacing:1px; }
-  .more-action:focus-visible,.more-action:active { background:var(--surface-raised); color:var(--text-primary); }
   /* Biometrics — Schritte + Schlaf nebeneinander */
   .biometrics-row { display: flex; gap: 6px; padding: 0 0 3px; }
   .biometrics-row .bio-section { flex: 1; }
-  .bio-section { display: flex; flex-direction: column; gap: 3px; padding: 7px 8px; background: var(--surface-default); border: 1px solid var(--border-subtle); border-radius:var(--radius-surface); touch-action:manipulation; }
+  .bio-section { display: flex; flex-direction: column; gap: 5px; padding: 8px; background: var(--surface-default); border: 1px solid var(--border-subtle); border-radius:var(--radius-surface); touch-action:manipulation; }
   .bio-section:active { background: var(--surface-raised); }
   .bio-hdr { display: flex; align-items: center; justify-content: space-between; }
-  .bio-title { font-size: 10px; color: var(--text-secondary); display: flex; align-items: center; gap: 3px; font-weight: 600; }
-  .bio-value-lg { font-size: 18px; font-weight: 700; color: var(--text-primary); line-height: 1.1; }
+  .bio-title { min-width:0; overflow:hidden; font-size:9px; color:var(--text-secondary); display:flex; align-items:center; gap:2px; font-weight:600; white-space:nowrap; }
+  .bio-value-lg { min-width:0; overflow:hidden; font-size:16px; font-weight:700; color:var(--text-primary); line-height:1.1; white-space:nowrap; }
   .bio-target { font-size: 11px; font-weight: 400; color: var(--text-tertiary); }
-  .bio-status { font-size: 10px; min-height: 11px; }
-  .bio-goal-reached { color: var(--status-success); font-weight: 600; }
-  .bio-pending { color: var(--text-tertiary); }
   .bio-unit { font-size: 13px; font-weight: 400; color: var(--text-tertiary); }
-  .bio-source-badge { font-size: 9px; color: var(--status-success); font-weight: 600; background: color-mix(in srgb, var(--status-success) 15%, transparent); padding: 1px 5px; border-radius: 4px; }
-  .bio-source-manual { font-size: 9px; color: var(--text-tertiary); font-weight: 500; }
-  .bio-source-estimate { font-size: 9px; color: var(--status-info); font-weight: 650; background: color-mix(in srgb, var(--status-info) 14%, transparent); padding: 1px 5px; border-radius: 4px; }
-  .bio-hdr-right { display: flex; align-items: center; gap: 4px; }
-  .bio-trend-button { display:grid; place-items:center; width:28px; min-height:28px; padding:0; border:1px solid var(--border-default); border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-secondary); cursor:pointer; }
-  .bio-trend-button:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; }
-  .bio-trend-button:active { background:var(--surface-pressed); }
+  .longpress-indicator { display:grid; place-items:center; flex:0 0 26px; width:26px; min-height:26px; padding:0; border:0; border-radius:50%; background:transparent; color:var(--text-tertiary); cursor:pointer; }
+  .longpress-indicator span { position:relative; display:block; width:17px; height:17px; border:1.5px solid currentColor; border-radius:50%; }
+  .longpress-indicator span::after { content:''; position:absolute; inset:3px; border:1.5px solid currentColor; border-radius:50%; }
+  .longpress-indicator:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; color:var(--text-primary); }
+  .longpress-indicator:active { color:var(--text-primary); }
+  .item-detail-indicator { margin-left:auto; }
 
   /* Tageswerte */
   .feature-card-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-bottom:3px; }
@@ -1122,36 +1020,17 @@
   .weight-section { background:var(--surface-default); border:1px solid var(--border-subtle); }
   .nutrition-section { background:var(--surface-default); border:1px solid var(--border-subtle); }
   .weight-value-row { display: flex; align-items: baseline; gap: 6px; }
-  .weight-value-btn { background: none; border: none; cursor: pointer; font-size: 18px; font-weight: 700; color: var(--text-primary); padding: 0; display: flex; align-items: baseline; gap: 3px; }
-  .weight-value-btn:active { opacity: 0.7; }
-  .weight-edit-hint { font-size: 12px; color: var(--text-tertiary); font-weight: 400; margin-left: 4px; }
+  .weight-value { font-size:16px; font-weight:700; color:var(--text-primary); white-space:nowrap; }
   .weight-input { width: 84px; padding: 3px 6px; border-radius: 6px; background: var(--surface-raised); border: 1px solid var(--border-default); color: var(--text-primary); font-size: 18px; font-weight: 700; }
   .weight-input:focus { border-color: var(--status-info); outline: none; }
-  /* Weight mini stats — compact inline metrics */
-  .weight-mini-stats { display: flex; flex-wrap: wrap; gap: 4px 8px; }
-  .wms { font-size: 10px; color: var(--text-tertiary); display: flex; align-items: baseline; gap: 2px; }
-  .wms b { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
-  .weight-estimate-note { margin: 1px 0 0; color: var(--text-tertiary); font-size: 9px; line-height: 1.3; }
   .trend-legend { display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin:0; color:var(--text-tertiary); font-size:11px; }
   .trend-key { width:16px; border-top:2px solid var(--status-info); }
   .trend-key.interpolated { border-top-style:dashed; }
   .trend-key.baseline { border-color:var(--text-tertiary); border-top-style:dashed; }
 
   .nutrition-kcal { display:flex; align-items:baseline; gap:3px; min-height:22px; }
-  .nutrition-kcal span { font-size:18px; font-weight:700; color:var(--text-primary); line-height:1.1; }
-  .nutrition-kcal small,.nutrition-status { margin:0; color:var(--text-tertiary); font-size:10px; line-height:1.25; }
-  .nutrition-macros { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px; padding-top:3px; border-top:1px solid var(--border-subtle); }
-  .nutrition-macros span { display:grid; gap:1px; min-width:0; color:var(--text-tertiary); font-size:8px; line-height:1.15; }
-  .nutrition-macros b { color:var(--text-primary); font-size:10px; white-space:nowrap; }
-
-  /* Sleep donut */
-  .sleep-donut-row { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 4px; }
-  .sleep-donut { width: 52px; height: 52px; }
-  .sleep-legend-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 6px; width: 100%; }
-  .sleep-leg-row { display: flex; align-items: center; gap: 4px; font-size: 9px; line-height: 1.2; }
-  .sleep-leg-label { color: var(--text-secondary); flex: 1; white-space: nowrap; }
-  .sleep-leg-time { color: var(--text-primary); font-weight: 600; text-align: right; min-width: 34px; }
-  .sleep-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .nutrition-kcal span { font-size:16px; font-weight:700; color:var(--text-primary); line-height:1.1; }
+  .nutrition-kcal small { margin:0; color:var(--text-tertiary); font-size:10px; line-height:1.25; }
 
   .modal-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
 
@@ -1181,6 +1060,7 @@
   .detail-kind,.detail-meta,.detail-empty { color:var(--text-secondary); font-size:13px; line-height:1.45; }
   .detail-close { width:32px; min-height:32px; border:1px solid var(--border-default); border-radius:50%; background:var(--surface-raised); color:var(--text-primary); font-size:20px; line-height:1; }
   .detail-section { display:grid; gap:8px; color:var(--text-primary); font-size:14px; line-height:1.45; }
+  .detail-field { display:grid; gap:5px; color:var(--text-secondary); font-size:12px; }
   .trend-detail { width:min(100%, 560px); max-height:min(76dvh, 620px); overflow:auto; border-radius:var(--radius-modal); }
   .trend-summary { grid-template-columns:repeat(3, 1fr); gap:8px; }
   .trend-summary span { display:grid; gap:2px; padding:9px; border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-tertiary); font-size:11px; }

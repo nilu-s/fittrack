@@ -21,7 +21,7 @@ services:
     build: ./backend
     environment:
       ENVIRONMENT: development
-      APP_NAME: ${APP_NAME:-Chronickel}
+      APP_NAME: ${APP_NAME:-Cronicl}
       APP_PUBLIC_ORIGIN: ${APP_PUBLIC_ORIGIN:-http://localhost:3000}
       DATABASE_URL: postgresql+asyncpg://app:${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env}@db:5432/app
       APP_JWT_SECRET: ${APP_JWT_SECRET:?set APP_JWT_SECRET in .env}
@@ -36,7 +36,7 @@ services:
     build:
       context: ./frontend
       args:
-        PUBLIC_APP_NAME: ${APP_NAME:-Chronickel}
+        PUBLIC_APP_NAME: ${APP_NAME:-Cronicl}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:

@@ -51,6 +51,22 @@
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
 {:else if name === 'trash'}
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+{:else if name === 'shopping'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/><path d="M9 13h6"/></svg>
+{:else if name === 'produce'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4.4 0-7-2.8-7-7.2C5 9.8 8 6 12 6s7 3.8 7 7.8C19 18.2 16.4 21 12 21z"/><path d="M12 6c0-2.2 1.4-3.3 3.5-3.5"/><path d="M12 6C9.8 3.8 7.4 4 6 5"/></svg>
+{:else if name === 'dairy'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8l-1 4v14H9V7L8 3z"/><path d="M9 7h6"/></svg>
+{:else if name === 'bakery'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V9c0-3 2.4-5 7-5s7 2 7 5v11H5z"/><path d="M8 8c.8 1 1.8 1.5 3 1.5M13 8c.8 1 1.8 1.5 3 1.5"/></svg>
+{:else if name === 'pantry'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+{:else if name === 'frozen'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M4.2 6l15.6 12M4.2 18L19.8 6M8 3l4 3 4-3M8 21l4-3 4 3"/></svg>
+{:else if name === 'beverage'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8l-1 18H9L8 3z"/><path d="M8 8h8"/></svg>
+{:else if name === 'household'}
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l1 4-1 14H9L8 7l1-4z"/><path d="M8 9h8M10 3v3h4V3"/></svg>
 {/if}
 
 <style>

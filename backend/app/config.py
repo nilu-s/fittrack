@@ -3,7 +3,7 @@ from __future__ import annotations
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-_DEVELOPMENT_JWT_SECRET = "chronickel_development_jwt_secret_2026"
+_DEVELOPMENT_JWT_SECRET = "cronicl_development_jwt_secret_2026"
 
 
 class Settings(BaseSettings):
@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # The visible brand is configuration.  Runtime identifiers intentionally
     # stay generic so a future rename does not require a data migration.
-    APP_NAME: str = "Chronickel"
+    APP_NAME: str = "Cronicl"
     APP_PUBLIC_ORIGIN: str = "http://localhost:3000"
     DATABASE_URL: str = "postgresql+asyncpg://app:app@localhost:5432/app"
     APP_JWT_SECRET: str = _DEVELOPMENT_JWT_SECRET

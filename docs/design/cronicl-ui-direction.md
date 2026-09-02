@@ -1,4 +1,4 @@
-# Chronickel UI Direction
+# Cronicl UI Direction
 
 ## Leitidee
 

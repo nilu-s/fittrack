@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Cronicl CNL-Checkbox</title>
+  <desc id="desc">Ein offener, dunkelgrüner C-Rahmen bildet mit einem integrierten N und einer unteren L-Führung ein CNL-Monogramm. Ein salbeigrüner Haken verbindet die Konstruktion.</desc>
+  <!-- Transparent master asset. The pale ground belongs to the host surface, not to the mark. -->
+  <g id="icon" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- The upper C ends deliberately before the N begins. -->
+    <g id="c-upper" stroke="#264235" stroke-width="20">
+      <path d="M124 211V157C124 126 149 102 180 102H347C378 102 398 126 398 157V166"/>
+    </g>
+
+    <!-- The lower C also supplies the long, quiet L-baseline. -->
+    <path id="c-lower" d="M124 242V350C124 382 149 406 180 406H347C378 406 398 382 398 350V337" stroke="#264235" stroke-width="20"/>
+
+    <!-- The N shares its left stem with the lower C instead of sitting inside a box. -->
+    <path id="n" d="M124 242L176 305V337" stroke="#264235" stroke-width="20" stroke-linecap="butt"/>
+
+    <!-- Completion is an independent, lighter diagonal; it never closes the frame. -->
+    <path id="check" d="M180 248L270 338L389 202" stroke="#8ba47d" stroke-width="20"/>
+  </g>
+</svg>
