@@ -106,7 +106,7 @@
   {:else}
     <div class="loading"><div class="spinner"></div></div>
   {/if}
-  <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} on:todoadd={addFooterTodo} on:shoppingtoggle={() => { shoppingOpen = !shoppingOpen; if (shoppingOpen) loadShopping(); }} on:shoppinggesture={openShoppingFromFooter} on:shoppingadd={addShopping} on:aiplan={() => assistantOpen = true} />
+  <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} on:todoadd={addFooterTodo} on:shoppinggesture={openShoppingFromFooter} on:shoppingadd={addShopping} on:aiplan={() => assistantOpen = true} />
   <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} query={shoppingTitle} panelHeight={shoppingPanelHeight} on:resize={(event) => setShoppingPanelHeight(event.detail)} on:close={() => { shoppingOpen = false; document.querySelector<HTMLButtonElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
   <ShoppingItemEditor bind:item={editingShopping} on:close={() => editingShopping = null} on:save={saveShopping} />
   <ShoppingMealImport bind:open={mealImportOpen} startDate={$currentDate} on:close={() => mealImportOpen = false} on:imported={(event) => shopping = event.detail} />

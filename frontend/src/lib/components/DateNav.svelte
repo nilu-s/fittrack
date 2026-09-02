@@ -10,7 +10,7 @@
   export let shoppingTitle = '';
   export let shoppingAdding = false;
   export let shoppingCount = 0;
-  const dispatch = createEventDispatcher<{ todoadd: string; aiplan: string; shoppingtoggle: void; shoppingadd: string; shoppinggesture: number }>();
+  const dispatch = createEventDispatcher<{ todoadd: string; aiplan: string; shoppingadd: string; shoppinggesture: number }>();
   const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
   const daysFull = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
   $: dateLabel = formatDateLabel($currentDate);
@@ -18,23 +18,25 @@
   $: dow = daysFull[new Date(`${$currentDate}T00:00:00`).getDay()];
   let touchStartX = 0;
   let touchStartY = 0;
-  let suppressClickUntil = 0;
-  let calendarButton: HTMLButtonElement;
+  let calendarButton: HTMLDivElement;
   let shoppingGestureStart = 0;
-  let shoppingGestureUsed = false;
   let calendarGestureStart = 0;
   let calendarGestureUsed = false;
   let calendarOpen = false;
   let calendarDragStart = 0;
   let calendarDragOffset = 0;
+  let calendarDragging = false;
+  let calendarClosing = false;
+  let calendarCloseTimer: ReturnType<typeof setTimeout> | null = null;
   let pickerMonth = new Date();
 
   function formatDate(d: Date) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
   function todayStr() { return formatDate(new Date()); }
   function formatDateLabel(dateStr: string) { const d = new Date(`${dateStr}T00:00:00`); return `${d.getDate()}. ${months[d.getMonth()]}`; }
   function changeDate(delta: number) { const d = new Date(`${$currentDate}T00:00:00`); d.setDate(d.getDate() + delta); currentDate.set(formatDate(d)); }
-  function openPicker() { pickerMonth = new Date(`${$currentDate}T00:00:00`); calendarOpen = true; }
-  function closePicker() { calendarOpen = false; calendarDragOffset = 0; calendarButton?.focus(); }
+  function goToday() { currentDate.set(todayStr()); }
+  function openPicker() { if (calendarCloseTimer) clearTimeout(calendarCloseTimer); pickerMonth = new Date(`${$currentDate}T00:00:00`); calendarDragOffset = 0; calendarClosing = false; calendarOpen = true; }
+  function closePicker() { if (!calendarOpen || calendarClosing) return; calendarDragging = false; calendarDragOffset = 0; calendarClosing = true; calendarCloseTimer = setTimeout(() => { calendarOpen = false; calendarClosing = false; calendarButton?.focus(); }, 180); }
   function selectDate(date: string) { currentDate.set(date); closePicker(); }
   function changeMonth(delta: number) { pickerMonth = new Date(pickerMonth.getFullYear(), pickerMonth.getMonth() + delta, 1); }
   function calendarDays(month: Date) {
@@ -50,22 +52,22 @@
   $: visibleCalendarDays = calendarDays(pickerMonth);
   $: pickerMonthLabel = `${months[pickerMonth.getMonth()]} ${pickerMonth.getFullYear()}`;
   function onTouchStart(e: TouchEvent) { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }
-  function onTouchEnd(e: TouchEvent) { const dx = e.changedTouches[0].clientX - touchStartX; const dy = e.changedTouches[0].clientY - touchStartY; if (Math.abs(dx) >= 44 && Math.abs(dx) > Math.abs(dy) * 1.4) { suppressClickUntil = Date.now() + 400; changeDate(dx > 0 ? -1 : 1); } }
-  function guarded(action: () => void, e: MouseEvent) { if (Date.now() < suppressClickUntil) { e.preventDefault(); e.stopPropagation(); return; } action(); }
+  function onTouchEnd(e: TouchEvent) { const dx = e.changedTouches[0].clientX - touchStartX; const dy = e.changedTouches[0].clientY - touchStartY; if (Math.abs(dx) >= 44 && Math.abs(dx) > Math.abs(dy) * 1.4) changeDate(dx > 0 ? -1 : 1); }
+  function onNavigationKeydown(event: KeyboardEvent) { if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return; event.preventDefault(); changeDate(event.key === 'ArrowLeft' ? -1 : 1); }
   function submitTodo() { dispatch('todoadd', todoTitle); }
   function submitShopping() { dispatch('shoppingadd', shoppingTitle); }
   function updateFooterEntry(event: Event) { if (shoppingOpen) shoppingTitle = (event.currentTarget as HTMLInputElement).value; else todoTitle = (event.currentTarget as HTMLInputElement).value; }
-  function startShoppingGesture(event: PointerEvent) { shoppingGestureStart = event.clientY; shoppingGestureUsed = false; (event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId); }
-  function moveShoppingGesture(event: PointerEvent) { const distance = Math.max(0, shoppingGestureStart - event.clientY); if (distance < 6) return; shoppingGestureUsed = true; dispatch('shoppinggesture', distance); }
+  function startShoppingGesture(event: PointerEvent) { shoppingGestureStart = event.clientY; (event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId); }
+  function moveShoppingGesture(event: PointerEvent) { const distance = Math.max(0, shoppingGestureStart - event.clientY); if (distance < 64) return; dispatch('shoppinggesture', distance); }
   function endShoppingGesture() { shoppingGestureStart = 0; }
-  function toggleShopping() { if (!shoppingGestureUsed) dispatch('shoppingtoggle'); shoppingGestureUsed = false; }
   function startCalendarGesture(event: PointerEvent) { calendarGestureStart = event.clientY; calendarGestureUsed = false; (event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId); }
-  function moveCalendarGesture(event: PointerEvent) { if (calendarGestureStart - event.clientY >= 18) calendarGestureUsed = true; }
+  function moveCalendarGesture(event: PointerEvent) { if (calendarGestureStart - event.clientY >= 64) calendarGestureUsed = true; }
   function endCalendarGesture() { if (calendarGestureUsed) openPicker(); calendarGestureStart = 0; }
-  function toggleCalendar() { if (!calendarGestureUsed) openPicker(); calendarGestureUsed = false; }
-  function startCalendarDrag(event: PointerEvent) { calendarDragStart = event.clientY; (event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId); }
+  function openShoppingWithKeyboard(event: KeyboardEvent) { if (event.key === 'ArrowUp') { event.preventDefault(); dispatch('shoppinggesture', 140); } }
+  function openCalendarWithKeyboard(event: KeyboardEvent) { if (event.key === 'ArrowUp') { event.preventDefault(); openPicker(); } }
+  function startCalendarDrag(event: PointerEvent) { if (calendarClosing) return; calendarDragging = true; calendarDragStart = event.clientY; (event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId); }
   function moveCalendarDrag(event: PointerEvent) { calendarDragOffset = Math.max(0, event.clientY - calendarDragStart); }
-  function endCalendarDrag() { if (calendarDragOffset >= 88) closePicker(); else calendarDragOffset = 0; calendarDragStart = 0; }
+  function endCalendarDrag() { calendarDragging = false; if (calendarDragOffset >= 88) closePicker(); else calendarDragOffset = 0; calendarDragStart = 0; }
   function closeCalendarFromHandle(event: KeyboardEvent) { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); closePicker(); } }
   function onWindowKeydown(event: KeyboardEvent) { if (calendarOpen && event.key === 'Escape') closePicker(); }
 </script>
@@ -82,17 +84,19 @@
     {/if}
   </form>
   {#if todoAddError}<p id="footer-todo-error" class="todo-add-error" role="status">{todoAddError}</p>{/if}
-  <nav class="dnav" aria-label="Tagesnavigation" ontouchstart={onTouchStart} ontouchend={onTouchEnd}>
-    <button class="dnav-arrow" onclick={(e) => guarded(() => changeDate(-1), e)} aria-label="Vorheriger Tag"><Icon name="chevron-left" size={20} /></button>
-    <div class="dnav-mid" aria-live="polite"><span class="dnav-date">{dow}, {dateLabel}</span><span class="dnav-today">{isToday ? 'Heute' : 'Im Footer wischen'}</span></div>
-    <button class:active={shoppingOpen} class="drawer-zone shopping-toggle" type="button" onclick={toggleShopping} onpointerdown={startShoppingGesture} onpointermove={moveShoppingGesture} onpointerup={endShoppingGesture} onpointercancel={endShoppingGesture} aria-expanded={shoppingOpen} aria-controls="shopping-quick-panel" aria-label="Einkaufsliste durch Hochziehen öffnen"><span class="drawer-grip" aria-hidden="true"></span><span>Einkauf</span><span class="shopping-count">{shoppingCount}</span></button>
-    <button bind:this={calendarButton} class="drawer-zone calendar-toggle" type="button" onclick={toggleCalendar} onpointerdown={startCalendarGesture} onpointermove={moveCalendarGesture} onpointerup={endCalendarGesture} onpointercancel={endCalendarGesture} aria-label="Kalender durch Hochziehen öffnen"><span class="drawer-grip" aria-hidden="true"></span><span>Kalender</span></button>
-    <button class="dnav-arrow" onclick={(e) => guarded(() => changeDate(1), e)} aria-label="Nächster Tag"><Icon name="chevron-right" size={20} /></button>
+  <nav aria-label="Tagesnavigation">
+  <div class="dnav" role="slider" aria-label="Horizontal wischen zum Wechseln" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0" aria-valuetext={`${dow}, ${dateLabel}`} tabindex="0" onkeydown={onNavigationKeydown} ontouchstart={onTouchStart} ontouchend={onTouchEnd}>
+    <span class="dnav-arrow" aria-hidden="true"><Icon name="chevron-left" size={20} /></span>
+    <button class="dnav-mid" onclick={goToday} aria-label="Zum heutigen Datum"><span class="dnav-date">{dow}, {dateLabel}</span><span class="dnav-today">{isToday ? 'Heute' : 'Zu heute'}</span></button>
+    <div class:active={shoppingOpen} class="drawer-zone shopping-toggle" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-controls="shopping-quick-panel" aria-label="Einkaufsliste nach oben ziehen" onkeydown={openShoppingWithKeyboard} onpointerdown={startShoppingGesture} onpointermove={moveShoppingGesture} onpointerup={endShoppingGesture} onpointercancel={endShoppingGesture}><span class="drawer-grip" aria-hidden="true"></span><span>Einkauf</span><span class="shopping-count">{shoppingCount}</span></div>
+    <div bind:this={calendarButton} class="drawer-zone calendar-toggle" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Kalender nach oben ziehen" onkeydown={openCalendarWithKeyboard} onpointerdown={startCalendarGesture} onpointermove={moveCalendarGesture} onpointerup={endCalendarGesture} onpointercancel={endCalendarGesture}><span class="drawer-grip" aria-hidden="true"></span><span>Kalender</span></div>
+    <span class="dnav-arrow" aria-hidden="true"><Icon name="chevron-right" size={20} /></span>
+  </div>
   </nav>
 </footer>
 
 {#if calendarOpen}
-<aside class="date-picker" style={`--drag-offset: ${calendarDragOffset}px`} aria-labelledby="date-picker-title">
+<aside class:dragging={calendarDragging} class:closing={calendarClosing} class="date-picker" style={`--drag-offset: ${calendarDragOffset}px`} aria-labelledby="date-picker-title">
   <div class="picker-content">
     <div class="picker-handle" role="button" tabindex="0" aria-label="Kalender schließen" onkeydown={closeCalendarFromHandle} onpointerdown={startCalendarDrag} onpointermove={moveCalendarDrag} onpointerup={endCalendarDrag} onpointercancel={endCalendarDrag}><span aria-hidden="true"></span></div>
     <header class="picker-header"><button type="button" class="month-button" onclick={() => changeMonth(-1)} aria-label="Vorheriger Monat"><Icon name="chevron-left" size={20} /></button><h2 id="date-picker-title">{pickerMonthLabel}</h2><button type="button" class="month-button" onclick={() => changeMonth(1)} aria-label="Nächster Monat"><Icon name="chevron-right" size={20} /></button></header>
@@ -115,8 +119,7 @@
   .todo-add-error { margin:0; padding:7px 10px; border-radius:var(--radius-control); background:var(--surface-navigation); color:var(--status-danger); font-size:12px; }
   .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
   .dnav { min-height:52px; display:grid; grid-template-columns:44px minmax(0,1fr) 68px 68px 44px; align-items:center; gap:4px; padding:4px; background:var(--surface-accent); border:1px solid var(--border-default); border-radius:var(--radius-surface); touch-action:pan-y; }
-  .dnav-arrow { display:grid; place-items:center; width:44px; height:44px; padding:0; border:0; background:transparent; color:var(--text-tertiary); cursor:pointer; }
-  .dnav-arrow:active,.dnav-arrow:focus-visible { color:var(--action-primary); outline:2px solid var(--status-info); outline-offset:2px; }
+  .dnav-arrow { display:grid; place-items:center; width:44px; height:44px; color:var(--text-tertiary); }
   .drawer-zone { position:relative; display:grid; place-items:center; gap:1px; width:68px; height:44px; padding:2px 0; border:0; border-radius:var(--radius-control); background:transparent; color:var(--text-secondary); font:inherit; font-size:10px; font-weight:700; cursor:ns-resize; touch-action:none; }
   .drawer-zone:active,.drawer-zone:focus-visible { background:var(--surface-pressed); outline:2px solid var(--status-info); outline-offset:2px; }
   .drawer-grip { width:28px; height:3px; border-radius:99px; background:var(--border-strong); }
@@ -124,10 +127,13 @@
   .shopping-toggle.active { color:var(--action-primary); background:var(--surface-navigation); }
   .shopping-count { position:absolute; top:-4px; right:-3px; display:grid; place-items:center; min-width:16px; height:16px; padding:0 3px; border-radius:99px; background:var(--action-primary); color:var(--text-on-accent); font-size:9px; font-weight:750; }
   .shopping-toggle.active .shopping-count { background:var(--surface-raised); color:var(--action-primary); }
-  .dnav-mid { min-width:0; height:44px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:1px; padding:4px 10px; }
+  .dnav-mid { min-width:0; height:44px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:1px; padding:4px 10px; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+  .dnav-mid:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; }
   .dnav-date { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; font-weight:650; color:var(--text-primary); }
   .dnav-today { font-size:10px; line-height:1.1; color:var(--action-primary); font-weight:700; }
-  .date-picker { position:fixed; z-index:45; left:50%; bottom:78px; transform:translateX(-50%) translateY(var(--drag-offset)); width:min(calc(100% - 20px),460px); padding:0; border:1px solid var(--border-default); border-radius:var(--radius-modal); background:var(--surface-default); color:var(--text-primary); box-shadow:var(--shadow-modal); animation:drawer-in 180ms cubic-bezier(.22,1,.36,1); }
+  .date-picker { position:fixed; z-index:45; left:50%; bottom:78px; transform:translateX(-50%) translateY(var(--drag-offset)); width:min(calc(100% - 20px),460px); padding:0; border:1px solid var(--border-default); border-radius:var(--radius-modal); background:var(--surface-default); color:var(--text-primary); box-shadow:var(--shadow-modal); animation:drawer-in 180ms cubic-bezier(.22,1,.36,1); transition:transform 180ms cubic-bezier(.22,1,.36,1); }
+  .date-picker.dragging { transition:none; }
+  .date-picker.closing { transform:translateX(-50%) translateY(100dvh); }
   .picker-content { display:grid; gap:var(--space-3); padding:var(--space-4); }
   .picker-handle { display:grid; place-items:center; min-height:20px; margin:-8px -8px 0; cursor:ns-resize; touch-action:none; }
   .picker-handle span { width:36px; height:4px; border-radius:99px; background:var(--border-strong); }
@@ -146,4 +152,5 @@
   .picker-actions button { min-height:var(--control-min); padding:8px 12px; border-radius:var(--radius-control); cursor:pointer; font:inherit; }
   .picker-secondary { border:1px solid var(--border-default); background:var(--surface-raised); color:var(--text-secondary); }
   @keyframes drawer-in { from { transform:translateX(-50%) translateY(100%); } to { transform:translateX(-50%) translateY(0); } }
+  @media (prefers-reduced-motion:reduce) { .date-picker { animation:none; transition:none; } }
 </style>
