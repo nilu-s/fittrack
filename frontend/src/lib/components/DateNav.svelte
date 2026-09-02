@@ -64,7 +64,7 @@
   function startGeneralTodoGesture(event: PointerEvent) { generalTodoGestureStart = event.clientY; (event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId); }
   function moveGeneralTodoGesture(event: PointerEvent) { const distance = Math.max(0, generalTodoGestureStart - event.clientY); if (distance < 64) return; dispatch('generaltodogesture', distance); }
   function endGeneralTodoGesture() { generalTodoGestureStart = 0; }
-  function openGeneralTodoWithKeyboard(event: KeyboardEvent) { if (event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ') { event.preventDefault(); dispatch('generaltodogesture', 140); } }
+  function openGeneralTodoWithKeyboard(event: KeyboardEvent) { if (event.key === 'ArrowUp') { event.preventDefault(); dispatch('generaltodogesture', 140); } }
   function onWindowKeydown(event: KeyboardEvent) { if (calendarOpen && event.key === 'Escape') closePicker(); }
 </script>
 
@@ -83,7 +83,7 @@
   <nav aria-label="Tagesnavigation">
   <div class="dnav" role="slider" aria-label="Horizontal wischen zum Wechseln" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0" aria-valuetext={`${dow}, ${dateLabel}`} tabindex="0" onkeydown={onNavigationKeydown} ontouchstart={onTouchStart} ontouchend={onTouchEnd}>
     <span class="dnav-arrow" aria-hidden="true"><Icon name="chevron-left" size={20} /></span>
-    <button class:active={generalTodoOpen} class="drawer-zone todo-toggle" type="button" aria-controls="general-todo-quick-panel" aria-expanded={generalTodoOpen} aria-label="Allgemeine To-do-Liste öffnen oder nach oben ziehen" onclick={() => dispatch('generaltodogesture', 140)} onkeydown={openGeneralTodoWithKeyboard} onpointerdown={startGeneralTodoGesture} onpointermove={moveGeneralTodoGesture} onpointerup={endGeneralTodoGesture} onpointercancel={endGeneralTodoGesture}><Icon name="todo" size={17} /><span class="todo-count">{generalTodoCount}</span></button>
+    <div class:active={generalTodoOpen} class="drawer-zone todo-toggle" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-controls="general-todo-quick-panel" aria-label="Allgemeine To-do-Liste nach oben ziehen" onkeydown={openGeneralTodoWithKeyboard} onpointerdown={startGeneralTodoGesture} onpointermove={moveGeneralTodoGesture} onpointerup={endGeneralTodoGesture} onpointercancel={endGeneralTodoGesture}><span class="drawer-grip" aria-hidden="true"></span><span>To-dos</span><span class="todo-count">{generalTodoCount}</span></div>
     <button bind:this={calendarButton} class="dnav-mid" onclick={onDateTap} aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label="Kalender öffnen; doppeltippen für heute"><span class="dnav-date">{dow}, {dateLabel}</span><span class="dnav-today">{isToday ? 'Heute' : 'Datum wählen'}</span></button>
     <div class:active={shoppingOpen} class="drawer-zone shopping-toggle" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-controls="shopping-quick-panel" aria-label="Einkaufsliste nach oben ziehen" onkeydown={openShoppingWithKeyboard} onpointerdown={startShoppingGesture} onpointermove={moveShoppingGesture} onpointerup={endShoppingGesture} onpointercancel={endShoppingGesture}><span class="drawer-grip" aria-hidden="true"></span><span>Einkauf</span><span class="shopping-count">{shoppingCount}</span></div>
     <span class="dnav-arrow" aria-hidden="true"><Icon name="chevron-right" size={20} /></span>
@@ -118,10 +118,10 @@
   .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
   .dnav { position:relative; min-height:52px; display:grid; grid-template-columns:44px minmax(0,1fr) 44px; align-items:center; gap:4px; padding:4px; overflow:hidden; background:var(--surface-accent); border:1px solid var(--border-default); border-radius:var(--radius-surface); touch-action:pan-y; }
   .dnav-arrow { display:grid; place-items:center; width:44px; height:44px; color:var(--text-tertiary); }
-  .drawer-zone { position:absolute; display:grid; place-items:center; gap:1px; width:44px; height:44px; padding:2px 0; border:0; border-radius:var(--radius-control); background:transparent; color:var(--text-secondary); font:inherit; font-size:10px; font-weight:700; cursor:ns-resize; touch-action:none; }
+  .drawer-zone { position:absolute; display:grid; place-items:center; gap:1px; width:68px; height:44px; padding:2px 0; border:0; border-radius:var(--radius-control); background:transparent; color:var(--text-secondary); font:inherit; font-size:10px; font-weight:700; cursor:ns-resize; touch-action:none; }
   .drawer-zone:active,.drawer-zone:focus-visible { background:var(--surface-pressed); outline:2px solid var(--status-info); outline-offset:2px; }
   .drawer-grip { width:28px; height:3px; border-radius:99px; background:var(--border-strong); }
-  .todo-toggle { left:50px; color:var(--action-primary); cursor:pointer; touch-action:manipulation; } .shopping-toggle { right:50px; color:var(--action-primary); }
+  .todo-toggle { left:50px; color:var(--action-primary); } .shopping-toggle { right:50px; color:var(--action-primary); }
   .shopping-toggle.active { color:var(--action-primary); background:var(--surface-navigation); }
   .shopping-count,.todo-count { position:absolute; top:-4px; right:-3px; display:grid; place-items:center; min-width:16px; height:16px; padding:0 3px; border-radius:99px; background:var(--action-primary); color:var(--text-on-accent); font-size:9px; font-weight:750; }
   .shopping-toggle.active .shopping-count { background:var(--surface-raised); color:var(--action-primary); }
