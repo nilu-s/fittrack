@@ -11,7 +11,7 @@
 </script>
 
 <div class="shopping-list" aria-live="polite">
-  {#each Object.entries(grouped) as [key, group]}
+  {#each Object.entries(grouped) as [key, group] (key)}
     <section aria-labelledby={`shopping-category-${key}`}>
       <h3 id={`shopping-category-${key}`}><Icon name={group[0].icon_key} size={16} />{categoryNames[key] ?? 'Sonstiges'}</h3>
       <ul>

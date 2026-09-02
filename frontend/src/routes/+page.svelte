@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { fly } from 'svelte/transition';
   import DateNav from '$lib/components/DateNav.svelte';
   import UnifiedDay from '$lib/components/UnifiedDay.svelte';
   import { dayData, currentDate, syncStatus, lastSync } from '$lib/stores';
@@ -23,8 +25,35 @@
   let shoppingTitle = '';
   let shoppingAdding = false;
   let shopping: import('$lib/types').ShoppingList | null = null;
+  let shoppingLoading = false;
   let editingShopping: import('$lib/types').ShoppingItem | null = null;
   let mealImportOpen = false;
+  let renderedDate = '';
+  let previousRenderedDate = '';
+  let dayTransitionDirection = 1;
+  let prefersReducedMotion = false;
+
+  $: renderedDate = data?.dayEntry?.date ?? '';
+  $: if (renderedDate && renderedDate !== previousRenderedDate) {
+    if (previousRenderedDate) dayTransitionDirection = renderedDate > previousRenderedDate ? 1 : -1;
+    previousRenderedDate = renderedDate;
+  }
+
+  onMount(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateMotionPreference = () => prefersReducedMotion = query.matches;
+    updateMotionPreference();
+    query.addEventListener('change', updateMotionPreference);
+    return () => query.removeEventListener('change', updateMotionPreference);
+  });
+
+  function incomingDayTransition() {
+    return { x: 28 * dayTransitionDirection, opacity: 0, duration: prefersReducedMotion ? 0 : 260, easing: (t: number) => 1 - Math.pow(1 - t, 3) };
+  }
+
+  function outgoingDayTransition() {
+    return { x: -20 * dayTransitionDirection, opacity: 0, duration: prefersReducedMotion ? 0 : 180, easing: (t: number) => t * t * t };
+  }
 
   function formatLastSync(ts: number | null): string { if (!ts) return ''; const d = new Date(ts); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
   function onUnifiedUpdate(e: CustomEvent) { if (!data) return; const { field, value } = e.detail; dayData.set({ ...data, dayEntry: { ...(data.dayEntry ?? { date: $currentDate }), [field]: value } }); }
@@ -71,7 +100,12 @@
     const updated = event.detail;
     dayData.set({ ...data, todos: (data.todos ?? []).map((todo) => String(todo.id) === String(updated.id) ? updated : todo) });
   }
-  async function loadShopping() { shopping = await api.getShoppingList(); }
+  async function loadShopping() {
+    if (shopping || shoppingLoading) return;
+    shoppingLoading = true;
+    try { shopping = await api.getShoppingList(); }
+    finally { shoppingLoading = false; }
+  }
   async function addShopping(event: CustomEvent<string>) { if (shoppingAdding || !event.detail.trim()) return; shoppingAdding = true; const item = await api.createShoppingItem({ title: event.detail.trim() }); if (item) { shopping = shopping ? { ...shopping, items: [...shopping.items, item] } : await api.getShoppingList(); shoppingTitle = ''; } shoppingAdding = false; }
   async function toggleShopping(item: import('$lib/types').ShoppingItem) { const updated = await api.toggleShoppingItem(item.id); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === updated.id ? updated : value) }; }
   async function removeShopping(item: import('$lib/types').ShoppingItem) { if (await api.deleteShoppingItem(item.id) && shopping) shopping = { ...shopping, items: shopping.items.filter((value) => value.id !== item.id) }; }
@@ -79,16 +113,19 @@
   function setShoppingPanelHeight(height: number) { shoppingPanelHeight = Math.max(220, Math.min(900, Math.round(height))); }
   function openShoppingFromFooter(event: CustomEvent<number>) { shoppingOpen = true; setShoppingPanelHeight(220 + event.detail); void loadShopping(); }
 
+  // Preload the drawer's content before it is opened, matching the day-view cache.
+  onMount(() => { void loadShopping(); });
+
 </script>
 
 <svelte:head><title>{pageTitle()}</title></svelte:head>
 <svelte:body class:shopping-open={shoppingOpen} />
 
 <div class="page">
-  {#if data}
-    {#key $currentDate}
-      <div class="day-slide">
-        <UnifiedDay dayData={data} currentDate={$currentDate}
+  {#if data && renderedDate === $currentDate}
+    {#key renderedDate}
+      <div class="day-slide" in:fly={incomingDayTransition()} out:fly={outgoingDayTransition()}>
+        <UnifiedDay dayData={data} currentDate={renderedDate}
           on:update={onUnifiedUpdate}
           on:mealentrychange={onMealEntryChange}
           on:trainingtoggle={(e) => onUnifiedUpdate(new CustomEvent('update', { detail: { field: 'training_done', value: e.detail } }))}
@@ -104,10 +141,10 @@
       {:else}Sync-Fehler{/if}
     </div>
   {:else}
-    <div class="loading"><div class="spinner"></div></div>
+    <div class="loading" role="status" aria-live="polite"><div class="spinner"></div><span class="sr-only">Tagesdaten werden geladen</span></div>
   {/if}
   <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} on:todoadd={addFooterTodo} on:shoppinggesture={openShoppingFromFooter} on:shoppingadd={addShopping} on:aiplan={() => assistantOpen = true} />
-  <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} query={shoppingTitle} panelHeight={shoppingPanelHeight} on:resize={(event) => setShoppingPanelHeight(event.detail)} on:close={() => { shoppingOpen = false; document.querySelector<HTMLButtonElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
+  <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} loading={shoppingLoading} query={shoppingTitle} panelHeight={shoppingPanelHeight} on:resize={(event) => setShoppingPanelHeight(event.detail)} on:close={(event) => { shoppingOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
   <ShoppingItemEditor bind:item={editingShopping} on:close={() => editingShopping = null} on:save={saveShopping} />
   <ShoppingMealImport bind:open={mealImportOpen} startDate={$currentDate} on:close={() => mealImportOpen = false} on:imported={(event) => shopping = event.detail} />
   <TodoDetailsSheet bind:todo={todoDetails} {suggestedPlaceQuery} {suggestedTravelMode} on:close={() => { todoDetails = null; suggestedPlaceQuery = ''; suggestedTravelMode = null; }} on:updated={onTodoDetailsUpdate} />
@@ -116,9 +153,10 @@
 
 <style>
   .page { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; padding-bottom: calc(136px + env(safe-area-inset-bottom, 0px)); }
-  .day-slide { animation: slideIn 0.32s cubic-bezier(0.22, 1, 0.36, 1); will-change: transform, opacity; }
+  .day-slide { will-change: transform, opacity; }
 
   .loading { display: flex; justify-content: center; align-items: center; padding: 40px 16px; }
+  .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
   .spinner { width: 24px; height: 24px; border-radius: 50%; border: 2.5px solid var(--surface-raised); border-top-color: var(--text-secondary); animation: spin 0.8s linear infinite; }
   .sync { display: flex; align-items: center; justify-content: center; min-height: 24px; padding: 3px 10px; margin-top: 2px; font-size: 11px; color: var(--text-tertiary); }
   .sync.ok { color: var(--status-success); }
@@ -126,5 +164,4 @@
   .sync.err { color: var(--status-danger); }
   @media (min-width:900px) { :global(body.shopping-open .shell) { max-width:1180px; } :global(body.shopping-open .page) { padding-right:380px; } }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes slideIn { from { opacity: 0; transform: translateX(0) scale(0.98); } to { opacity: 1; transform: translateX(0) scale(1); } }
 </style>

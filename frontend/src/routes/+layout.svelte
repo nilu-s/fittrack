@@ -22,14 +22,23 @@
   let isRefreshing = false;
   let touchStartY = 0;
   let mainEl: HTMLElement;
+  // Keep recently visited days ready for a direct, data-correct transition.
+  // This cache lives only for the active layout instance and is cleared at logout.
+  const dayCache = new Map<string, DayData>();
+  const dayRequests = new Map<string, Promise<DayData>>();
+  let activeDayRequest = 0;
+  let dayCacheGeneration = 0;
   $: isMealSettings = $page?.url?.pathname === '/settings/meals';
   $: isShopping = $page?.url?.pathname === '/shopping';
   $: isLogin = $page?.url?.pathname === '/login';
   $: isHome = $page?.url?.pathname === '/';
   $: backTarget = $page?.url?.pathname?.startsWith('/settings/') ? '/settings' : '/';
+  // Optimistic edits are written to the shared day store by child components.
+  // Mirror them so a quick return to this day never restores an older cache copy.
+  $: if ($dayData?.dayEntry?.date) dayCache.set($dayData.dayEntry.date, $dayData);
 
 
-  async function loadDayData(date: string) {
+  async function fetchDayData(date: string): Promise<DayData> {
     const fitSyncPromise = api.syncGoogleFit(date).catch(() => null);
     try {
       const [dayEntry, _instantiated, categories, todos, trainingSuggestion] = await Promise.all([
@@ -55,19 +64,68 @@
       });
       let nextTraining: TrainingSuggestion | null = null;
       if (dayEntry?.training_type) nextTraining = await api.getNextTraining(dayEntry.training_type);
-      const data: DayData = { dayEntry: dayEntry ?? { date }, mealEntries: displayedEntries, todos: todos ?? [], trainingSuggestion: trainingSuggestion as TrainingSuggestion | null, nextTraining, weekStats: null };
-      dayData.set(data);
+      let data: DayData = { dayEntry: dayEntry ?? { date }, mealEntries: displayedEntries, todos: todos ?? [], trainingSuggestion: trainingSuggestion as TrainingSuggestion | null, nextTraining, weekStats: null };
       if (dayEntry) await db.dayEntries.put({ ...dayEntry, date, updated_at: dayEntry.updated_at } as any);
       const fitResult = await fitSyncPromise;
-      if (fitResult) { dayData.update((d) => { if (!d || !d.dayEntry) return d; const cur = d.dayEntry; const ue = { ...cur, steps: fitResult.steps ?? cur.steps, steps_confirmed: fitResult.steps_confirmed ?? true, steps_source: fitResult.steps_source ?? 'google_fit' }; if (fitResult.sleep_hours != null && fitResult.sleep_hours > 0) { ue.sleep_hours = fitResult.sleep_hours; ue.sleep_deep_hours = fitResult.sleep_deep_hours; ue.sleep_rem_hours = fitResult.sleep_rem_hours; ue.sleep_light_hours = fitResult.sleep_light_hours; ue.sleep_awake_hours = fitResult.sleep_awake_hours; ue.sleep_efficiency = fitResult.sleep_efficiency; ue.sleep_quality = fitResult.sleep_quality; } return { ...d, dayEntry: ue as DayEntry }; }); }
+      if (fitResult && data.dayEntry) {
+        const cur = data.dayEntry;
+        const updatedEntry = { ...cur, steps: fitResult.steps ?? cur.steps, steps_confirmed: fitResult.steps_confirmed ?? true, steps_source: fitResult.steps_source ?? 'google_fit' };
+        if (fitResult.sleep_hours != null && fitResult.sleep_hours > 0) {
+          updatedEntry.sleep_hours = fitResult.sleep_hours;
+          updatedEntry.sleep_deep_hours = fitResult.sleep_deep_hours;
+          updatedEntry.sleep_rem_hours = fitResult.sleep_rem_hours;
+          updatedEntry.sleep_light_hours = fitResult.sleep_light_hours;
+          updatedEntry.sleep_awake_hours = fitResult.sleep_awake_hours;
+          updatedEntry.sleep_efficiency = fitResult.sleep_efficiency;
+          updatedEntry.sleep_quality = fitResult.sleep_quality;
+        }
+        data = { ...data, dayEntry: updatedEntry as DayEntry };
+      }
+      return data;
     } catch (e) {
       console.warn('Failed to load day data:', e);
       const ce = await db.dayEntries.where('date').equals(date).first();
       const ct = await db.todos.where('date').equals(date).toArray();
       // Meal entries are revision-aware and online-first; never revive a
       // removed legacy IndexedDB meal record during an offline fallback.
-      dayData.set({ dayEntry: ce ?? { date }, mealEntries: [], todos: ct ?? [], trainingSuggestion: null, nextTraining: null, weekStats: null });
+      return { dayEntry: ce ?? { date }, mealEntries: [], todos: ct ?? [], trainingSuggestion: null, nextTraining: null, weekStats: null };
     }
+  }
+
+  function dayAfter(date: string, offset: number): string {
+    const result = new Date(`${date}T00:00:00`);
+    result.setDate(result.getDate() + offset);
+    return `${result.getFullYear()}-${String(result.getMonth() + 1).padStart(2, '0')}-${String(result.getDate()).padStart(2, '0')}`;
+  }
+
+  function readDayData(date: string, force = false): Promise<DayData> {
+    if (!force) {
+      const cached = dayCache.get(date);
+      if (cached) return Promise.resolve(cached);
+    }
+    const pending = dayRequests.get(date);
+    if (pending) return pending;
+    const generation = dayCacheGeneration;
+    const request = fetchDayData(date).then((data) => {
+      if (generation === dayCacheGeneration) dayCache.set(date, data);
+      return data;
+    }).finally(() => dayRequests.delete(date));
+    dayRequests.set(date, request);
+    return request;
+  }
+
+  function preloadAdjacentDays(date: string) {
+    for (const offset of [-1, 1]) void readDayData(dayAfter(date, offset)).catch(() => undefined);
+  }
+
+  async function loadDayData(date: string, force = false) {
+    const request = ++activeDayRequest;
+    const data = await readDayData(date, force);
+    // Requests can finish in any order. Only the still-selected day may replace
+    // the rendered data; otherwise briefly reused cards can appear on the wrong day.
+    if (request !== activeDayRequest || date !== $currentDate) return;
+    dayData.set(data);
+    preloadAdjacentDays(date);
   }
 
   $: if ($currentDate && authChecked && $isAuthenticated) loadDayData($currentDate);
@@ -97,15 +155,15 @@
     return () => { window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); mainEl.removeEventListener('touchstart', onStart); mainEl.removeEventListener('touchmove', onMove); mainEl.removeEventListener('touchend', onEnd); };
   });
 
-  async function handleRefresh() { if (isRefreshing) return; isRefreshing = true; await loadDayData($currentDate); if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30); isRefreshing = false; }
+  async function handleRefresh() { if (isRefreshing) return; isRefreshing = true; await loadDayData($currentDate, true); if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30); isRefreshing = false; }
 
   afterUpdate(() => { const p = $page?.url?.pathname ?? ''; if (p === '/login' || p.startsWith('/settings')) return; if (authChecked && !$isAuthenticated) goto('/login'); });
 
-  async function handleLogout() { await logout(); goto('/login'); }
+  async function handleLogout() { dayCacheGeneration += 1; dayCache.clear(); dayRequests.clear(); activeDayRequest += 1; dayData.set(null); await logout(); goto('/login'); }
 
   function onTouchStart(e: TouchEvent) { if (isRefreshing) return; if (window.scrollY <= 0) { touchStartY = e.touches[0].clientY; isPulling = true; } else { isPulling = false; } }
   function onTouchMove(e: TouchEvent) { if (!isPulling || isRefreshing) return; const delta = e.touches[0].clientY - touchStartY; if (delta > 0 && window.scrollY <= 0) { pullDistance = Math.min(delta * 0.5, pullThreshold * 1.5); if (pullDistance > 5) e.preventDefault(); } }
-  async function onTouchEnd() { if (!isPulling || isRefreshing) return; isPulling = false; if (pullDistance >= pullThreshold) { isRefreshing = true; pullDistance = pullThreshold; await loadDayData($currentDate); if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30); isRefreshing = false; } pullDistance = 0; }
+  async function onTouchEnd() { if (!isPulling || isRefreshing) return; isPulling = false; if (pullDistance >= pullThreshold) { isRefreshing = true; pullDistance = pullThreshold; await loadDayData($currentDate, true); if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30); isRefreshing = false; } pullDistance = 0; }
 </script>
 
 <div class:wide-shell={isMealSettings || isShopping} class="shell">

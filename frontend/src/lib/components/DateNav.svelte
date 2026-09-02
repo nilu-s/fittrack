@@ -21,6 +21,7 @@
   let calendarButton: HTMLButtonElement;
   let shoppingGestureStart = 0;
   let calendarOpen = false;
+  let dateTapTimer: ReturnType<typeof setTimeout> | null = null;
   let pickerMonth = new Date();
 
   function formatDate(d: Date) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
@@ -28,6 +29,7 @@
   function formatDateLabel(dateStr: string) { const d = new Date(`${dateStr}T00:00:00`); return `${d.getDate()}. ${months[d.getMonth()]}`; }
   function changeDate(delta: number) { const d = new Date(`${$currentDate}T00:00:00`); d.setDate(d.getDate() + delta); currentDate.set(formatDate(d)); }
   function openPicker() { pickerMonth = new Date(`${$currentDate}T00:00:00`); calendarOpen = true; }
+  function onDateTap() { if (dateTapTimer) { clearTimeout(dateTapTimer); dateTapTimer = null; currentDate.set(todayStr()); return; } dateTapTimer = setTimeout(() => { dateTapTimer = null; openPicker(); }, 240); }
   function closePicker() { calendarOpen = false; calendarButton?.focus(); }
   function selectDate(date: string) { currentDate.set(date); closePicker(); }
   function changeMonth(delta: number) { pickerMonth = new Date(pickerMonth.getFullYear(), pickerMonth.getMonth() + delta, 1); }
@@ -71,7 +73,7 @@
   <nav aria-label="Tagesnavigation">
   <div class="dnav" role="slider" aria-label="Horizontal wischen zum Wechseln" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0" aria-valuetext={`${dow}, ${dateLabel}`} tabindex="0" onkeydown={onNavigationKeydown} ontouchstart={onTouchStart} ontouchend={onTouchEnd}>
     <span class="dnav-arrow" aria-hidden="true"><Icon name="chevron-left" size={20} /></span>
-    <button bind:this={calendarButton} class="dnav-mid" onclick={openPicker} aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label="Kalender öffnen"><span class="dnav-date">{dow}, {dateLabel}</span><span class="dnav-today">{isToday ? 'Heute' : 'Datum wählen'}</span></button>
+    <button bind:this={calendarButton} class="dnav-mid" onclick={onDateTap} aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label="Kalender öffnen; doppeltippen für heute"><span class="dnav-date">{dow}, {dateLabel}</span><span class="dnav-today">{isToday ? 'Heute' : 'Datum wählen'}</span></button>
     <div class:active={shoppingOpen} class="drawer-zone shopping-toggle" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-controls="shopping-quick-panel" aria-label="Einkaufsliste nach oben ziehen" onkeydown={openShoppingWithKeyboard} onpointerdown={startShoppingGesture} onpointermove={moveShoppingGesture} onpointerup={endShoppingGesture} onpointercancel={endShoppingGesture}><span class="drawer-grip" aria-hidden="true"></span><span>Einkauf</span><span class="shopping-count">{shoppingCount}</span></div>
     <span class="dnav-arrow" aria-hidden="true"><Icon name="chevron-right" size={20} /></span>
   </div>
