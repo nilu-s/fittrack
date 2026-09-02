@@ -252,10 +252,11 @@ class ApiClient {
 
   // Todos
   async getTodos(
-    date: string,
+    date?: string,
     filters?: Record<string, string>,
   ): Promise<Todo[]> {
-    const params = new URLSearchParams({ date });
+    const params = new URLSearchParams();
+    if (date) params.set("date", date);
     if (filters) {
       for (const [key, val] of Object.entries(filters)) {
         params.append(key, val);

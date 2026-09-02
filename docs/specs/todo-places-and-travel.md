@@ -2,7 +2,7 @@
 
 **Status:** approved
 **Owner:** Cronicl household
-**Last updated:** 2026-09-01
+**Last updated:** 2026-09-02
 
 ## Ziel
 
@@ -12,6 +12,10 @@ Anreiseart erhalten. Die Schnellerfassung verwendet ein gemeinsames Textfeld:
 Angaben ergänzt oder korrigiert werden können. `✦` öffnet einen allgemeinen,
 explizit angeforderten KI-Chat; er speichert keine To-dos, Orte oder
 Anreiseüberwachung.
+
+Zusätzlich gibt es eine private allgemeine To-do-Liste für Einträge ohne Datum.
+Sie nutzt dieselben To-do-Datensätze und Statuswechsel wie die Tagesliste;
+ein Eintrag ohne `due_date` erscheint ausschließlich in diesem Bereich.
 
 ## Regeln
 
@@ -43,6 +47,11 @@ Anreiseüberwachung.
 
 - `+` neben der Schnellerfassung erstellt ein simples To-do aus dem Text und
   öffnet unmittelbar das Detail-Overlay.
+- Die Footer-Schaltfläche mit To-do-Symbol links vom Datum öffnet die
+  allgemeine Liste als mobilen, höhenverstellbaren Split-Screen (Desktop:
+  gleichwertige Seitenleiste). Die Fußzeilen-Eingabe legt dort ein To-do ohne
+  Datum an. Sie wird beim Öffnen fokussiert; Escape und „Schließen“ kehren zum
+  Auslöser zurück. Einkauf und allgemeine Liste sind nie gleichzeitig offen.
 - `✦` öffnet den KI-Chat für Fragen und komplexe Planungswünsche. Er gibt
   Antworten, führt aber keine Datenänderung aus.
 - Ein Ortsvorschlag wird über die Place-Suche ausgewählt und bestätigt. Die
@@ -67,4 +76,5 @@ stille Standortüberwachung ein.
 | Keine clientgesteuerte Identität oder Schlüssel | OpenAPI-/Schema-Test und Quellcodeprüfung |
 | Relative KI-Datumsauflösung | `backend/tests/test_todo_places_contract.py` |
 | Browser-UI hat sichtbare, native Aktionen | `npm run check`, Accessibility-Review |
+| Allgemeine To-dos bleiben datumsfrei und konto-privat | Todo-Contract- und Account-Isolation-Suite |
 | API-Vertrag | `backend/scripts/update-openapi`, Contract-Snapshot-Test |

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { fly } from 'svelte/transition';
   import DateNav from '$lib/components/DateNav.svelte';
   import UnifiedDay from '$lib/components/UnifiedDay.svelte';
@@ -10,6 +10,7 @@
   import ShoppingQuickPanel from '$lib/components/ShoppingQuickPanel.svelte';
   import ShoppingItemEditor from '$lib/components/ShoppingItemEditor.svelte';
   import ShoppingMealImport from '$lib/components/ShoppingMealImport.svelte';
+  import GeneralTodoQuickPanel from '$lib/components/GeneralTodoQuickPanel.svelte';
   import { pageTitle } from '$lib/brand';
 
   $: data = $dayData;
@@ -21,6 +22,12 @@
   let suggestedTravelMode: import('$lib/types').Todo['travel_mode'] = null;
   let assistantOpen = false;
   let shoppingOpen = false;
+  let generalTodoOpen = false;
+  let generalTodoPanelHeight = 360;
+  let generalTodoTitle = '';
+  let generalTodoAdding = false;
+  let generalTodos: import('$lib/types').Todo[] = [];
+  let generalTodosLoading = false;
   let shoppingPanelHeight = 360;
   let shoppingTitle = '';
   let shoppingAdding = false;
@@ -100,6 +107,34 @@
     const updated = event.detail;
     dayData.set({ ...data, todos: (data.todos ?? []).map((todo) => String(todo.id) === String(updated.id) ? updated : todo) });
   }
+  async function loadGeneralTodos() {
+    if (generalTodosLoading) return;
+    generalTodosLoading = true;
+    try { generalTodos = (await api.getTodos()).filter((todo) => !todo.due_date); }
+    finally { generalTodosLoading = false; }
+  }
+  async function addGeneralTodo(event: CustomEvent<string>) {
+    const title = event.detail.trim();
+    if (!title || generalTodoAdding) return;
+    generalTodoAdding = true;
+    const created = await api.createTodo({ title, status: 'open', priority: 2, source: 'manual' });
+    if (created) { generalTodos = [...generalTodos, created]; generalTodoTitle = ''; }
+    generalTodoAdding = false;
+  }
+  async function toggleGeneralTodo(todo: import('$lib/types').Todo) {
+    if (!todo.id) return;
+    const updated = await api.markTodoDone(todo.id);
+    if (updated) generalTodos = generalTodos.map((current) => current.id === updated.id ? updated : current);
+  }
+  async function removeGeneralTodo(todo: import('$lib/types').Todo) {
+    if (todo.id && await api.deleteTodo(todo.id)) generalTodos = generalTodos.filter((current) => current.id !== todo.id);
+  }
+  async function openGeneralTodos(height: number) {
+    shoppingOpen = false; generalTodoOpen = true;
+    generalTodoPanelHeight = Math.max(1, Math.min(900, Math.round(220 + height)));
+    await tick(); document.querySelector<HTMLInputElement>('#footer-entry-title')?.focus();
+    void loadGeneralTodos();
+  }
   async function loadShopping() {
     if (shopping || shoppingLoading) return;
     shoppingLoading = true;
@@ -119,7 +154,7 @@
 </script>
 
 <svelte:head><title>{pageTitle()}</title></svelte:head>
-<svelte:body class:shopping-open={shoppingOpen} />
+<svelte:body class:shopping-open={shoppingOpen} class:general-todo-open={generalTodoOpen} />
 
 <div class="page">
   {#if data && renderedDate === $currentDate}
@@ -143,7 +178,8 @@
   {:else}
     <div class="loading" role="status" aria-live="polite"><div class="spinner"></div><span class="sr-only">Tagesdaten werden geladen</span></div>
   {/if}
-  <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} on:todoadd={addFooterTodo} on:shoppinggesture={openShoppingFromFooter} on:shoppingadd={addShopping} on:aiplan={() => assistantOpen = true} />
+  <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} bind:generalTodoOpen bind:generalTodoTitle {generalTodoAdding} generalTodoCount={generalTodos.filter((todo) => todo.status === 'open').length} on:todoadd={addFooterTodo} on:shoppinggesture={(event) => { generalTodoOpen = false; openShoppingFromFooter(event); }} on:shoppingadd={addShopping} on:generaltodogesture={(event) => openGeneralTodos(event.detail)} on:generaltodoadd={addGeneralTodo} on:aiplan={() => assistantOpen = true} />
+  <GeneralTodoQuickPanel bind:open={generalTodoOpen} todos={generalTodos} loading={generalTodosLoading} panelHeight={generalTodoPanelHeight} on:resize={(event) => generalTodoPanelHeight = event.detail} on:close={(event) => { generalTodoOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.todo-toggle')?.focus(); }} on:toggle={(event) => toggleGeneralTodo(event.detail)} on:remove={(event) => removeGeneralTodo(event.detail)} />
   <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} loading={shoppingLoading} query={shoppingTitle} panelHeight={shoppingPanelHeight} on:resize={(event) => setShoppingPanelHeight(event.detail)} on:close={(event) => { shoppingOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
   <ShoppingItemEditor bind:item={editingShopping} on:close={() => editingShopping = null} on:save={saveShopping} />
   <ShoppingMealImport bind:open={mealImportOpen} startDate={$currentDate} on:close={() => mealImportOpen = false} on:imported={(event) => shopping = event.detail} />
@@ -162,6 +198,6 @@
   .sync.ok { color: var(--status-success); }
   .sync.syncing { color: var(--status-warning); }
   .sync.err { color: var(--status-danger); }
-  @media (min-width:900px) { :global(body.shopping-open .shell) { max-width:1180px; } :global(body.shopping-open .page) { padding-right:380px; } }
+  @media (min-width:900px) { :global(body.shopping-open .shell),:global(body.general-todo-open .shell) { max-width:1180px; } :global(body.shopping-open .page) { padding-right:380px; } :global(body.general-todo-open .page) { padding-left:380px; } }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
