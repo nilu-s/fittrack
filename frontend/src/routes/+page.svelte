@@ -19,6 +19,7 @@
   let suggestedTravelMode: import('$lib/types').Todo['travel_mode'] = null;
   let assistantOpen = false;
   let shoppingOpen = false;
+  let shoppingPanelHeight = 360;
   let shoppingTitle = '';
   let shoppingAdding = false;
   let shopping: import('$lib/types').ShoppingList | null = null;
@@ -75,6 +76,8 @@
   async function toggleShopping(item: import('$lib/types').ShoppingItem) { const updated = await api.toggleShoppingItem(item.id); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === updated.id ? updated : value) }; }
   async function removeShopping(item: import('$lib/types').ShoppingItem) { if (await api.deleteShoppingItem(item.id) && shopping) shopping = { ...shopping, items: shopping.items.filter((value) => value.id !== item.id) }; }
   async function saveShopping(event: CustomEvent<{ id: string; data: Partial<import('$lib/types').ShoppingItem> }>) { const updated = await api.updateShoppingItem(event.detail.id, event.detail.data); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === updated.id ? updated : value) }; }
+  function setShoppingPanelHeight(height: number) { shoppingPanelHeight = Math.max(220, Math.min(900, Math.round(height))); }
+  function openShoppingFromFooter(event: CustomEvent<number>) { shoppingOpen = true; setShoppingPanelHeight(220 + event.detail); void loadShopping(); }
 
 </script>
 
@@ -103,8 +106,8 @@
   {:else}
     <div class="loading"><div class="spinner"></div></div>
   {/if}
-  <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} on:todoadd={addFooterTodo} on:shoppingtoggle={() => { shoppingOpen = !shoppingOpen; if (shoppingOpen) loadShopping(); }} on:shoppingadd={addShopping} on:aiplan={() => assistantOpen = true} />
-  <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} query={shoppingTitle} on:close={() => { shoppingOpen = false; document.querySelector<HTMLButtonElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
+  <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} on:todoadd={addFooterTodo} on:shoppingtoggle={() => { shoppingOpen = !shoppingOpen; if (shoppingOpen) loadShopping(); }} on:shoppinggesture={openShoppingFromFooter} on:shoppingadd={addShopping} on:aiplan={() => assistantOpen = true} />
+  <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} query={shoppingTitle} panelHeight={shoppingPanelHeight} on:resize={(event) => setShoppingPanelHeight(event.detail)} on:close={() => { shoppingOpen = false; document.querySelector<HTMLButtonElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
   <ShoppingItemEditor bind:item={editingShopping} on:close={() => editingShopping = null} on:save={saveShopping} />
   <ShoppingMealImport bind:open={mealImportOpen} startDate={$currentDate} on:close={() => mealImportOpen = false} on:imported={(event) => shopping = event.detail} />
   <TodoDetailsSheet bind:todo={todoDetails} {suggestedPlaceQuery} {suggestedTravelMode} on:close={() => { todoDetails = null; suggestedPlaceQuery = ''; suggestedTravelMode = null; }} on:updated={onTodoDetailsUpdate} />
