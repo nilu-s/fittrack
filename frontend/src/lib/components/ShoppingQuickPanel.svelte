@@ -18,6 +18,7 @@
   let resizeStartY = 0;
   let resizeStartHeight = 0;
   let dragOffset = 0;
+  let minimized = false;
   let prefersReducedMotion = false;
 
   onMount(() => {
@@ -30,10 +31,11 @@
 
   function panelEnter() { return { y: 36, opacity: 0, duration: prefersReducedMotion ? 0 : 240 }; }
   function panelExit() { return { y: 24, opacity: 0, duration: prefersReducedMotion ? 0 : 160 }; }
-  function clampHeight(height: number) { return Math.min(Math.round(window.innerHeight * 0.82), Math.max(220, Math.round(height))); }
+  function minimumHeight() { return Math.max(160, Math.round(window.innerHeight * 0.25)); }
+  function clampHeight(height: number) { return Math.min(Math.round(window.innerHeight * 0.82), Math.max(minimumHeight(), Math.round(height))); }
   function startResize(event: PointerEvent) { resizeStartY = event.clientY; resizeStartHeight = panelHeight; (event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId); }
-  function resize(event: PointerEvent) { if (!resizeStartY) return; dragOffset = Math.max(0, event.clientY - resizeStartY); if (dragOffset) return; dispatch('resize', clampHeight(resizeStartHeight + resizeStartY - event.clientY)); }
-  function endResize() { if (dragOffset >= 88) dispatch('close', 'gesture'); dragOffset = 0; resizeStartY = 0; }
+  function resize(event: PointerEvent) { if (!resizeStartY) return; dragOffset = Math.max(0, event.clientY - resizeStartY); if (dragOffset) return; minimized = false; dispatch('resize', clampHeight(resizeStartHeight + resizeStartY - event.clientY)); }
+  function endResize() { if (dragOffset >= 72) { if (minimized) dispatch('close', 'gesture'); else { minimized = true; dispatch('resize', minimumHeight()); } } dragOffset = 0; resizeStartY = 0; }
   function resizeWithKeyboard(event: KeyboardEvent) { if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return; event.preventDefault(); dispatch('resize', clampHeight(panelHeight + (event.key === 'ArrowUp' ? 40 : -40))); }
 </script>
 
@@ -42,7 +44,7 @@
 {#if open}
   <aside id="shopping-quick-panel" class="panel" style={`--panel-height: ${panelHeight}px; --drag-offset: ${dragOffset}px`} aria-label="Einkaufsliste" in:fly={panelEnter()} out:fly={panelExit()}>
     <div class="resize-handle" role="slider" tabindex="0" aria-label="Höhe der Einkaufsliste" aria-valuemin="220" aria-valuemax="900" aria-valuenow={panelHeight} aria-valuetext={`${panelHeight} Pixel`} onkeydown={resizeWithKeyboard} onpointerdown={startResize} onpointermove={resize} onpointerup={endResize} onpointercancel={endResize}><span class="handle" aria-hidden="true"></span></div>
-    <header><div><p>EINKAUF</p><h2>{shopping?.items.filter((item) => item.status === 'open').length ?? 0} offen</h2></div></header>
+    <header><div><p>EINKAUF</p><h2>{shopping?.items.filter((item) => item.status === 'open').length ?? 0} offen</h2></div><button class="close" type="button" onclick={close}>Schließen</button></header>
     <p class="hint">Über das Eingabefeld in diesem Bereich direkt hinzufügen. Ziehe die Leiste oben, um die Ansicht zu teilen.</p>
     {#if suggestions.length}<ul class="suggestions" aria-label="Passende Artikel">{#each suggestions as suggestion}<li><button type="button" onclick={() => dispatch('choose', suggestion)}>{suggestion}</button></li>{/each}</ul>{/if}
     <div class="actions"><button type="button" onclick={() => dispatch('import', 7)}><Icon name="meal" size={16} />Plan · 7 Tage</button><a href="/shopping" onclick={close}>Verwalten</a></div>
@@ -51,5 +53,5 @@
 {/if}
 
 <style>
-  .panel { position:fixed; z-index:45; left:50%; bottom:78px; transform:translateX(-50%) translateY(var(--drag-offset)); width:min(calc(100% - 20px),460px); height:min(var(--panel-height), calc(82dvh - 78px)); display:flex; flex-direction:column; gap:10px; padding:8px 12px 12px; border:1px solid var(--border-default); border-radius:var(--radius-modal); background:var(--color-bg); box-shadow:var(--shadow-modal); } .resize-handle { display:grid; place-items:center; min-height:20px; margin:0 -6px; cursor:ns-resize; touch-action:none; } header { display:grid; align-items:start; gap:8px; } header p,.hint { margin:0; color:var(--text-tertiary); font-size:10px; font-weight:750; letter-spacing:.07em; } .hint { letter-spacing:0; font-weight:500; } h2 { margin:2px 0 0; font-size:16px; } .handle { display:block; width:36px; height:4px; border-radius:99px; background:var(--border-strong); } .suggestions { display:flex; gap:5px; margin:0; padding:0; overflow:auto; list-style:none; } .suggestions button { min-height:30px; padding:5px 9px; border:1px solid var(--border-default); border-radius:var(--radius-full); background:var(--surface-raised); color:var(--text-secondary); white-space:nowrap; font-size:11px; } .actions { display:flex; justify-content:space-between; align-items:center; gap:8px; } .actions button,.actions a { display:inline-flex; align-items:center; gap:6px; min-height:32px; color:var(--action-primary); font-size:12px; font-weight:700; } .actions a { text-decoration:none; } .body { min-height:0; overflow:auto; padding-right:2px; } .loading { margin:0; padding:var(--space-4); color:var(--text-tertiary); text-align:center; font-size:13px; } button:focus-visible,a:focus-visible,.resize-handle:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; } @media(min-width:900px) { .panel { left:auto; right:max(18px, calc((100vw - 1160px) / 2)); bottom:24px; transform:translateY(var(--drag-offset)); width:360px; height:min(var(--panel-height), calc(100dvh - 100px)); } }
+  .panel { position:fixed; z-index:45; left:50%; bottom:78px; transform:translateX(-50%) translateY(var(--drag-offset)); width:min(calc(100% - 20px),460px); height:min(var(--panel-height), calc(82dvh - 78px)); display:flex; flex-direction:column; gap:10px; padding:8px 12px 12px; border:1px solid var(--border-default); border-radius:var(--radius-modal); background:var(--color-bg); box-shadow:var(--shadow-modal); } .resize-handle { display:grid; place-items:center; min-height:20px; margin:0 -6px; cursor:ns-resize; touch-action:none; } header { display:flex; align-items:start; justify-content:space-between; gap:8px; } header p,.hint { margin:0; color:var(--text-tertiary); font-size:10px; font-weight:750; letter-spacing:.07em; } .hint { letter-spacing:0; font-weight:500; } h2 { margin:2px 0 0; font-size:16px; } .close { min-height:32px; padding:5px 8px; border-radius:var(--radius-control); color:var(--text-secondary); font:inherit; font-size:12px; } .handle { display:block; width:36px; height:4px; border-radius:99px; background:var(--border-strong); } .suggestions { display:flex; gap:5px; margin:0; padding:0; overflow:auto; list-style:none; } .suggestions button { min-height:30px; padding:5px 9px; border:1px solid var(--border-default); border-radius:var(--radius-full); background:var(--surface-raised); color:var(--text-secondary); white-space:nowrap; font-size:11px; } .actions { display:flex; justify-content:space-between; align-items:center; gap:8px; } .actions button,.actions a { display:inline-flex; align-items:center; gap:6px; min-height:32px; color:var(--action-primary); font-size:12px; font-weight:700; } .actions a { text-decoration:none; } .body { min-height:0; overflow:auto; padding-right:2px; } .loading { margin:0; padding:var(--space-4); color:var(--text-tertiary); text-align:center; font-size:13px; } button:focus-visible,a:focus-visible,.resize-handle:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; } @media(min-width:900px) { .panel { left:auto; right:max(18px, calc((100vw - 1160px) / 2)); bottom:24px; transform:translateY(var(--drag-offset)); width:360px; height:min(var(--panel-height), calc(100dvh - 100px)); } }
 </style>

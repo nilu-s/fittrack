@@ -313,7 +313,26 @@
     }
     if (item.type === 'training' && entry) { const newVal = !entry.training_done; try { await api.upsertDayEntry({ ...entry, training_done: newVal, date: currentDate }); entry = { ...entry, training_done: newVal }; if (newVal) deferCompletedItemReorder(item.id); dispatch('trainingtoggle', newVal); } catch {} return; }
     if (item.type === 'cardio' && entry) { const newVal = !entry.cardio_done; try { await api.upsertDayEntry({ ...entry, cardio_done: newVal, date: currentDate }); entry = { ...entry, cardio_done: newVal }; if (newVal) deferCompletedItemReorder(item.id); dispatch('cardiotoggle', newVal); } catch {} return; }
-    if (item.type === 'todo') { const todoId = item.id.replace('todo-', ''); try { const updated = await api.markTodoDone(todoId); if (!updated) return; todos = todos.map((t) => String(t.id) === todoId ? { ...t, ...updated } : t); if (updated.status === 'done') deferCompletedItemReorder(item.id); dispatch('todotoggle', { id: todoId, status: updated.status }); } catch {} return; }
+    if (item.type === 'todo') {
+      const todoId = item.id.replace('todo-', '');
+      const previous = todos.find((todo) => String(todo.id) === todoId);
+      if (!previous) return;
+      const nextStatus = previous.status === 'done' ? 'open' : 'done';
+      // The checkmark belongs to the direct action; only the later list move is delayed.
+      todos = todos.map((todo) => String(todo.id) === todoId ? { ...todo, status: nextStatus } : todo);
+      if (nextStatus === 'done') deferCompletedItemReorder(item.id);
+      dispatch('todotoggle', { id: todoId, status: nextStatus });
+      try {
+        const updated = await api.markTodoDone(todoId);
+        if (!updated) throw new Error('To-do konnte nicht aktualisiert werden.');
+        todos = todos.map((todo) => String(todo.id) === todoId ? { ...todo, ...updated } : todo);
+        dispatch('todotoggle', { id: todoId, status: updated.status });
+      } catch {
+        todos = todos.map((todo) => String(todo.id) === todoId ? previous : todo);
+        dispatch('todotoggle', { id: todoId, status: previous.status });
+      }
+      return;
+    }
   }
 
   async function updateMetric(field: string, value: any) { if (!entry) return; entry = { ...entry, [field]: value }; if (field === 'weight_kg') { entry = { ...entry, weight_source: 'manual' }; } try { await api.upsertDayEntry({ ...entry, date: currentDate }); dispatch('update', { field, value }); } catch {} }
