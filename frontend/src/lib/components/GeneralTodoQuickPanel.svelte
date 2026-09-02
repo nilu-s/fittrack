@@ -8,7 +8,7 @@
   export let todos: Todo[] = [];
   export let loading = false;
   export let panelHeight = 360;
-  const dispatch = createEventDispatcher<{ close: 'gesture' | 'keyboard'; toggle: Todo; remove: Todo; resize: number }>();
+  const dispatch = createEventDispatcher<{ close: 'gesture' | 'keyboard'; toggle: Todo; remove: Todo; edit: Todo; resize: number }>();
   let resizeStartY = 0;
   let resizeStartHeight = 0;
   let pendingHeight = 0;
@@ -44,7 +44,7 @@
     <p class="hint">Über das Eingabefeld unten direkt und ohne Datum hinzufügen. Ziehe die Leiste oben, um die Ansicht zu teilen.</p>
     <div class="body">
       {#if loading}<p class="loading" role="status">To-dos werden geladen…</p>
-      {:else if todos.length}<ul>{#each todos as todo (todo.id)}<li class:done={todo.status === 'done'}><button class="check" type="button" on:click={() => dispatch('toggle', todo)} aria-label={todo.status === 'done' ? `${todo.title} erneut öffnen` : `${todo.title} erledigen`}>{#if todo.status === 'done'}<Icon name="check" size={14} />{/if}</button><strong>{todo.title}</strong><button class="remove" type="button" on:click={() => dispatch('remove', todo)} aria-label={`${todo.title} entfernen`}><Icon name="trash" size={15} /></button></li>{/each}</ul>
+      {:else if todos.length}<ul>{#each todos as todo (todo.id)}<li class:done={todo.status === 'done'}><button class="check" type="button" on:click={() => dispatch('toggle', todo)} aria-label={todo.status === 'done' ? `${todo.title} erneut öffnen` : `${todo.title} erledigen`}>{#if todo.status === 'done'}<Icon name="check" size={14} />{/if}</button><strong>{todo.title}</strong><button class="remove" type="button" on:click={() => dispatch('edit', todo)} aria-label={`${todo.title} bearbeiten`}><Icon name="edit" size={15} /></button><button class="remove" type="button" on:click={() => dispatch('remove', todo)} aria-label={`${todo.title} entfernen`}><Icon name="trash" size={15} /></button></li>{/each}</ul>
       {:else}<p class="loading">Noch keine allgemeinen To-dos.</p>{/if}
     </div>
   </aside>

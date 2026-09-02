@@ -103,9 +103,11 @@
   }
 
   function onTodoDetailsUpdate(event: CustomEvent<import('$lib/types').Todo>) {
-    if (!data) return;
     const updated = event.detail;
-    dayData.set({ ...data, todos: (data.todos ?? []).map((todo) => String(todo.id) === String(updated.id) ? updated : todo) });
+    if (data) dayData.set({ ...data, todos: (data.todos ?? []).map((todo) => String(todo.id) === String(updated.id) ? updated : todo) });
+    generalTodos = updated.due_date
+      ? generalTodos.filter((todo) => String(todo.id) !== String(updated.id))
+      : generalTodos.map((todo) => String(todo.id) === String(updated.id) ? updated : todo);
   }
   async function loadGeneralTodos() {
     if (generalTodosLoading) return;
@@ -149,7 +151,7 @@
   function openShoppingFromFooter(event: CustomEvent<number>) { shoppingOpen = true; setShoppingPanelHeight(220 + event.detail); void loadShopping(); }
 
   // Preload the drawer's content before it is opened, matching the day-view cache.
-  onMount(() => { void loadShopping(); });
+  onMount(() => { void loadShopping(); void loadGeneralTodos(); });
 
 </script>
 
@@ -179,7 +181,7 @@
     <div class="loading" role="status" aria-live="polite"><div class="spinner"></div><span class="sr-only">Tagesdaten werden geladen</span></div>
   {/if}
   <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} bind:generalTodoOpen bind:generalTodoTitle {generalTodoAdding} generalTodoCount={generalTodos.filter((todo) => todo.status === 'open').length} on:todoadd={addFooterTodo} on:shoppinggesture={(event) => { generalTodoOpen = false; openShoppingFromFooter(event); }} on:shoppingadd={addShopping} on:generaltodogesture={(event) => openGeneralTodos(event.detail)} on:generaltodoadd={addGeneralTodo} on:aiplan={() => assistantOpen = true} />
-  <GeneralTodoQuickPanel bind:open={generalTodoOpen} todos={generalTodos} loading={generalTodosLoading} panelHeight={generalTodoPanelHeight} on:resize={(event) => generalTodoPanelHeight = event.detail} on:close={(event) => { generalTodoOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.todo-toggle')?.focus(); }} on:toggle={(event) => toggleGeneralTodo(event.detail)} on:remove={(event) => removeGeneralTodo(event.detail)} />
+  <GeneralTodoQuickPanel bind:open={generalTodoOpen} todos={generalTodos} loading={generalTodosLoading} panelHeight={generalTodoPanelHeight} on:resize={(event) => generalTodoPanelHeight = event.detail} on:close={(event) => { generalTodoOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.todo-toggle')?.focus(); }} on:toggle={(event) => toggleGeneralTodo(event.detail)} on:edit={(event) => todoDetails = event.detail} on:remove={(event) => removeGeneralTodo(event.detail)} />
   <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} loading={shoppingLoading} query={shoppingTitle} panelHeight={shoppingPanelHeight} on:resize={(event) => setShoppingPanelHeight(event.detail)} on:close={(event) => { shoppingOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
   <ShoppingItemEditor bind:item={editingShopping} on:close={() => editingShopping = null} on:save={saveShopping} />
   <ShoppingMealImport bind:open={mealImportOpen} startDate={$currentDate} on:close={() => mealImportOpen = false} on:imported={(event) => shopping = event.detail} />
