@@ -18,7 +18,6 @@
   $: dow = daysFull[new Date(`${$currentDate}T00:00:00`).getDay()];
   let touchStartX = 0;
   let touchStartY = 0;
-  let swipeOffset = 0;
   let calendarButton: HTMLButtonElement;
   let shoppingGestureStart = 0;
   let calendarOpen = false;
@@ -47,11 +46,7 @@
   $: visibleCalendarDays = calendarDays(pickerMonth);
   $: pickerMonthLabel = `${months[pickerMonth.getMonth()]} ${pickerMonth.getFullYear()}`;
   function onTouchStart(e: TouchEvent) { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }
-  function dateWithOffset(offset: number) { const d = new Date(`${$currentDate}T00:00:00`); d.setDate(d.getDate() + offset); return formatDate(d); }
-  $: swipeCandidate = swipeOffset === 0 ? '' : dateWithOffset(swipeOffset > 0 ? -1 : 1);
-  $: swipeCandidateLabel = swipeCandidate ? `${daysFull[new Date(`${swipeCandidate}T00:00:00`).getDay()]}, ${formatDateLabel(swipeCandidate)}` : '';
-  function onTouchMove(e: TouchEvent) { const dx = e.touches[0].clientX - touchStartX; const dy = e.touches[0].clientY - touchStartY; if (Math.abs(dx) > Math.abs(dy) * 1.2) swipeOffset = Math.max(-150, Math.min(150, dx)); }
-  function onTouchEnd(e: TouchEvent) { const dx = e.changedTouches[0].clientX - touchStartX; const dy = e.changedTouches[0].clientY - touchStartY; if (Math.abs(dx) >= 72 && Math.abs(dx) > Math.abs(dy) * 1.2) changeDate(dx > 0 ? -1 : 1); swipeOffset = 0; }
+  function onTouchEnd(e: TouchEvent) { const dx = e.changedTouches[0].clientX - touchStartX; const dy = e.changedTouches[0].clientY - touchStartY; if (Math.abs(dx) >= 72 && Math.abs(dx) > Math.abs(dy) * 1.2) changeDate(dx > 0 ? -1 : 1); }
   function onNavigationKeydown(event: KeyboardEvent) { if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return; event.preventDefault(); changeDate(event.key === 'ArrowLeft' ? -1 : 1); }
   function submitTodo() { dispatch('todoadd', todoTitle); }
   function submitShopping() { dispatch('shoppingadd', shoppingTitle); }
@@ -76,10 +71,9 @@
   </form>
   {#if todoAddError}<p id="footer-todo-error" class="todo-add-error" role="status">{todoAddError}</p>{/if}
   <nav aria-label="Tagesnavigation">
-  <div class:swiping={swipeOffset !== 0} class:swipe-right={swipeOffset > 0} class="dnav" role="slider" aria-label="Horizontal wischen zum Wechseln" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0" aria-valuetext={`${dow}, ${dateLabel}`} tabindex="0" onkeydown={onNavigationKeydown} ontouchstart={onTouchStart} ontouchmove={onTouchMove} ontouchend={onTouchEnd} ontouchcancel={() => swipeOffset = 0}>
+  <div class="dnav" role="slider" aria-label="Horizontal wischen zum Wechseln" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0" aria-valuetext={`${dow}, ${dateLabel}`} tabindex="0" onkeydown={onNavigationKeydown} ontouchstart={onTouchStart} ontouchend={onTouchEnd}>
     <span class="dnav-arrow" aria-hidden="true"><Icon name="chevron-left" size={20} /></span>
-    {#if swipeCandidate}<span class="dnav-preview" aria-hidden="true" style={`--swipe-offset:${swipeOffset}px`}>{swipeCandidateLabel}</span>{/if}
-    <button bind:this={calendarButton} class="dnav-mid" style={`--swipe-offset:${swipeOffset}px`} onclick={onDateTap} aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label="Kalender öffnen; doppeltippen für heute"><span class="dnav-date">{dow}, {dateLabel}</span><span class="dnav-today">{isToday ? 'Heute' : 'Datum wählen'}</span></button>
+    <button bind:this={calendarButton} class="dnav-mid" onclick={onDateTap} aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label="Kalender öffnen; doppeltippen für heute"><span class="dnav-date">{dow}, {dateLabel}</span><span class="dnav-today">{isToday ? 'Heute' : 'Datum wählen'}</span></button>
     <div class:active={shoppingOpen} class="drawer-zone shopping-toggle" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-controls="shopping-quick-panel" aria-label="Einkaufsliste nach oben ziehen" onkeydown={openShoppingWithKeyboard} onpointerdown={startShoppingGesture} onpointermove={moveShoppingGesture} onpointerup={endShoppingGesture} onpointercancel={endShoppingGesture}><span class="drawer-grip" aria-hidden="true"></span><span>Einkauf</span><span class="shopping-count">{shoppingCount}</span></div>
     <span class="dnav-arrow" aria-hidden="true"><Icon name="chevron-right" size={20} /></span>
   </div>
@@ -120,8 +114,7 @@
   .shopping-toggle.active { color:var(--action-primary); background:var(--surface-navigation); }
   .shopping-count { position:absolute; top:-4px; right:-3px; display:grid; place-items:center; min-width:16px; height:16px; padding:0 3px; border-radius:99px; background:var(--action-primary); color:var(--text-on-accent); font-size:9px; font-weight:750; }
   .shopping-toggle.active .shopping-count { background:var(--surface-raised); color:var(--action-primary); }
-  .dnav-mid { min-width:0; grid-column:2; justify-self:center; height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; padding:4px 10px; border:0; background:transparent; color:inherit; font:inherit; text-align:center; cursor:pointer; transform:translateX(var(--swipe-offset, 0)); transition:transform 180ms cubic-bezier(.22,1,.36,1); }
-  .dnav.swiping .dnav-mid { transition:none; } .dnav-preview { position:absolute; left:50%; z-index:0; transform:translateX(calc(-50% + var(--swipe-offset) + 160px)); color:var(--text-secondary); font-size:14px; font-weight:650; white-space:nowrap; } .dnav.swipe-right .dnav-preview { transform:translateX(calc(-50% + var(--swipe-offset) - 160px)); }
+  .dnav-mid { min-width:0; grid-column:2; justify-self:center; height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; padding:4px 10px; border:0; background:transparent; color:inherit; font:inherit; text-align:center; cursor:pointer; }
   .dnav-mid:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; }
   .dnav-date { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; font-weight:650; color:var(--text-primary); }
   .dnav-today { font-size:10px; line-height:1.1; color:var(--action-primary); font-weight:700; }
