@@ -1,5 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, tick } from 'svelte';
+  import { flip } from 'svelte/animate';
+  import { cubicOut } from 'svelte/easing';
   import MetricRow from './MetricRow.svelte';
   import ProgressBar from './ProgressBar.svelte';
   import PillBadge from './PillBadge.svelte';
@@ -27,6 +29,11 @@
   $: goals = $dailyGoals;
 
   let weightEditing = false;
+  // A completed task stays in place long enough for the checkmark to register
+  // before it is moved to the completed section at the bottom of the day flow.
+  let deferredReorderIds = new Set<string>();
+  const deferredReorderTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const REORDER_DELAY_MS = 420;
 
   type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; fiber?: number | null; sugar?: number | null; mealTime?: string | null; entryData?: MealEntry; todoData?: Todo; travelLabel?: string | null; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bmi: number | null }; weightEstimate?: { value: number; beforeDate: string; afterDate: string }; };
 
@@ -58,9 +65,22 @@
     // Alles, was abgehakt ist, wird im Tagesfluss ans Ende verschoben.
     // Innerhalb der offenen bzw. erledigten Gruppe bleibt die Tagesreihenfolge erhalten.
     return items.sort((a, b) => {
-      const completionOrder = Number(a.done) - Number(b.done);
+      const completionOrder = Number(a.done && !deferredReorderIds.has(a.id))
+        - Number(b.done && !deferredReorderIds.has(b.id));
       return completionOrder || a.sortKey.localeCompare(b.sortKey);
     });
+  }
+
+  function deferCompletedItemReorder(itemId: string) {
+    const existingTimer = deferredReorderTimers.get(itemId);
+    if (existingTimer) clearTimeout(existingTimer);
+    deferredReorderIds = new Set(deferredReorderIds).add(itemId);
+    deferredReorderTimers.set(itemId, setTimeout(() => {
+      const next = new Set(deferredReorderIds);
+      next.delete(itemId);
+      deferredReorderIds = next;
+      deferredReorderTimers.delete(itemId);
+    }, REORDER_DELAY_MS));
   }
 
   function travelSummary(todo: Todo): string | null {
@@ -270,6 +290,7 @@
       mealEntries = mealEntries.map((current) => current.id === meal.id
         ? { ...current, status: nextStatus, consumed_at: nextStatus === 'consumed' ? new Date().toISOString() : null }
         : current);
+      if (nextStatus === 'consumed') deferCompletedItemReorder(item.id);
       try {
         // A status toggle is intentionally independent of an older edit
         // timestamp.  Otherwise a harmless background refresh can reject the
@@ -290,9 +311,9 @@
       }
       return;
     }
-    if (item.type === 'training' && entry) { const newVal = !entry.training_done; try { await api.upsertDayEntry({ ...entry, training_done: newVal, date: currentDate }); entry = { ...entry, training_done: newVal }; dispatch('trainingtoggle', newVal); } catch {} return; }
-    if (item.type === 'cardio' && entry) { const newVal = !entry.cardio_done; try { await api.upsertDayEntry({ ...entry, cardio_done: newVal, date: currentDate }); entry = { ...entry, cardio_done: newVal }; dispatch('cardiotoggle', newVal); } catch {} return; }
-    if (item.type === 'todo') { const todoId = item.id.replace('todo-', ''); try { const updated = await api.markTodoDone(todoId); if (!updated) return; todos = todos.map((t) => String(t.id) === todoId ? { ...t, ...updated } : t); dispatch('todotoggle', { id: todoId, status: updated.status }); } catch {} return; }
+    if (item.type === 'training' && entry) { const newVal = !entry.training_done; try { await api.upsertDayEntry({ ...entry, training_done: newVal, date: currentDate }); entry = { ...entry, training_done: newVal }; if (newVal) deferCompletedItemReorder(item.id); dispatch('trainingtoggle', newVal); } catch {} return; }
+    if (item.type === 'cardio' && entry) { const newVal = !entry.cardio_done; try { await api.upsertDayEntry({ ...entry, cardio_done: newVal, date: currentDate }); entry = { ...entry, cardio_done: newVal }; if (newVal) deferCompletedItemReorder(item.id); dispatch('cardiotoggle', newVal); } catch {} return; }
+    if (item.type === 'todo') { const todoId = item.id.replace('todo-', ''); try { const updated = await api.markTodoDone(todoId); if (!updated) return; todos = todos.map((t) => String(t.id) === todoId ? { ...t, ...updated } : t); if (updated.status === 'done') deferCompletedItemReorder(item.id); dispatch('todotoggle', { id: todoId, status: updated.status }); } catch {} return; }
   }
 
   async function updateMetric(field: string, value: any) { if (!entry) return; entry = { ...entry, [field]: value }; if (field === 'weight_kg') { entry = { ...entry, weight_source: 'manual' }; } try { await api.upsertDayEntry({ ...entry, date: currentDate }); dispatch('update', { field, value }); } catch {} }
@@ -385,6 +406,8 @@
     void refreshMonitoredTravel();
     const travelTimer = window.setInterval(() => { if (document.visibilityState === 'visible') void refreshMonitoredTravel(); }, 5 * 60_000);
     return () => {
+      deferredReorderTimers.forEach((timer) => clearTimeout(timer));
+      deferredReorderTimers.clear();
       window.removeEventListener('resize', reposition);
       window.visualViewport?.removeEventListener('resize', reposition);
       window.clearInterval(travelTimer);
@@ -770,7 +793,7 @@
   </div>
 
   {#each manualItems as item (item.id)}
-    <div class="item tap-area" class:done={item.done}
+    <div class="item tap-area" class:done={item.done} animate:flip={{ duration: 360, easing: cubicOut }}
       onclick={(e) => handleTap(item, e)}
       oncontextmenu={(e) => handleContextMenu(item, e)}
       onpointerdown={(e) => handlePressStart(item, e)}
@@ -978,7 +1001,7 @@
   .daylist { background: var(--surface-default); border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); overflow: hidden; }
   .daylist-hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border-subtle); font-size: 12px; color: var(--text-secondary); font-weight: 700; }
 
-  .item { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border-subtle); cursor: pointer; transition: transform .2s ease, background var(--motion-fast), opacity var(--motion-fast); min-height: 58px; -webkit-user-select: none; user-select: none; background: var(--surface-default); }
+  .item { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border-subtle); cursor: pointer; transition: background var(--motion-fast), opacity var(--motion-fast); min-height: 58px; -webkit-user-select: none; user-select: none; background: var(--surface-default); }
   .item:last-of-type { border-bottom: none; }
   .item.done { opacity: 0.5; }
   .item:active { background: var(--surface-raised); }
@@ -1013,6 +1036,7 @@
   .longpress-indicator:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; color:var(--text-primary); }
   .longpress-indicator:active { color:var(--text-primary); }
   .item-detail-indicator { margin-left:auto; }
+  @media (prefers-reduced-motion: reduce) { .item { transition: none; } }
 
   /* Tageswerte */
   .feature-card-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-bottom:3px; }
