@@ -16,10 +16,10 @@ vereinheitlichen.
    einer nachvollziehbaren Reihenfolge.
 4. **Schnellerfassung:** sichtbarer Einstieg zum Ergänzen einer Aufgabe oder
    eines passenden Tagesinhalts.
-5. **Listen-Kontext:** Direkt über der Tagesnavigation im Footer wählt eine
-   horizontale, antipp- und wischbare Leiste „Privat“ oder einen gemeinsamen
-   Bereich für die allgemeine To-do- und Einkaufsliste. Sie ersetzt keine
-   Tagesansicht und beeinflusst weder Datum noch persönliche Tagesinhalte.
+5. **Bereichsfokus:** Oberhalb des Inhalts zeigt ein Fokus-Rad den aktiven
+   Bereich in der Mitte sowie den vorherigen und nächsten Bereich zurückhaltend
+   daneben. Pfeiltasten sind sichtbare Alternativen; ein horizontaler Wisch
+   auf dem Tagesablauf wechselt den Bereich.
 
 ## Eintragstypen
 
@@ -49,9 +49,9 @@ vereinheitlichen.
 Dieser Vertrag entscheidet Informationsstruktur und Verhalten. Farbwerte,
 Typografie und Backend-Datenverträge werden hier nicht festgelegt.
 
-Der Tagesfeed bleibt immer ein einheitlicher Ablauf. Private und geteilte
-To-dos mit Datum erscheinen gemeinsam in ihrer normalen Zeitreihenfolge;
-geteilte Einträge tragen ein kompaktes Bereichs-Label. Biometrie, Mahlzeiten,
-Training und Integrationen bleiben privat. Der Listen-Kontext im Footer wählt
-nur die jeweils geöffnete allgemeine To-do- oder Einkaufsliste sowie den
-Zielbereich für neue Footer-Einträge.
+Der Bereich ist ein Datenfilter, keine zweite Darstellung: Die identische
+Tageslisten-Komponente zeigt im privaten Bereich nur private To-dos; in einem
+gemeinsamen Bereich nur dessen To-dos. Die allgemeine To-do- und Einkaufsliste
+sowie neue Footer-Einträge verwenden denselben aktiven Bereich. Biometrie,
+Mahlzeiten, Training und Integrationen bleiben privat und erscheinen nicht im
+gemeinsamen Bereich.

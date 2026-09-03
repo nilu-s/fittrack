@@ -15,6 +15,7 @@
 
   export let dayData: DayData;
   export let currentDate: string;
+  export let workspaceMode = false;
   const dispatch = createEventDispatcher();
 
   let entry: DayEntry = dayData.dayEntry ?? { date: currentDate };
@@ -29,19 +30,25 @@
   $: goals = $dailyGoals;
 
   let weightEditing = false;
+  let dayListTouchStartX = 0;
+  let dayListTouchStartY = 0;
   // A completed task stays in place long enough for the checkmark to register
   // before it is moved to the completed section at the bottom of the day flow.
   let deferredReorderIds = new Set<string>();
   const deferredReorderTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const REORDER_DELAY_MS = 420;
 
-  type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; fiber?: number | null; sugar?: number | null; mealTime?: string | null; entryData?: MealEntry; todoData?: Todo; travelLabel?: string | null; workspaceName?: string | null; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bmi: number | null }; weightEstimate?: { value: number; beforeDate: string; afterDate: string }; };
+  type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; fiber?: number | null; sugar?: number | null; mealTime?: string | null; entryData?: MealEntry; todoData?: Todo; travelLabel?: string | null; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bmi: number | null }; weightEstimate?: { value: number; beforeDate: string; afterDate: string }; };
 
   $: unifiedItems = buildUnifiedItems(entry, mealEntries, todos, trainingSuggestion);
 
   function buildUnifiedItems(entry: DayEntry | null, mealList: MealEntry[], todoList: Todo[], suggestion: TrainingSuggestion | null): UnifiedItem[] {
     const items: UnifiedItem[] = [];
     if (!entry) return items;
+    if (workspaceMode) {
+      for (const t of todoList) items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.start_time ?? t.due_time ?? '99:99'}`, todoData: t, travelLabel: travelSummary(t) });
+      return items.sort((a, b) => Number(a.done) - Number(b.done) || a.sortKey.localeCompare(b.sortKey));
+    }
     // Weight: biometric — automated from ESP32 scale, but manually editable too
     const hasBmi = entry.bmi != null;
     const weightEstimate = entry.weight_kg == null ? estimatedWeight : null;
@@ -61,7 +68,7 @@
     if (trainingType && trainingType !== 'Ruhetag') {
       items.push({ id: 'training', type: 'training', icon: 'training', title: trainingType, done: entry.training_done ?? false, sortKey: '02-00' });
     }
-    for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.start_time ?? t.due_time ?? '99:99'}`, todoData: t, travelLabel: travelSummary(t), workspaceName: t.workspace_name }); }
+    for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.start_time ?? t.due_time ?? '99:99'}`, todoData: t, travelLabel: travelSummary(t) }); }
     // Alles, was abgehakt ist, wird im Tagesfluss ans Ende verschoben.
     // Innerhalb der offenen bzw. erledigten Gruppe bleibt die Tagesreihenfolge erhalten.
     return items.sort((a, b) => {
@@ -92,6 +99,19 @@
     const time = Number.isNaN(departure.getTime()) ? null : departure.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     const minutes = todo.travel_duration_seconds ? Math.round(todo.travel_duration_seconds / 60) : null;
     return `${place} · ${time ? `Los ${time}` : 'Anreise aktiv'}${minutes ? ` · ${minutes} Min.` : ''}`;
+  }
+
+  function startWorkspaceSwipe(event: TouchEvent) {
+    dayListTouchStartX = event.touches[0]?.clientX ?? 0;
+    dayListTouchStartY = event.touches[0]?.clientY ?? 0;
+  }
+
+  function finishWorkspaceSwipe(event: TouchEvent) {
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - dayListTouchStartX;
+    const dy = touch.clientY - dayListTouchStartY;
+    if (Math.abs(dx) >= 72 && Math.abs(dx) > Math.abs(dy) * 1.2) dispatch('workspacechange', dx < 0 ? 1 : -1);
   }
 
   function todoTime(todo: Todo): number {
@@ -703,7 +723,7 @@
 
 </script>
 
-<div class="daily-overview" aria-label="Tagesübersicht">
+{#if !workspaceMode}<div class="daily-overview" aria-label="Tagesübersicht">
 <!-- Biometrics: Schritte + Schlaf nebeneinander -->
 {#if biometricItems.length > 0}
   <div class="biometrics-row">
@@ -778,7 +798,7 @@
   </section>
 </div>
 
-</div>
+</div>{/if}
 
 {#if recommendedTodo}
   <section class="todo-highlight" aria-labelledby="todo-highlight-title">
@@ -806,12 +826,14 @@
 {/if}
 
 <!-- Day list -->
-<div class="daylist">
+<div class="daylist" role="region" aria-label="Tagesablauf; horizontal wischen, um den Arbeitsbereich zu wechseln" ontouchstart={startWorkspaceSwipe} ontouchend={finishWorkspaceSwipe}>
   <div class="daylist-hdr">
-    <span>Tagesablauf</span><span>{openCount} offen</span>
+    <span>{workspaceMode ? 'Aufgaben' : 'Tagesablauf'}</span><span>{openCount} offen</span>
   </div>
 
-  {#each manualItems as item (item.id)}
+  {#if manualItems.length === 0}
+    <p class="daylist-empty">Noch keine Aufgaben für diesen Bereich.</p>
+  {:else}{#each manualItems as item (item.id)}
     <div class="item tap-area" class:done={item.done} animate:flip={{ duration: 360, easing: cubicOut }}
       onclick={(e) => handleTap(item, e)}
       oncontextmenu={(e) => handleContextMenu(item, e)}
@@ -832,7 +854,6 @@
           {#if item.type === 'meal' && item.kcal}<PillBadge value={Math.round(item.kcal)} unit="kcal" color="var(--data-nutrition-energy)" />{/if}
           {#if item.type === 'meal' && item.protein}<PillBadge value={Math.round(item.protein)} unit="g P" color="var(--data-nutrition-protein)" />{/if}
           {#if item.mealTime}<span class="item-time">{item.mealTime}</span>{/if}
-          {#if item.type === 'todo' && item.workspaceName}<span class="item-workspace">{item.workspaceName}</span>{/if}
           {#if item.type === 'todo' && item.travelLabel}<span class="item-travel">{item.travelLabel}</span>{/if}
         </div>
       </div>
@@ -845,7 +866,7 @@
       {#if item.hasProgress}<div class="item-prog"><ProgressBar current={item.progressCurrent ?? 0} target={item.progressTarget ?? 1} color="var(--text-secondary)" /></div>{/if}
     </div>
 
-  {/each}
+  {/each}{/if}
 
 </div>
 
@@ -1038,8 +1059,8 @@
   .item-title.strike { text-decoration: line-through; }
   .item-badges { display: flex; align-items: center; gap: 4px; }
   .item-time { font-size: 11px; color: var(--text-tertiary); font-weight: 500; }
-  .item-workspace { max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 6px; border-radius: var(--radius-full); background: var(--surface-accent); color: var(--action-primary); font-size: 10px; font-weight: 700; }
   .item-travel { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-tertiary); font-size:11px; }
+  .daylist-empty { margin:0; padding:22px 14px; color:var(--text-tertiary); font-size:13px; text-align:center; }
   .item-prog { flex: 0 0 70px; }
   /* Biometrics — Schritte + Schlaf nebeneinander */
   .biometrics-row { display: flex; gap: 6px; padding: 0 0 3px; }

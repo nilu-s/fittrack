@@ -46,7 +46,6 @@ export interface Todo {
   project_id?: string | null;
   assignee_id?: string | null;
   assignee_display_name?: string | null;
-  workspace_name?: string | null;
   place_id?: string | null;
   place_name?: string | null;
   place_address?: string | null;
