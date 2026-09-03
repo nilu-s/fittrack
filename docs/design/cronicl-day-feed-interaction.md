@@ -16,10 +16,10 @@ vereinheitlichen.
    einer nachvollziehbaren Reihenfolge.
 4. **Schnellerfassung:** sichtbarer Einstieg zum Ergänzen einer Aufgabe oder
    eines passenden Tagesinhalts.
-5. **Bereichsfokus:** Oberhalb des Inhalts zeigt ein Fokus-Rad den aktiven
-   Bereich in der Mitte sowie den vorherigen und nächsten Bereich zurückhaltend
-   daneben. Pfeiltasten sind sichtbare Alternativen; ein horizontaler Wisch
-   auf dem Tagesablauf wechselt den Bereich.
+5. **Bereichsfokus:** Oberhalb des Inhalts zeigt eine schmale Rollenanzeige
+   den aktiven Bereich mittig sowie den vorherigen und nächsten Bereich
+   zurückhaltend daneben. Ein horizontaler Wisch auf dem Tagesablauf wechselt
+   den Bereich; die sichtbaren Bereichsnamen sind zusätzlich antippbar.
 
 ## Eintragstypen
 

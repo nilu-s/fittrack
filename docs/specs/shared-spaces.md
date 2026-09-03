@@ -48,11 +48,12 @@ Kontoberechtigungen außerhalb seiner eigenen Ressourcen.
    Tagesablauf zeigt nur private To-dos; ein Space zeigt nur dessen To-dos.
    Beide Kontexte verwenden dieselbe Tageslisten-Komponente und denselben
    Detailfluss, nicht separate Oberflächen.
-5. Oberhalb des Inhalts zeigt ein Fokus-Rad den aktiven Bereich mittig und
-   den vorherigen sowie nächsten Bereich zurückhaltend daneben. Sichtbare
-   Vor-/Zurück-Schaltflächen und ein horizontaler Wisch auf dem Tagesablauf
-   wechseln den Kontext. Footer-To-dos, die allgemeine To-do-Liste und der
-   Footer-Einkauf verwenden immer den aktiven Kontext.
+5. Oberhalb des Inhalts zeigt eine schmale Rollenanzeige den aktiven Bereich
+   mittig und den vorherigen sowie nächsten Bereich zurückhaltend daneben.
+   Ein horizontaler Wisch auf dem Tagesablauf wechselt den Kontext; die
+   sichtbaren Bereichsnamen sind zusätzlich antippbar. Footer-To-dos, die
+   allgemeine To-do-Liste und der Footer-Einkauf verwenden immer den aktiven
+   Kontext.
 6. In der Tagesansicht bleiben To-dos kompakte, direkt abschließbare Einträge.
    Space und Zuweisung sind im Editor als native Auswahlfelder sichtbar; bei
    Änderung des Space wird ein unpassendes Projekt oder eine unpassende
