@@ -30,8 +30,6 @@
   $: goals = $dailyGoals;
 
   let weightEditing = false;
-  let dayListTouchStartX = 0;
-  let dayListTouchStartY = 0;
   // A completed task stays in place long enough for the checkmark to register
   // before it is moved to the completed section at the bottom of the day flow.
   let deferredReorderIds = new Set<string>();
@@ -99,19 +97,6 @@
     const time = Number.isNaN(departure.getTime()) ? null : departure.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     const minutes = todo.travel_duration_seconds ? Math.round(todo.travel_duration_seconds / 60) : null;
     return `${place} · ${time ? `Los ${time}` : 'Anreise aktiv'}${minutes ? ` · ${minutes} Min.` : ''}`;
-  }
-
-  function startWorkspaceSwipe(event: TouchEvent) {
-    dayListTouchStartX = event.touches[0]?.clientX ?? 0;
-    dayListTouchStartY = event.touches[0]?.clientY ?? 0;
-  }
-
-  function finishWorkspaceSwipe(event: TouchEvent) {
-    const touch = event.changedTouches[0];
-    if (!touch) return;
-    const dx = touch.clientX - dayListTouchStartX;
-    const dy = touch.clientY - dayListTouchStartY;
-    if (Math.abs(dx) >= 72 && Math.abs(dx) > Math.abs(dy) * 1.2) dispatch('workspacechange', dx < 0 ? 1 : -1);
   }
 
 
@@ -827,7 +812,7 @@
 {/if}
 
 <!-- Day list -->
-<div class="daylist" role="region" aria-label="Tagesablauf; horizontal wischen, um den Arbeitsbereich zu wechseln" ontouchstart={startWorkspaceSwipe} ontouchend={finishWorkspaceSwipe}>
+<div class="daylist" role="region" aria-label="Tagesablauf">
   <div class="daylist-hdr">
     <span>{workspaceMode ? 'Aufgaben' : 'Tagesablauf'}</span><span>{openCount} offen</span>
   </div>

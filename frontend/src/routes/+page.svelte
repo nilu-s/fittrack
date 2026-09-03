@@ -42,6 +42,9 @@
   let prefersReducedMotion = false;
   let spaces: import('$lib/types').Space[] = [];
   let activeSpaceId: string | null = null;
+  let workspaceSwipeStartX = 0;
+  let workspaceSwipeStartY = 0;
+  let trackingWorkspaceSwipe = false;
 
   async function loadSpaces() {
     spaces = await api.getSpaces();
@@ -56,6 +59,22 @@
     const contexts = [{ id: null as string | null }, ...spaces.map((space) => ({ id: space.id }))];
     const index = Math.max(0, contexts.findIndex((context) => context.id === activeSpaceId));
     changeSpace(new CustomEvent('change', { detail: contexts[(index + direction + contexts.length) % contexts.length].id }));
+  }
+  function startWorkspaceSwipe(event: TouchEvent) {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.day-footer') || shoppingOpen || generalTodoOpen || assistantOpen || todoDetails || editingShopping || mealImportOpen) return;
+    workspaceSwipeStartX = event.touches[0]?.clientX ?? 0;
+    workspaceSwipeStartY = event.touches[0]?.clientY ?? 0;
+    trackingWorkspaceSwipe = true;
+  }
+  function finishWorkspaceSwipe(event: TouchEvent) {
+    if (!trackingWorkspaceSwipe) return;
+    trackingWorkspaceSwipe = false;
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - workspaceSwipeStartX;
+    const dy = touch.clientY - workspaceSwipeStartY;
+    if (Math.abs(dx) >= 72 && Math.abs(dx) > Math.abs(dy) * 1.2) moveSpace(dx < 0 ? 1 : -1);
   }
 
   $: renderedDate = data?.dayEntry?.date ?? '';
@@ -175,6 +194,7 @@
 
 <svelte:head><title>{pageTitle()}</title></svelte:head>
 <svelte:body class:shopping-open={shoppingOpen} class:general-todo-open={generalTodoOpen} />
+<svelte:window ontouchstart={startWorkspaceSwipe} ontouchend={finishWorkspaceSwipe} />
 
 <div class="page">
   {#if data && renderedDate === $currentDate}
@@ -187,8 +207,7 @@
           on:trainingtoggle={(e) => onUnifiedUpdate(new CustomEvent('update', { detail: { field: 'training_done', value: e.detail } }))}
           on:cardiotoggle={(e) => onUnifiedUpdate(new CustomEvent('update', { detail: { field: 'cardio_done', value: e.detail } }))}
           on:todotoggle={onTodoToggle}
-          on:todoadd={onTodoAdd}
-          on:workspacechange={(event) => moveSpace(event.detail)} />
+          on:todoadd={onTodoAdd} />
       </div>
     {/key}
     <div class="sync" class:ok={$syncStatus === 'synced'} class:syncing={$syncStatus === 'syncing'} class:off={$syncStatus === 'offline'} class:err={$syncStatus === 'error'}>

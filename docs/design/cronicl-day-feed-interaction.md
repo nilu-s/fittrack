@@ -18,8 +18,9 @@ vereinheitlichen.
    eines passenden Tagesinhalts.
 5. **Bereichsfokus:** Oberhalb des Inhalts zeigt eine schmale Rollenanzeige
    den aktiven Bereich mittig sowie den vorherigen und nächsten Bereich
-   zurückhaltend daneben. Ein horizontaler Wisch auf dem Tagesablauf wechselt
-   den Bereich; die sichtbaren Bereichsnamen sind zusätzlich antippbar.
+   zurückhaltend daneben. Der gesamte Inhaltsbereich oberhalb der festen
+   Footer-Navigation wechselt den Bereich per horizontalem Wisch; die
+   sichtbaren Bereichsnamen sind zusätzlich antippbar.
 
 ## Eintragstypen
 

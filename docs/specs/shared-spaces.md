@@ -50,10 +50,10 @@ Kontoberechtigungen außerhalb seiner eigenen Ressourcen.
    Detailfluss, nicht separate Oberflächen.
 5. Oberhalb des Inhalts zeigt eine schmale Rollenanzeige den aktiven Bereich
    mittig und den vorherigen sowie nächsten Bereich zurückhaltend daneben.
-   Ein horizontaler Wisch auf dem Tagesablauf wechselt den Kontext; die
-   sichtbaren Bereichsnamen sind zusätzlich antippbar. Footer-To-dos, die
-   allgemeine To-do-Liste und der Footer-Einkauf verwenden immer den aktiven
-   Kontext.
+   Ein horizontaler Wisch im gesamten Inhaltsbereich oberhalb der festen
+   Footer-Navigation wechselt den Kontext; die sichtbaren Bereichsnamen sind
+   zusätzlich antippbar. Footer-To-dos, die allgemeine To-do-Liste und der
+   Footer-Einkauf verwenden immer den aktiven Kontext.
 6. In der Tagesansicht bleiben To-dos kompakte, direkt abschließbare Einträge.
    Space und Zuweisung sind im Editor als native Auswahlfelder sichtbar; bei
    Änderung des Space wird ein unpassendes Projekt oder eine unpassende
