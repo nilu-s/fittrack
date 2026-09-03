@@ -57,6 +57,8 @@ from app.routes.configurable_meals import router as configurable_meals_router
 from app.routes.todo_planning import router as todo_planning_router
 from app.routes.shopping import router as shopping_router
 from app.routes.spaces import router as spaces_router, invitation_router as space_invitations_router
+from app.routes.contacts import router as contacts_router, invitation_router as contact_invitations_router
+from app.routes.notes import router as notes_router
 
 
 # Device ingestion and OAuth are deliberately outside the browser-session
@@ -67,6 +69,8 @@ from app.routes.auth import (
     _verify_session_jwt,
 )
 from app.services.ownership import reset_current_account, set_current_account
+from app.database import async_session
+from app.models import Account
 import uuid
 
 _PUBLIC_API_PATHS = {
@@ -75,6 +79,11 @@ _PUBLIC_API_PATHS = {
     "/api/auth/google/login",
     "/api/auth/logout",
     "/api/google/callback",
+}
+_ALIAS_ONBOARDING_API_PATHS = {
+    "/api/auth/me",
+    "/api/auth/alias",
+    "/api/auth/logout",
 }
 
 
@@ -92,6 +101,12 @@ async def require_browser_account(request: Request, call_next):
         account_id = uuid.UUID(claims["account_id"])
     except (KeyError, TypeError, ValueError):
         return JSONResponse(status_code=401, content={"detail": "Invalid session account"})
+    async with async_session() as session:
+        account = await session.get(Account, account_id)
+    if account is None:
+        return JSONResponse(status_code=401, content={"detail": "Invalid session account"})
+    if account.alias is None and path not in _ALIAS_ONBOARDING_API_PATHS:
+        return JSONResponse(status_code=403, content={"detail": "Choose an alias before using Cronicl"})
     scope = set_current_account(account_id)
     try:
         return await call_next(request)
@@ -117,3 +132,6 @@ app.include_router(todo_planning_router, prefix="/api")
 app.include_router(shopping_router, prefix="/api")
 app.include_router(spaces_router, prefix="/api")
 app.include_router(space_invitations_router, prefix="/api")
+app.include_router(contacts_router, prefix="/api")
+app.include_router(contact_invitations_router, prefix="/api")
+app.include_router(notes_router, prefix="/api")

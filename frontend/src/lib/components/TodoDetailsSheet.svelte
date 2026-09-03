@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
   import { api } from '$lib/api';
-  import type { PlaceSuggestion, Space, SpaceProject, Todo } from '$lib/types';
+  import type { PlaceSuggestion, Space, Todo } from '$lib/types';
 
   export let todo: Todo | null = null;
   export let suggestedPlaceQuery = '';
@@ -17,9 +17,7 @@
   let travelMode: Todo['travel_mode'] = null;
   let travelMonitoring = false;
   let spaceId = '';
-  let projectId = '';
   let assigneeId = '';
-  let projects: SpaceProject[] = [];
   let selectedSpace: Space | null = null;
   let placeQuery = '';
   let places: PlaceSuggestion[] = [];
@@ -36,14 +34,13 @@
     dueDate = todo.due_date ?? ''; dueTime = todo.start_time ?? todo.due_time ?? '';
     travelMode = todo.travel_mode ?? suggestedTravelMode;
     travelMonitoring = Boolean(todo.travel_monitoring_enabled);
-    spaceId = todo.space_id ?? ''; projectId = todo.project_id ?? ''; assigneeId = todo.assignee_id ?? '';
+    spaceId = todo.space_id ?? ''; assigneeId = todo.assignee_id ?? '';
     placeQuery = todo.place_name ?? suggestedPlaceQuery;
     selectedPlace = todo.place_id && todo.place_name ? { place_id: todo.place_id, name: todo.place_name, address: todo.place_address ?? null } : null;
     places = []; placeError = '';
     error = ''; dialog.showModal();
     void tick().then(() => dialog.querySelector<HTMLInputElement>('#todo-detail-title')?.focus());
     if (!selectedPlace && placeQuery.trim().length >= 2) void findPlaces();
-    if (spaceId) void loadProjects();
   }
   $: if (!todo && dialog?.open) dialog.close();
 
@@ -55,10 +52,9 @@
     catch { places = []; placeError = 'Die Ortssuche ist gerade nicht verfügbar. Du kannst die Details später ergänzen.'; }
     finally { placeLoading = false; }
   }
-  async function loadProjects() { projects = spaceId ? await api.getSpaceProjects(spaceId) : []; }
   function changeSpace() {
-    projectId = ''; assigneeId = ''; projects = [];
-    if (spaceId) { travelMonitoring = false; travelMode = null; void loadProjects(); }
+    assigneeId = '';
+    if (spaceId) { travelMonitoring = false; travelMode = null; }
   }
   $: selectedSpace = spaces.find((space) => space.id === spaceId) ?? null;
   async function save() {
@@ -68,7 +64,7 @@
     const updated = await api.updateTodo(todo.id, {
       title: title.trim(), category: category.trim() || null, priority: Number(priority),
       due_date: dueDate || null, due_time: dueTime || null, start_time: dueTime || null,
-      is_all_day: !dueTime, space_id: spaceId || null, project_id: projectId || null, assignee_id: assigneeId || null,
+      is_all_day: !dueTime, space_id: spaceId || null, project_id: null, assignee_id: assigneeId || null,
       travel_mode: spaceId ? null : travelMode,
       place_id: selectedPlace?.place_id ?? todo.place_id ?? null,
       place_name: selectedPlace?.name ?? todo.place_name ?? null,
@@ -89,7 +85,7 @@
     <div class="two"><label for="todo-detail-date">Datum<input id="todo-detail-date" type="date" bind:value={dueDate}></label><label for="todo-detail-time">Uhrzeit<input id="todo-detail-time" type="time" bind:value={dueTime}></label></div>
     <div class="two"><label for="todo-detail-category">Kategorie<input id="todo-detail-category" bind:value={category} placeholder="z. B. Haushalt"></label><label for="todo-detail-priority">Priorität<select id="todo-detail-priority" bind:value={priority}><option value={1}>Niedrig</option><option value={2}>Mittel</option><option value={3}>Hoch</option></select></label></div>
     <fieldset><legend>Gemeinsamer Space</legend><label for="todo-detail-space">Space<select id="todo-detail-space" bind:value={spaceId} onchange={changeSpace}><option value="">Privat</option>{#each spaces as space (space.id)}<option value={space.id}>{space.name}</option>{/each}</select></label>
-      {#if selectedSpace}<div class="two"><label for="todo-detail-project">Projekt<select id="todo-detail-project" bind:value={projectId}><option value="">Ohne Projekt</option>{#each projects.filter((project) => !project.is_archived || project.id === projectId) as project (project.id)}<option value={project.id}>{project.name}</option>{/each}</select></label><label for="todo-detail-assignee">Zugewiesen an<select id="todo-detail-assignee" bind:value={assigneeId}><option value="">Nicht zugewiesen</option>{#each selectedSpace.members as member (member.member_id)}<option value={member.member_id}>{member.display_name ?? 'Mitglied'}</option>{/each}</select></label></div><p class="hint">Alle Mitglieder dieses Space können die Aufgabe bearbeiten und erledigen.</p>{/if}
+      {#if selectedSpace}<label for="todo-detail-assignee">Zugewiesen an<select id="todo-detail-assignee" bind:value={assigneeId}><option value="">Nicht zugewiesen</option>{#each selectedSpace.members as member (member.member_id)}<option value={member.member_id}>{member.display_name ?? 'Mitglied'}</option>{/each}</select></label><p class="hint">Alle Mitglieder dieses Bereichs können die Aufgabe bearbeiten und erledigen.</p>{/if}
     </fieldset>
     {#if !spaceId}<fieldset><legend>Ort und Anreise</legend><div class="place-search"><label for="todo-detail-place">Ort suchen<input id="todo-detail-place" bind:value={placeQuery} placeholder="Ort oder Adresse"></label><button type="button" class="search" disabled={placeQuery.trim().length < 2 || placeLoading} onclick={findPlaces}>{placeLoading ? 'Suche…' : 'Suchen'}</button></div>
       {#if places.length}<ul class="places" aria-label="Ortsvorschläge">{#each places as place (place.place_id)}<li><button type="button" class:selected={selectedPlace?.place_id === place.place_id} aria-pressed={selectedPlace?.place_id === place.place_id} onclick={() => selectedPlace = place}><strong>{place.name}</strong>{#if place.address}<small>{place.address}</small>{/if}</button></li>{/each}</ul>{/if}

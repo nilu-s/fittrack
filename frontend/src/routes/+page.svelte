@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import { goto } from '$app/navigation';
   import { fly } from 'svelte/transition';
   import DateNav from '$lib/components/DateNav.svelte';
   import UnifiedDay from '$lib/components/UnifiedDay.svelte';
@@ -10,7 +11,7 @@
   import ShoppingQuickPanel from '$lib/components/ShoppingQuickPanel.svelte';
   import ShoppingItemEditor from '$lib/components/ShoppingItemEditor.svelte';
   import ShoppingMealImport from '$lib/components/ShoppingMealImport.svelte';
-  import GeneralTodoQuickPanel from '$lib/components/GeneralTodoQuickPanel.svelte';
+  import NoteBoard from '$lib/components/NoteBoard.svelte';
   import WorkspaceFocusWheel from '$lib/components/WorkspaceFocusWheel.svelte';
   import { pageTitle } from '$lib/brand';
 
@@ -27,7 +28,7 @@
   let generalTodoPanelHeight = 360;
   let generalTodoTitle = '';
   let generalTodoAdding = false;
-  let generalTodos: import('$lib/types').Todo[] = [];
+  let generalTodos: import('$lib/types').Note[] = [];
   let generalTodosLoading = false;
   let shoppingPanelHeight = 360;
   let shoppingTitle = '';
@@ -51,10 +52,11 @@
     if (activeSpaceId && !spaces.some((space) => space.id === activeSpaceId)) activeSpaceId = null;
   }
   function changeSpace(event: CustomEvent<string | null>) {
-    activeSpaceId = event.detail; shopping = null; generalTodos = [];
+    activeSpaceId = event.detail; shopping = null;
     if (typeof localStorage !== 'undefined') localStorage.setItem('active_space_id', activeSpaceId ?? '');
     void loadGeneralTodos();
   }
+  function manageSpace(event: CustomEvent<string>) { void goto(`/settings/spaces?space=${encodeURIComponent(event.detail)}`); }
   function moveSpace(direction: number) {
     const contexts = [{ id: null as string | null }, ...spaces.map((space) => ({ id: space.id }))];
     const index = Math.max(0, contexts.findIndex((context) => context.id === activeSpaceId));
@@ -104,36 +106,18 @@
   function onMealEntryChange(e: CustomEvent) { if (!data) return; const entry = e.detail.entry; dayData.set({ ...data, mealEntries: data.mealEntries.map((current) => current.id === entry.id ? { ...current, ...entry } : current) }); }
   function onTodoToggle(e: CustomEvent) { if (!data) return; const { id, status } = e.detail; dayData.set({ ...data, todos: (data.todos ?? []).map((t) => String(t.id) === String(id) ? { ...t, status: status ?? (t.status === 'open' ? 'done' : 'open') } : t) }); }
   function onTodoAdd(e: CustomEvent) { if (!data) return; dayData.set({ ...data, todos: [...(data.todos ?? []), e.detail] }); }
-  function routineFromText(text: string) {
-    const match = text.match(/\b(?:jeden|jede)\s+(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/i);
-    if (!match) return null;
-    const weekdays: Record<string, number> = { montag: 0, dienstag: 1, mittwoch: 2, donnerstag: 3, freitag: 4, samstag: 5, sonntag: 6 };
-    const time = text.match(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/);
-    const title = text.replace(match[0], '').replace(/\b\d{1,2}[:.]\d{2}\b/, '').trim().replace(/^[,\-–]+\s*/, '');
-    return title ? { title, weekdays: [weekdays[match[1].toLowerCase()]], due_time: time ? `${time[1].padStart(2, '0')}:${time[2]}` : null, priority: 2, is_active: true } : null;
-  }
   async function addFooterTodo(event: CustomEvent<string>) {
     const title = event.detail.trim();
     if (!title || todoAdding) return;
     todoAdding = true;
     todoAddError = '';
     try {
-      const routine = activeSpaceId ? null : routineFromText(title);
-      if (routine) {
-        const createdRoutine = await api.createTodoRoutine(routine);
-        if (!createdRoutine) throw new Error('Routine konnte nicht erstellt werden.');
-        todoTitle = '';
-        todoAddError = 'Routine wurde angelegt.';
-        return;
-      }
-      const created = await api.createTodo({ due_date: $currentDate, title, status: 'open', priority: 2, source: 'manual', space_id: activeSpaceId });
-      if (!created) throw new Error('To-do konnte nicht erstellt werden.');
-      onTodoAdd(new CustomEvent('todoadd', { detail: created }));
+      const created = await api.createNote({ title });
+      if (!created) throw new Error('Notiz konnte nicht erstellt werden.');
+      generalTodos = [created, ...generalTodos];
       todoTitle = '';
-      suggestedPlaceQuery = ''; suggestedTravelMode = null;
-      todoDetails = created;
     } catch {
-      todoAddError = 'To-do konnte nicht hinzugefügt werden. Bitte versuche es erneut.';
+      todoAddError = 'Notiz konnte nicht hinzugefügt werden. Bitte versuche es erneut.';
     } finally {
       todoAdding = false;
     }
@@ -142,31 +126,20 @@
   function onTodoDetailsUpdate(event: CustomEvent<import('$lib/types').Todo>) {
     const updated = event.detail;
     if (data) dayData.set({ ...data, todos: (data.todos ?? []).map((todo) => String(todo.id) === String(updated.id) ? updated : todo) });
-    generalTodos = updated.due_date
-      ? generalTodos.filter((todo) => String(todo.id) !== String(updated.id))
-      : generalTodos.map((todo) => String(todo.id) === String(updated.id) ? updated : todo);
   }
   async function loadGeneralTodos() {
     if (generalTodosLoading) return;
     generalTodosLoading = true;
-    try { generalTodos = (await api.getTodos()).filter((todo) => !todo.due_date && (activeSpaceId ? todo.space_id === activeSpaceId : !todo.space_id)); }
+    try { generalTodos = await api.getNotes(); }
     finally { generalTodosLoading = false; }
   }
   async function addGeneralTodo(event: CustomEvent<string>) {
     const title = event.detail.trim();
     if (!title || generalTodoAdding) return;
     generalTodoAdding = true;
-    const created = await api.createTodo({ title, status: 'open', priority: 2, source: 'manual', space_id: activeSpaceId });
+    const created = await api.createNote({ title });
     if (created) { generalTodos = [...generalTodos, created]; generalTodoTitle = ''; }
     generalTodoAdding = false;
-  }
-  async function toggleGeneralTodo(todo: import('$lib/types').Todo) {
-    if (!todo.id) return;
-    const updated = await api.markTodoDone(todo.id);
-    if (updated) generalTodos = generalTodos.map((current) => current.id === updated.id ? updated : current);
-  }
-  async function removeGeneralTodo(todo: import('$lib/types').Todo) {
-    if (todo.id && await api.deleteTodo(todo.id)) generalTodos = generalTodos.filter((current) => current.id !== todo.id);
   }
   async function openGeneralTodos(height: number) {
     shoppingOpen = false; generalTodoOpen = true;
@@ -188,7 +161,7 @@
   function openShoppingFromFooter(event: CustomEvent<number>) { shopping = null; shoppingOpen = true; setShoppingPanelHeight(220 + event.detail); void loadShopping(); }
 
   // Preload the drawer's content before it is opened, matching the day-view cache.
-  onMount(() => { const saved = localStorage.getItem('active_space_id'); activeSpaceId = saved || null; void loadShopping(); void loadGeneralTodos(); void loadSpaces(); });
+  onMount(() => { const saved = localStorage.getItem('active_space_id'); activeSpaceId = saved || null; void loadShopping(); void loadGeneralTodos(); void loadSpaces(); const refreshSpaces = () => void loadSpaces(); const onVisibilityChange = () => { if (document.visibilityState === 'visible') refreshSpaces(); }; window.addEventListener('focus', refreshSpaces); window.addEventListener('pageshow', refreshSpaces); document.addEventListener('visibilitychange', onVisibilityChange); const interval = window.setInterval(refreshSpaces, 5_000); return () => { window.removeEventListener('focus', refreshSpaces); window.removeEventListener('pageshow', refreshSpaces); document.removeEventListener('visibilitychange', onVisibilityChange); window.clearInterval(interval); }; });
 
 </script>
 
@@ -198,7 +171,7 @@
 
 <div class="page">
   {#if data && renderedDate === $currentDate}
-    <WorkspaceFocusWheel {spaces} {activeSpaceId} on:change={changeSpace} />
+    <WorkspaceFocusWheel {spaces} {activeSpaceId} on:change={changeSpace} on:manage={manageSpace} />
     {#key renderedDate}
       <div class="day-slide" in:fly={incomingDayTransition()} out:fly={outgoingDayTransition()}>
         <UnifiedDay dayData={{ ...data, todos: (data.todos ?? []).filter((todo) => activeSpaceId ? todo.space_id === activeSpaceId : !todo.space_id) }} currentDate={renderedDate} workspaceMode={Boolean(activeSpaceId)}
@@ -219,8 +192,8 @@
   {:else}
     <div class="loading" role="status" aria-live="polite"><div class="spinner"></div><span class="sr-only">Tagesdaten werden geladen</span></div>
   {/if}
-  <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} bind:generalTodoOpen bind:generalTodoTitle {generalTodoAdding} generalTodoCount={generalTodos.filter((todo) => todo.status === 'open').length} on:todoadd={addFooterTodo} on:shoppinggesture={(event) => { generalTodoOpen = false; openShoppingFromFooter(event); }} on:shoppingadd={addShopping} on:generaltodogesture={(event) => openGeneralTodos(event.detail)} on:generaltodoadd={addGeneralTodo} on:aiplan={() => assistantOpen = true} />
-  <GeneralTodoQuickPanel bind:open={generalTodoOpen} todos={generalTodos} loading={generalTodosLoading} panelHeight={generalTodoPanelHeight} on:resize={(event) => generalTodoPanelHeight = event.detail} on:close={(event) => { generalTodoOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.todo-toggle')?.focus(); }} on:toggle={(event) => toggleGeneralTodo(event.detail)} on:edit={(event) => todoDetails = event.detail} on:remove={(event) => removeGeneralTodo(event.detail)} />
+  <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} bind:generalTodoOpen bind:generalTodoTitle {generalTodoAdding} generalTodoCount={generalTodos.filter((note) => !note.space_id && note.status === 'active').length} on:todoadd={addFooterTodo} on:shoppinggesture={(event) => { generalTodoOpen = false; openShoppingFromFooter(event); }} on:shoppingadd={addShopping} on:generaltodogesture={(event) => openGeneralTodos(event.detail)} on:generaltodoadd={addGeneralTodo} on:aiplan={() => assistantOpen = true} />
+  <NoteBoard bind:open={generalTodoOpen} notes={generalTodos} {spaces} loading={generalTodosLoading} on:close={() => { generalTodoOpen = false; document.querySelector<HTMLElement>('.todo-toggle')?.focus(); }} on:changed={loadGeneralTodos} />
   <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} loading={shoppingLoading} query={shoppingTitle} panelHeight={shoppingPanelHeight} allowMealImport={!activeSpaceId} on:resize={(event) => setShoppingPanelHeight(event.detail)} on:close={(event) => { shoppingOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
   <ShoppingItemEditor bind:item={editingShopping} on:close={() => editingShopping = null} on:save={saveShopping} />
   <ShoppingMealImport bind:open={mealImportOpen} startDate={$currentDate} on:close={() => mealImportOpen = false} on:imported={(event) => shopping = event.detail} />

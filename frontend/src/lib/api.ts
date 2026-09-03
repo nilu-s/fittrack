@@ -31,6 +31,7 @@ import type {
   Space,
   SpaceInvitation,
   SpaceProject,
+  Note,
 } from "./types";
 import { db, queueSync, type DayEntryRecord, type TodoRecord } from "./db";
 
@@ -253,6 +254,32 @@ class ApiClient {
     }
   }
 
+  // Notes are deliberately online-first: moving a private card into a shared
+  // area must be authorized by the server before the UI presents it as shared.
+  async getNotes(): Promise<Note[]> {
+    return (await this.request<Note[]>(`/notes`)) ?? [];
+  }
+
+  async createNote(data: Pick<Note, 'title'> & Partial<Pick<Note, 'body'>>): Promise<Note | null> {
+    return await this.request<Note>(`/notes`, { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateNote(id: string, data: Partial<Pick<Note, 'title' | 'body' | 'sort_order'>>): Promise<Note | null> {
+    return await this.request<Note>(`/notes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async moveNote(id: string, space_id: string, confirm_share = false): Promise<Note | null> {
+    return await this.request<Note>(`/notes/${id}/move`, { method: 'POST', body: JSON.stringify({ space_id, confirm_share }) });
+  }
+
+  async planNote(id: string, due_date: string, start_time?: string | null): Promise<Note | null> {
+    return await this.request<Note>(`/notes/${id}/plan`, { method: 'POST', body: JSON.stringify({ due_date, start_time: start_time || null }) });
+  }
+
+  async unscheduleNote(id: string): Promise<Note | null> {
+    return await this.request<Note>(`/notes/${id}/unschedule`, { method: 'POST' });
+  }
+
   // Todos
   async getTodos(
     date?: string,
@@ -384,13 +411,22 @@ class ApiClient {
   // a browser can show or mutate shared household content.
   async getSpaces(): Promise<Space[]> { return (await this.request<Space[]>('/spaces')) ?? []; }
   async createSpace(name: string): Promise<Space | null> { return this.request<Space>('/spaces', { method: 'POST', body: JSON.stringify({ name }) }); }
-  async inviteToSpace(spaceId: string, email: string): Promise<boolean> { return Boolean(await this.request(`/spaces/${spaceId}/invitations`, { method: 'POST', body: JSON.stringify({ email }) })); }
+  async inviteToSpace(spaceId: string, contactId: string): Promise<boolean> { return Boolean(await this.request(`/spaces/${spaceId}/invitations`, { method: 'POST', body: JSON.stringify({ contact_id: contactId }) })); }
   async removeSpaceMember(spaceId: string, accountId: string): Promise<boolean> { return this.requestOk(`/spaces/${spaceId}/members/${accountId}`, { method: 'DELETE' }); }
   async getSpaceProjects(spaceId: string): Promise<SpaceProject[]> { return (await this.request<SpaceProject[]>(`/spaces/${spaceId}/projects`)) ?? []; }
   async createSpaceProject(spaceId: string, name: string, description?: string): Promise<SpaceProject | null> { return this.request<SpaceProject>(`/spaces/${spaceId}/projects`, { method: 'POST', body: JSON.stringify({ name, description: description || null }) }); }
   async getSpaceInvitations(): Promise<SpaceInvitation[]> { return (await this.request<SpaceInvitation[]>('/space-invitations')) ?? []; }
   async acceptSpaceInvitation(id: string): Promise<Space | null> { return this.request<Space>(`/space-invitations/${id}/accept`, { method: 'POST' }); }
   async declineSpaceInvitation(id: string): Promise<boolean> { return this.requestOk(`/space-invitations/${id}/decline`, { method: 'POST' }); }
+  async getContacts(): Promise<import('./types').Contact[]> { return (await this.request<import('./types').Contact[]>('/contacts')) ?? []; }
+  async searchContacts(query: string): Promise<import('./types').ContactSearchResult[]> { return (await this.request<import('./types').ContactSearchResult[]>(`/contacts/search?query=${encodeURIComponent(query)}`)) ?? []; }
+  async inviteContact(alias: string): Promise<boolean> { return Boolean(await this.request('/contacts/invitations', { method: 'POST', body: JSON.stringify({ alias }) })); }
+  async removeContact(id: string): Promise<boolean> { return this.requestOk(`/contacts/entries/${id}`, { method: 'DELETE' }); }
+  async getContactInvitations(): Promise<import('./types').ContactInvitation[]> { return (await this.request<import('./types').ContactInvitation[]>('/contact-invitations')) ?? []; }
+  async getOutgoingContactInvitations(): Promise<import('./types').ContactOutgoingInvitation[]> { return (await this.request<import('./types').ContactOutgoingInvitation[]>('/contacts/outgoing-invitations')) ?? []; }
+  async acceptContactInvitation(id: string): Promise<boolean> { return this.requestOk(`/contact-invitations/${id}/accept`, { method: 'POST' }); }
+  async declineContactInvitation(id: string): Promise<boolean> { return this.requestOk(`/contact-invitations/${id}/decline`, { method: 'POST' }); }
+  async setAccountAlias(alias: string): Promise<boolean> { return this.requestOk('/auth/alias', { method: 'POST', body: JSON.stringify({ alias }) }); }
 
   async draftTodo(text: string, date: string): Promise<TodoDraft | null> {
     return this.request<TodoDraft>("/todo-planning/draft", {

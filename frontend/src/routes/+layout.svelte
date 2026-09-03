@@ -7,7 +7,7 @@
   import { initSync } from '$lib/sync';
   import { api } from '$lib/api';
   import { db } from '$lib/db';
-  import { isAuthenticated, authEmail, checkAuth, logout } from '$lib/auth';
+  import { aliasRequired, isAuthenticated, checkAuth } from '$lib/auth';
   import Icon from '$lib/components/Icon.svelte';
   import { APP_NAME } from '$lib/brand';
   import UiIconButton from '$lib/components/ui/UiIconButton.svelte';
@@ -31,6 +31,7 @@
   $: isMealSettings = $page?.url?.pathname === '/settings/meals';
   $: isShopping = $page?.url?.pathname === '/shopping';
   $: isLogin = $page?.url?.pathname === '/login';
+  $: isAliasOnboarding = $page?.url?.pathname === '/onboarding/alias';
   $: isHome = $page?.url?.pathname === '/';
   $: backTarget = $page?.url?.pathname?.startsWith('/settings/') ? '/settings' : '/';
   // Optimistic edits are written to the shared day store by child components.
@@ -128,7 +129,7 @@
     preloadAdjacentDays(date);
   }
 
-  $: if ($currentDate && authChecked && $isAuthenticated) loadDayData($currentDate);
+  $: if ($currentDate && authChecked && $isAuthenticated && !$aliasRequired) loadDayData($currentDate);
 
   $: if (typeof window !== 'undefined') {
     import('$lib/stores').then(({ syncStatus }) => { syncStatus.subscribe((status) => { syncIcon = { synced: '✓', syncing: '⟳', offline: '📵', error: '⚠' }[status] ?? '✓'; syncClass = status; }); });
@@ -138,7 +139,7 @@
     const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
     Promise.race([checkAuth(), timeout]).then(() => {
       authChecked = true;
-      const checkAuthGate = () => { const p = $page?.url?.pathname ?? ''; if (p === '/login' || p.startsWith('/settings')) return; if (!$isAuthenticated) goto('/login'); };
+      const checkAuthGate = () => { const p = $page?.url?.pathname ?? ''; if (!$isAuthenticated && p !== '/login') return void goto('/login'); if ($isAuthenticated && $aliasRequired && p !== '/onboarding/alias') return void goto('/onboarding/alias'); if ($isAuthenticated && !$aliasRequired && p === '/onboarding/alias') return void goto('/'); };
       checkAuthGate();
     });
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch((e) => console.warn('SW registration failed:', e));
@@ -155,11 +156,7 @@
     return () => { window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); mainEl.removeEventListener('touchstart', onStart); mainEl.removeEventListener('touchmove', onMove); mainEl.removeEventListener('touchend', onEnd); };
   });
 
-  async function handleRefresh() { if (isRefreshing) return; isRefreshing = true; await loadDayData($currentDate, true); if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30); isRefreshing = false; }
-
-  afterUpdate(() => { const p = $page?.url?.pathname ?? ''; if (p === '/login' || p.startsWith('/settings')) return; if (authChecked && !$isAuthenticated) goto('/login'); });
-
-  async function handleLogout() { dayCacheGeneration += 1; dayCache.clear(); dayRequests.clear(); activeDayRequest += 1; dayData.set(null); await logout(); goto('/login'); }
+  afterUpdate(() => { if (!authChecked) return; const p = $page?.url?.pathname ?? ''; if (!$isAuthenticated && p !== '/login') return void goto('/login'); if ($isAuthenticated && $aliasRequired && p !== '/onboarding/alias') return void goto('/onboarding/alias'); if ($isAuthenticated && !$aliasRequired && p === '/onboarding/alias') return void goto('/'); });
 
   function onTouchStart(e: TouchEvent) { if (isRefreshing) return; if (window.scrollY <= 0) { touchStartY = e.touches[0].clientY; isPulling = true; } else { isPulling = false; } }
   function onTouchMove(e: TouchEvent) { if (!isPulling || isRefreshing) return; const delta = e.touches[0].clientY - touchStartY; if (delta > 0 && window.scrollY <= 0) { pullDistance = Math.min(delta * 0.5, pullThreshold * 1.5); if (pullDistance > 5) e.preventDefault(); } }
@@ -167,7 +164,7 @@
 </script>
 
 <div class:wide-shell={isMealSettings || isShopping} class="shell">
-  {#if !isLogin}<header class="hdr">
+  {#if !isLogin && !isAliasOnboarding}<header class="hdr">
     {#if isHome}
       <a href="/" class="hdr-title" aria-label={`${APP_NAME} Startseite`}><img class="brand-icon" src="/brand-icon.svg" alt="" /><span>{APP_NAME}</span></a>
     {:else}
@@ -175,10 +172,8 @@
     {/if}
     <div class="hdr-spacer"></div>
     <div class="hdr-actions">
-      {#if $isAuthenticated}<a href="/settings/profile" class="account-chip" aria-label="Profil und Konto">{$authEmail?.slice(0, 1).toUpperCase() ?? 'K'}</a>{/if}
-      {#if $isAuthenticated}<a href="/settings" class="header-settings" aria-label="Einstellungen"><Icon name="settings" size={18} /></a>{/if}
-      <UiIconButton onclick={handleRefresh} disabled={isRefreshing} ariaLabel="Aktualisieren"><Icon name="refresh" size={18} /></UiIconButton>
-      {#if $isAuthenticated}<UiIconButton onclick={handleLogout} ariaLabel="Logout"><Icon name="logout" size={18} /></UiIconButton>{/if}
+      {#if $isAuthenticated}<a href="/contacts" class="header-friends" aria-label="Kontakte"><Icon name="contacts" size={19} /></a>{/if}
+      {#if $isAuthenticated}<UiIconButton ariaLabel="Einstellungen" onclick={() => goto('/settings')}><Icon name="settings" size={18} /></UiIconButton>{/if}
     </div>
   </header>{/if}
 
@@ -201,9 +196,8 @@
   .header-back:active, .header-back:focus-visible { background:var(--surface-raised); }
   .hdr-spacer { flex: 1; }
   .hdr-actions { display: flex; align-items: center; gap: 2px; }
-  .account-chip { display:grid; place-items:center; width:30px; height:30px; border-radius:50%; color:var(--action-primary); border:1px solid var(--border-accent); background:var(--surface-accent); font-size:12px; font-weight:750; }
-  .header-settings { display:grid; place-items:center; width:var(--control-min); height:var(--control-min); border-radius:var(--radius-control); color:var(--text-secondary); }
-  .header-settings:active, .header-settings:focus-visible { background:var(--surface-raised); color:var(--text-primary); }
+  .header-friends { display:grid; place-items:center; min-height:var(--control-min); padding:0 8px; border-radius:var(--radius-control); color:var(--action-primary); font-size:12px; font-weight:750; text-decoration:none; }
+  .header-friends:active,.header-friends:focus-visible { background:var(--surface-raised); }
   .main { flex: 1; padding: 0 12px calc(24px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; overscroll-behavior-y: contain; position: relative; }
   .ptr { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; z-index: 10; transition: opacity 0.15s; pointer-events: none; color: var(--text-secondary); }
   @media (min-width: 481px) {

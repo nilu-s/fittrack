@@ -50,9 +50,10 @@ vereinheitlichen.
 Dieser Vertrag entscheidet Informationsstruktur und Verhalten. Farbwerte,
 Typografie und Backend-Datenverträge werden hier nicht festgelegt.
 
-Der Bereich ist ein Datenfilter, keine zweite Darstellung: Die identische
+Der Bereich ist ein Datenfilter, keine zweite Tagesdarstellung: Die identische
 Tageslisten-Komponente zeigt im privaten Bereich nur private To-dos; in einem
-gemeinsamen Bereich nur dessen To-dos. Die allgemeine To-do- und Einkaufsliste
-sowie neue Footer-Einträge verwenden denselben aktiven Bereich. Biometrie,
-Mahlzeiten, Training und Integrationen bleiben privat und erscheinen nicht im
-gemeinsamen Bereich.
+gemeinsamen Bereich nur dessen To-dos. Neue Footer-Notizen starten immer
+privat im Notiz-Board und werden erst durch eine bewusste Bereichszuordnung
+geteilt; der Footer-Einkauf verwendet weiterhin den aktiven Bereich.
+Biometrie, Mahlzeiten, Training und Integrationen bleiben privat und erscheinen
+nicht im gemeinsamen Bereich.

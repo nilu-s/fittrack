@@ -13,9 +13,9 @@ Angaben ergänzt oder korrigiert werden können. `✦` öffnet einen allgemeinen
 explizit angeforderten KI-Chat; er speichert keine To-dos, Orte oder
 Anreiseüberwachung.
 
-Zusätzlich gibt es eine private allgemeine To-do-Liste für Einträge ohne Datum.
-Sie nutzt dieselben To-do-Datensätze und Statuswechsel wie die Tagesliste;
-ein Eintrag ohne `due_date` erscheint ausschließlich in diesem Bereich.
+Ungeplante Inhalte leben als private Notizen im Notiz-Board. Erst das
+Einplanen in einen Kalendertag oder Zeit-Slot erzeugt ein To-do und kann damit
+Ort oder Anreise erhalten.
 
 ## Regeln
 
@@ -47,14 +47,12 @@ ein Eintrag ohne `due_date` erscheint ausschließlich in diesem Bereich.
 
 ## Interaktion
 
-- `+` neben der Schnellerfassung erstellt ein simples To-do aus dem Text und
-  öffnet unmittelbar das Detail-Overlay.
-- Die Footer-Schaltfläche mit To-do-Symbol links vom Datum öffnet die
-  allgemeine Liste als mobilen, höhenverstellbaren Split-Screen (Desktop:
-  gleichwertige Seitenleiste). Die Fußzeilen-Eingabe legt dort ein To-do ohne
-  Datum im aktuell gewählten privaten oder gemeinsamen Bereich an. Sie wird
-  beim Öffnen fokussiert; Escape und „Schließen“ kehren zum Auslöser zurück.
-  Einkauf und allgemeine Liste sind nie gleichzeitig offen.
+- `+` neben der Schnellerfassung legt eine private Notiz an. Das Notiz-Board
+  bietet das sichtbare Bearbeiten, Bereichszuordnen und Einplanen; ein Drop auf
+  einen Kalender-Tag oder -Zeit-Slot erzeugt das To-do.
+- Die Footer-Schaltfläche „Notizen“ öffnet das Board. Touch- und
+  Tastaturbedienung haben dort gleichwertige native Detailaktionen; Einkauf
+  und Board sind nie gleichzeitig offen.
 - `✦` öffnet den KI-Chat für Fragen und komplexe Planungswünsche. Er gibt
   Antworten, führt aber keine Datenänderung aus.
 - Ein Ortsvorschlag wird über die Place-Suche ausgewählt und bestätigt. Die
@@ -79,5 +77,5 @@ stille Standortüberwachung ein.
 | Keine clientgesteuerte Identität oder Schlüssel | OpenAPI-/Schema-Test und Quellcodeprüfung |
 | Relative KI-Datumsauflösung | `backend/tests/test_todo_places_contract.py` |
 | Browser-UI hat sichtbare, native Aktionen | `npm run check`, Accessibility-Review |
-| Allgemeine To-dos bleiben datumsfrei und konto-privat | Todo-Contract- und Account-Isolation-Suite |
+| Ungeplante Notizen bleiben konto-privat bis zur bestätigten Bereichszuordnung | Notes-Contract- und Account-Isolation-Suite |
 | API-Vertrag | `backend/scripts/update-openapi`, Contract-Snapshot-Test |

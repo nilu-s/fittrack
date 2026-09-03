@@ -4,6 +4,7 @@ import uuid
 from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Literal, Optional
+import re
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -490,11 +491,103 @@ class TodoResponse(TodoBase):
     travel_duration_seconds: Optional[int] = None
     travel_depart_at: Optional[datetime] = None
     assignee_display_name: Optional[str] = None
+    origin_note_id: Optional[uuid.UUID] = None
+
+
+class NoteCreate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=1, max_length=300)
+    body: Optional[str] = Field(default=None, max_length=20_000)
+
+
+class NoteUpdate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    title: Optional[str] = Field(default=None, min_length=1, max_length=300)
+    body: Optional[str] = Field(default=None, max_length=20_000)
+    sort_order: Optional[int] = None
+
+
+class NoteMove(_Base):
+    model_config = ConfigDict(extra="forbid")
+    space_id: uuid.UUID
+    confirm_share: bool = False
+
+
+class NotePlan(_Base):
+    model_config = ConfigDict(extra="forbid")
+    due_date: date
+    start_time: Optional[time] = None
+
+
+class NoteResponse(_Base):
+    id: uuid.UUID
+    title: str
+    body: Optional[str] = None
+    space_id: Optional[uuid.UUID] = None
+    status: str
+    sort_order: int
+    scheduled_todo_id: Optional[uuid.UUID] = None
+    created_at: datetime
+    updated_at: datetime
 
 
 # ---------------------------------------------------------------------------#
 # Shared spaces
 # ---------------------------------------------------------------------------#
+ALIAS_PATTERN = re.compile(r"[a-z0-9][a-z0-9._-]{2,31}$")
+
+
+def normalize_alias(value: str) -> str:
+    """Return the canonical public handle, rejecting email-like identifiers."""
+    alias = value.strip().removeprefix("@").casefold()
+    if not ALIAS_PATTERN.fullmatch(alias):
+        raise ValueError("alias must be 3-32 characters using letters, numbers, ., _ or -")
+    return alias
+
+
+class AccountAliasUpdate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    alias: str = Field(min_length=3, max_length=33)
+
+    @field_validator("alias")
+    @classmethod
+    def canonical_alias(cls, value: str) -> str:
+        return normalize_alias(value)
+
+
+class ContactInviteCreate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    alias: str = Field(min_length=3, max_length=33)
+
+    @field_validator("alias")
+    @classmethod
+    def canonical_alias(cls, value: str) -> str:
+        return normalize_alias(value)
+
+
+class ContactResponse(_Base):
+    id: uuid.UUID
+    display_name: str
+    alias: str
+
+
+class ContactSearchResult(_Base):
+    alias: str
+    display_name: str
+
+
+class ContactInvitationResponse(_Base):
+    id: uuid.UUID
+    invited_by_display_name: str
+    invited_by_alias: str
+
+
+class ContactOutgoingInvitationResponse(_Base):
+    id: uuid.UUID
+    invited_display_name: str
+    invited_alias: str
+
+
 class SpaceCreate(_Base):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=1, max_length=100)
@@ -521,7 +614,7 @@ class SpaceResponse(_Base):
 
 class SpaceInviteCreate(_Base):
     model_config = ConfigDict(extra="forbid")
-    email: str = Field(min_length=3, max_length=320)
+    contact_id: uuid.UUID
 
 
 class SpaceInvitationResponse(_Base):

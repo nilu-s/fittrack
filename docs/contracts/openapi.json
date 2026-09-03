@@ -61,6 +61,41 @@
         }
       }
     },
+    "/api/auth/alias": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Set Account Alias",
+        "description": "Complete account onboarding with the one permanent public handle.",
+        "operationId": "set_account_alias_api_auth_alias_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountAliasUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/google/status": {
       "get": {
         "tags": [
@@ -4799,10 +4834,563 @@
           }
         }
       }
+    },
+    "/api/contacts": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "List Contacts",
+        "operationId": "list_contacts_api_contacts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContactResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Contacts Api Contacts Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contacts/search": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Search Contacts",
+        "description": "Find public account handles without ever returning an email or account ID.",
+        "operationId": "search_contacts_api_contacts_search_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 33,
+              "title": "Query"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContactSearchResult"
+                  },
+                  "title": "Response Search Contacts Api Contacts Search Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contacts/invitations": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Invite Contact",
+        "operationId": "invite_contact_api_contacts_invitations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactInviteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contacts/entries/{contact_id}": {
+      "delete": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Remove Contact",
+        "operationId": "remove_contact_api_contacts_entries__contact_id__delete",
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Contact Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contacts/outgoing-invitations": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "List Outgoing Invitations",
+        "operationId": "list_outgoing_invitations_api_contacts_outgoing_invitations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContactOutgoingInvitationResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Outgoing Invitations Api Contacts Outgoing Invitations Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contact-invitations": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "List Invitations",
+        "operationId": "list_invitations_api_contact_invitations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContactInvitationResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Invitations Api Contact Invitations Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contact-invitations/{invitation_id}/accept": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Accept Invitation",
+        "operationId": "accept_invitation_api_contact_invitations__invitation_id__accept_post",
+        "parameters": [
+          {
+            "name": "invitation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invitation Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contact-invitations/{invitation_id}/decline": {
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Decline Invitation",
+        "operationId": "decline_invitation_api_contact_invitations__invitation_id__decline_post",
+        "parameters": [
+          {
+            "name": "invitation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invitation Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notes": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "List Notes",
+        "operationId": "list_notes_api_notes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NoteResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Notes Api Notes Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Create Note",
+        "operationId": "create_note_api_notes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notes/{note_id}": {
+      "put": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Update Note",
+        "operationId": "update_note_api_notes__note_id__put",
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notes/{note_id}/move": {
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Move Note",
+        "operationId": "move_note_api_notes__note_id__move_post",
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notes/{note_id}/plan": {
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Plan Note",
+        "operationId": "plan_note_api_notes__note_id__plan_post",
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotePlan"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notes/{note_id}/unschedule": {
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Unschedule Note",
+        "operationId": "unschedule_note_api_notes__note_id__unschedule_post",
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AccountAliasUpdate": {
+        "properties": {
+          "alias": {
+            "type": "string",
+            "maxLength": 33,
+            "minLength": 3,
+            "title": "Alias"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "alias"
+        ],
+        "title": "AccountAliasUpdate"
+      },
       "AssistantRequest": {
         "properties": {
           "text": {
@@ -4953,6 +5541,112 @@
           "file"
         ],
         "title": "Body_create_photo_analysis_api_meal_entries__entry_id__photo_analyses_post"
+      },
+      "ContactInvitationResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "invited_by_display_name": {
+            "type": "string",
+            "title": "Invited By Display Name"
+          },
+          "invited_by_alias": {
+            "type": "string",
+            "title": "Invited By Alias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "invited_by_display_name",
+          "invited_by_alias"
+        ],
+        "title": "ContactInvitationResponse"
+      },
+      "ContactInviteCreate": {
+        "properties": {
+          "alias": {
+            "type": "string",
+            "maxLength": 33,
+            "minLength": 3,
+            "title": "Alias"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "alias"
+        ],
+        "title": "ContactInviteCreate"
+      },
+      "ContactOutgoingInvitationResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "invited_display_name": {
+            "type": "string",
+            "title": "Invited Display Name"
+          },
+          "invited_alias": {
+            "type": "string",
+            "title": "Invited Alias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "invited_display_name",
+          "invited_alias"
+        ],
+        "title": "ContactOutgoingInvitationResponse"
+      },
+      "ContactResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "alias": {
+            "type": "string",
+            "title": "Alias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "alias"
+        ],
+        "title": "ContactResponse"
+      },
+      "ContactSearchResult": {
+        "properties": {
+          "alias": {
+            "type": "string",
+            "title": "Alias"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alias",
+          "display_name"
+        ],
+        "title": "ContactSearchResult"
       },
       "DayEntryBulkRequest": {
         "properties": {
@@ -8380,6 +9074,200 @@
         ],
         "title": "MealPlanVersionResponse"
       },
+      "NoteCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "NoteCreate"
+      },
+      "NoteMove": {
+        "properties": {
+          "space_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Space Id"
+          },
+          "confirm_share": {
+            "type": "boolean",
+            "title": "Confirm Share",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "space_id"
+        ],
+        "title": "NoteMove"
+      },
+      "NotePlan": {
+        "properties": {
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Due Date"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "due_date"
+        ],
+        "title": "NotePlan"
+      },
+      "NoteResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "space_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          },
+          "scheduled_todo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled Todo Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "sort_order",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "NoteResponse"
+      },
+      "NoteUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NoteUpdate"
+      },
       "Nutrition": {
         "properties": {
           "kcal": {
@@ -9636,17 +10524,16 @@
       },
       "SpaceInviteCreate": {
         "properties": {
-          "email": {
+          "contact_id": {
             "type": "string",
-            "maxLength": 320,
-            "minLength": 3,
-            "title": "Email"
+            "format": "uuid",
+            "title": "Contact Id"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "email"
+          "contact_id"
         ],
         "title": "SpaceInviteCreate"
       },
@@ -10623,6 +11510,18 @@
               }
             ],
             "title": "Assignee Display Name"
+          },
+          "origin_note_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Note Id"
           }
         },
         "additionalProperties": false,

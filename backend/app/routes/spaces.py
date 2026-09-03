@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
 from app.database import async_session
-from app.models import Account, Space, SpaceInvitation, SpaceMembership, SpaceProject
+from app.models import Account, Contact, Space, SpaceInvitation, SpaceMembership, SpaceProject
 from app.routes.auth import get_current_user
 from app.schemas import (
     SpaceCreate, SpaceInvitationResponse, SpaceInviteCreate, SpaceMemberResponse,
@@ -68,20 +68,18 @@ async def update_space(space_id: uuid.UUID, body: SpaceUpdate, account_id: uuid.
 @router.post("/{space_id}/invitations", status_code=status.HTTP_201_CREATED)
 async def invite_member(space_id: uuid.UUID, body: SpaceInviteCreate, account_id: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
-        await owner_space(session, space_id, account_id)
-        invited = await session.scalar(select(Account).where(Account.email == body.email.strip()))
-        # Do not disclose whether an email belongs to an approved account.
-        if invited is None:
-            return {"status": "created"}
+        space = await owner_space(session, space_id, account_id)
+        contact = await session.scalar(select(Contact).where(Contact.id == body.contact_id, Contact.owner_account_id == account_id))
+        if contact is None:
+            raise HTTPException(422, "Only your confirmed contacts can be invited")
+        invited = await session.scalar(select(Account).where(Account.id == contact.contact_account_id))
+        if invited is None: raise HTTPException(404, "Contact not found")
         existing = await session.scalar(select(SpaceMembership.id).where(
             SpaceMembership.space_id == space_id, SpaceMembership.account_id == invited.id
         ))
-        pending = await session.scalar(select(SpaceInvitation.id).where(
-            SpaceInvitation.space_id == space_id, SpaceInvitation.invited_account_id == invited.id,
-            SpaceInvitation.status == "pending"
-        ))
+        pending = await session.scalar(select(SpaceInvitation.id).where(SpaceInvitation.space_id == space.id, SpaceInvitation.invited_account_id == invited.id, SpaceInvitation.status == "pending"))
         if existing is None and pending is None:
-            session.add(SpaceInvitation(space_id=space_id, invited_account_id=invited.id, invited_by_account_id=account_id))
+            session.add(SpaceInvitation(space_id=space.id, invited_account_id=invited.id, invited_by_account_id=account_id))
             await session.commit()
         return {"status": "created"}
 

@@ -6,17 +6,19 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from jose import jwt as jose_jwt
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 
 from app.config import allowed_google_emails, google_redirect_uri, settings
 from app.database import async_session
 from app.models import Account, AccountWeightRange, GoogleToken
 from app.services.ownership import reset_current_account, set_current_account
+from app.schemas import AccountAliasUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -327,7 +329,7 @@ async def google_callback(request: Request):
 
     # Create JWT session token and set as httpOnly cookie, then redirect to /
     session_jwt = _create_session_jwt(account)
-    response = RedirectResponse(url="/", status_code=302)
+    response = RedirectResponse(url="/onboarding/alias" if account.alias is None else "/", status_code=302)
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=session_jwt,
@@ -354,7 +356,34 @@ async def auth_me(request: Request):
         account = await session.get(Account, uuid.UUID(claims["account_id"]))
     if not account or account.google_subject != claims["sub"]:
         return {"authenticated": False, "email": None}
-    return {"authenticated": True, "id": str(account.id), "email": account.email, "display_name": account.display_name}
+    return {
+        "authenticated": True,
+        "id": str(account.id),
+        "email": account.email,
+        "display_name": account.display_name,
+        "alias": account.alias,
+        "alias_required": account.alias is None,
+    }
+
+
+@router.post("/alias", status_code=status.HTTP_204_NO_CONTENT)
+async def set_account_alias(body: AccountAliasUpdate, account_id=Depends(get_current_user)):
+    """Complete account onboarding with the one permanent public handle."""
+    async with async_session() as session:
+        account = await session.get(Account, account_id)
+        if account is None:
+            raise HTTPException(status_code=401, detail="Account not found")
+        if account.alias is not None:
+            raise HTTPException(status_code=409, detail="Alias is permanent and cannot be changed")
+        taken = await session.scalar(select(Account.id).where(Account.alias == body.alias))
+        if taken is not None:
+            raise HTTPException(status_code=409, detail="Alias is already taken")
+        account.alias = body.alias
+        try:
+            await session.commit()
+        except IntegrityError as exc:
+            await session.rollback()
+            raise HTTPException(status_code=409, detail="Alias is already taken") from exc
 
 
 @router.get("/google/status")

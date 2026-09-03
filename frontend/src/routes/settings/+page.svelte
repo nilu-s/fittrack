@@ -1,5 +1,9 @@
 <script lang="ts">
   import SettingsTile from '$lib/components/SettingsTile.svelte';
+  import { goto } from '$app/navigation';
+  import { logout } from '$lib/auth';
+
+  async function handleLogout() { await logout(); goto('/login'); }
 </script>
 
 <svelte:head><title>Cronicl - Einstellungen</title></svelte:head>
@@ -20,13 +24,14 @@
   </section>
   <div class="section-label">Gemeinsam</div>
   <section class="settings-list" aria-label="Gemeinsame Bereiche">
-    <SettingsTile href="/settings/spaces" icon="todo" title="Gemeinsame Bereiche" description="Haushalt, Mitglieder und Projekte" summary="Geteilte To-dos und Einkauf" />
+    <SettingsTile href="/settings/spaces" icon="todo" title="Gemeinsame Bereiche" description="Mitglieder und Zugriff auf geteilte Notizen" summary="Geteilte Notizen, To-dos und Einkauf" />
   </section>
   <div class="section-label">Konto &amp; Daten</div>
   <section class="settings-list" aria-label="Konto und Daten">
     <SettingsTile href="/settings/integrations" icon="refresh" title="Integrationen" description="Google-Konto und Synchronisation" />
     <SettingsTile href="/settings/data" icon="calendar" title="Daten & Export" description="Cronicl-Daten exportieren" />
   </section>
+  <button class="logout" type="button" onclick={handleLogout}>Ausloggen</button>
 </div>
 
 <style>
@@ -37,4 +42,5 @@
   .eyebrow { color:var(--status-success); font-size:11px; font-weight:750; letter-spacing:.07em; text-transform:uppercase; }
   .section-label { padding:var(--space-2) var(--space-1) 0; color: var(--text-secondary); font-size: 12px; font-weight:700; }
   .settings-list { overflow: hidden; background: var(--surface-default); border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); }
+  .logout { align-self:start; min-height:var(--control-min); margin-top:var(--space-2); padding:8px 12px; border:1px solid var(--status-danger); border-radius:var(--radius-control); background:transparent; color:var(--status-danger); font:inherit; cursor:pointer; } .logout:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; }
 </style>

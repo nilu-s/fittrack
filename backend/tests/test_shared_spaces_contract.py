@@ -27,7 +27,7 @@ class SharedSpacesContractTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValidationError):
             SpaceCreate(name="Haushalt", owner_account_id=uuid.uuid4())
         with self.assertRaises(ValidationError):
-            SpaceInviteCreate(email="a@example.test", invited_account_id=uuid.uuid4())
+            SpaceInviteCreate(contact_id=uuid.uuid4(), invited_account_id=uuid.uuid4())
 
     def test_todo_contract_accepts_only_resource_references(self):
         todo = TodoCreate(title="Müll rausbringen", space_id=uuid.uuid4(), project_id=uuid.uuid4(), assignee_id=uuid.uuid4())

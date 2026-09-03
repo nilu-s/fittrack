@@ -42,6 +42,7 @@ export interface Todo {
   is_all_day?: boolean;
   source?: string;
   external_id?: string | null;
+  origin_note_id?: string | null;
   space_id?: string | null;
   project_id?: string | null;
   assignee_id?: string | null;
@@ -61,10 +62,26 @@ export interface Todo {
   updated_at?: string;
 }
 
+export interface Note {
+  id: string;
+  title: string;
+  body?: string | null;
+  space_id?: string | null;
+  status: 'active' | 'planned';
+  sort_order: number;
+  scheduled_todo_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SpaceMember { member_id: string; display_name?: string | null; role: 'owner' | 'member'; }
 export interface Space { id: string; name: string; owner_id: string; role: 'owner' | 'member'; members: SpaceMember[]; }
 export interface SpaceProject { id: string; space_id: string; name: string; description?: string | null; is_archived: boolean; }
 export interface SpaceInvitation { id: string; space_id: string; space_name: string; invited_by_display_name?: string | null; status: string; }
+export interface Contact { id: string; display_name: string; alias: string; }
+export interface ContactSearchResult { alias: string; display_name: string; }
+export interface ContactInvitation { id: string; invited_by_display_name: string; invited_by_alias: string; }
+export interface ContactOutgoingInvitation { id: string; invited_display_name: string; invited_alias: string; }
 
 export interface TodoDraft {
   title: string;
