@@ -6,7 +6,7 @@
 
 ## Ziel
 
-Ein persönliches To-do kann einen eindeutig bestätigten Zielort und eine
+Ein persönliches oder Space-To-do kann einen eindeutig bestätigten Zielort und eine
 Anreiseart erhalten. Die Schnellerfassung verwendet ein gemeinsames Textfeld:
 `+` legt den Text sofort an und öffnet danach ein Detail-Overlay, in dem
 Angaben ergänzt oder korrigiert werden können. `✦` öffnet einen allgemeinen,
@@ -19,7 +19,9 @@ ein Eintrag ohne `due_date` erscheint ausschließlich in diesem Bereich.
 
 ## Regeln
 
-1. Jeder To-do-Ort gehört ausschließlich zum angemeldeten Konto. Browser
+1. Ein privater To-do-Ort gehört ausschließlich zum angemeldeten Konto;
+   Space-To-dos folgen zusätzlich der Mitgliedschaftsprüfung aus
+   `shared-spaces.md`. Browser
    dürfen weder `account_id` noch Google-Zugangsdaten übermitteln.
 2. Ein bestätigter Google-Ort wird durch `place_id` referenziert. Name und
    Adresse sind ausschließlich Anzeige-Snapshots und werden nicht als

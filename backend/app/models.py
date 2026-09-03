@@ -35,6 +35,54 @@ class Account(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class Space(Base):
+    """An explicit shared workspace; private account data never belongs here."""
+    __tablename__ = "spaces"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    owner_account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class SpaceMembership(Base):
+    __tablename__ = "space_memberships"
+    __table_args__ = (UniqueConstraint("space_id", "account_id", name="uq_space_memberships_space_account"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    space_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("spaces.id", ondelete="CASCADE"), nullable=False)
+    account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False, default="member")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class SpaceInvitation(Base):
+    __tablename__ = "space_invitations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    space_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("spaces.id", ondelete="CASCADE"), nullable=False)
+    invited_account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False)
+    invited_by_account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SpaceProject(Base):
+    __tablename__ = "space_projects"
+    __table_args__ = (UniqueConstraint("space_id", "name", name="uq_space_projects_space_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    space_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("spaces.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_by_account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
 class AccountWeightRange(Base):
     __tablename__ = "account_weight_ranges"
 
@@ -137,6 +185,9 @@ class Todo(AccountOwned, Base):
     is_all_day: Mapped[bool] = mapped_column(Boolean, default=True)
     source: Mapped[str] = mapped_column(Text, default="manual")
     external_id: Mapped[str | None] = mapped_column(Text)
+    space_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("spaces.id", ondelete="SET NULL"))
+    project_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("space_projects.id", ondelete="SET NULL"))
+    assignee_account_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id", ondelete="SET NULL"))
     # A Google Place ID is the durable, unique destination reference. Display
     # strings are snapshots and never substitute for the identifier.
     place_id: Mapped[str | None] = mapped_column(Text)
@@ -336,13 +387,14 @@ class MealEntryItem(AccountOwned, Base):
 
 
 class ShoppingList(AccountOwned, Base):
-    """An account-private shopping workspace; sharing is deliberately absent."""
+    """A private or explicitly shared manual shopping workspace."""
     __tablename__ = "shopping_lists"
     __table_args__ = (UniqueConstraint("account_id", "name", name="uq_shopping_lists_account_name"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(Text, nullable=False, default="Einkauf")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    space_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("spaces.id", ondelete="CASCADE"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

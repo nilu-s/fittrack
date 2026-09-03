@@ -427,6 +427,7 @@ class MealPhotoAnalysisAccept(_Base):
 # Todo
 # ---------------------------------------------------------------------------
 class TodoBase(_Base):
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
     title: str
     category: Optional[str] = None
     priority: int = 2
@@ -438,6 +439,9 @@ class TodoBase(_Base):
     is_all_day: bool = True
     source: str = "manual"
     external_id: Optional[str] = None
+    space_id: Optional[uuid.UUID] = None
+    project_id: Optional[uuid.UUID] = None
+    assignee_id: Optional[uuid.UUID] = None
     place_id: Optional[str] = Field(default=None, max_length=512)
     place_name: Optional[str] = Field(default=None, max_length=300)
     place_address: Optional[str] = Field(default=None, max_length=500)
@@ -453,6 +457,7 @@ class TodoCreate(TodoBase):
 
 
 class TodoUpdate(_Base):
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
     title: Optional[str] = None
     category: Optional[str] = None
     priority: Optional[int] = None
@@ -464,6 +469,9 @@ class TodoUpdate(_Base):
     is_all_day: Optional[bool] = None
     source: Optional[str] = None
     external_id: Optional[str] = None
+    space_id: Optional[uuid.UUID] = None
+    project_id: Optional[uuid.UUID] = None
+    assignee_id: Optional[uuid.UUID] = None
     place_id: Optional[str] = Field(default=None, max_length=512)
     place_name: Optional[str] = Field(default=None, max_length=300)
     place_address: Optional[str] = Field(default=None, max_length=500)
@@ -481,6 +489,68 @@ class TodoResponse(TodoBase):
     travel_last_checked_at: Optional[datetime] = None
     travel_duration_seconds: Optional[int] = None
     travel_depart_at: Optional[datetime] = None
+    assignee_display_name: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------#
+# Shared spaces
+# ---------------------------------------------------------------------------#
+class SpaceCreate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=100)
+
+
+class SpaceUpdate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=100)
+
+
+class SpaceMemberResponse(_Base):
+    member_id: uuid.UUID
+    display_name: Optional[str] = None
+    role: str
+
+
+class SpaceResponse(_Base):
+    id: uuid.UUID
+    name: str
+    owner_id: uuid.UUID
+    role: str
+    members: list[SpaceMemberResponse] = Field(default_factory=list)
+
+
+class SpaceInviteCreate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    email: str = Field(min_length=3, max_length=320)
+
+
+class SpaceInvitationResponse(_Base):
+    id: uuid.UUID
+    space_id: uuid.UUID
+    space_name: str
+    invited_by_display_name: Optional[str] = None
+    status: str
+
+
+class SpaceProjectCreate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=100)
+    description: Optional[str] = Field(default=None, max_length=1000)
+
+
+class SpaceProjectUpdate(_Base):
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    is_archived: Optional[bool] = None
+
+
+class SpaceProjectResponse(_Base):
+    id: uuid.UUID
+    space_id: uuid.UUID
+    name: str
+    description: Optional[str] = None
+    is_archived: bool
 
 
 class TodoDraftRequest(_Base):
@@ -920,6 +990,7 @@ class ShoppingItemResponse(_Base):
 class ShoppingListResponse(_Base):
     id: uuid.UUID
     name: str
+    space_id: Optional[uuid.UUID] = None
     items: list[ShoppingItemResponse]
 
 

@@ -6,14 +6,15 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app.database import async_session
-from app.models import Food, ShoppingItem, ShoppingList, ShoppingMealImport
+from app.models import Food, ShoppingItem, ShoppingList, ShoppingMealImport, SpaceMembership
 from app.routes.auth import get_current_user
 from app.schemas import ShoppingItemCreate, ShoppingItemResponse, ShoppingItemUpdate, ShoppingListResponse, ShoppingMealImportCommand, ShoppingMealPreviewItem, ShoppingMealPreviewResponse
 from app.services.shopping_aggregation import classify_article, planned_meal_requirements
+from app.services.spaces import member_space
 
 router = APIRouter(prefix="/shopping", tags=["shopping"])
 
@@ -25,12 +26,30 @@ async def _owned(session, model, resource_id: uuid.UUID, account_id: uuid.UUID):
     return row
 
 
-async def _active_list(session, account_id: uuid.UUID) -> ShoppingList:
-    row = await session.scalar(select(ShoppingList).where(ShoppingList.account_id == account_id, ShoppingList.is_active.is_(True)).order_by(ShoppingList.created_at))
+async def _active_list(session, account_id: uuid.UUID, space_id: uuid.UUID | None = None) -> ShoppingList:
+    if space_id is not None:
+        await member_space(session, space_id, account_id)
+    scope = ShoppingList.space_id == space_id if space_id is not None else and_(ShoppingList.space_id.is_(None), ShoppingList.account_id == account_id)
+    row = await session.scalar(select(ShoppingList).execution_options(include_all_accounts=True).where(scope, ShoppingList.is_active.is_(True)).order_by(ShoppingList.created_at))
     if row is None:
-        row = ShoppingList(account_id=account_id, name="Einkauf", is_active=True)
+        row = ShoppingList(account_id=account_id, space_id=space_id, name="Einkauf", is_active=True)
         session.add(row)
         await session.flush()
+    return row
+
+
+async def _accessible_item(session, item_id: uuid.UUID, account_id: uuid.UUID) -> ShoppingItem:
+    member = exists(select(SpaceMembership.id).where(
+        SpaceMembership.space_id == ShoppingList.space_id, SpaceMembership.account_id == account_id
+    ))
+    row = await session.scalar(select(ShoppingItem).execution_options(include_all_accounts=True).join(
+        ShoppingList, ShoppingList.id == ShoppingItem.shopping_list_id
+    ).where(ShoppingItem.id == item_id, or_(
+        and_(ShoppingList.space_id.is_(None), ShoppingItem.account_id == account_id),
+        and_(ShoppingList.space_id.is_not(None), member),
+    )))
+    if row is None:
+        raise HTTPException(404, "Resource not found")
     return row
 
 
@@ -39,20 +58,20 @@ def _item_response(row: ShoppingItem) -> ShoppingItemResponse:
 
 
 @router.get("", response_model=ShoppingListResponse)
-async def get_shopping_list(account_id: uuid.UUID = Depends(get_current_user)):
+async def get_shopping_list(space_id: uuid.UUID | None = Query(default=None), account_id: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
-        shopping_list = await _active_list(session, account_id)
+        shopping_list = await _active_list(session, account_id, space_id)
         await session.commit()
-        items = (await session.execute(select(ShoppingItem).where(
-            ShoppingItem.account_id == account_id, ShoppingItem.shopping_list_id == shopping_list.id
+        items = (await session.execute(select(ShoppingItem).execution_options(include_all_accounts=True).where(
+            ShoppingItem.shopping_list_id == shopping_list.id
         ).order_by(ShoppingItem.status, ShoppingItem.category_key, ShoppingItem.sort_order, ShoppingItem.created_at))).scalars().all()
-        return ShoppingListResponse(id=shopping_list.id, name=shopping_list.name, items=[_item_response(row) for row in items])
+        return ShoppingListResponse(id=shopping_list.id, name=shopping_list.name, space_id=shopping_list.space_id, items=[_item_response(row) for row in items])
 
 
 @router.post("/items", response_model=ShoppingItemResponse, status_code=201)
-async def create_item(body: ShoppingItemCreate, account_id: uuid.UUID = Depends(get_current_user)):
+async def create_item(body: ShoppingItemCreate, space_id: uuid.UUID | None = Query(default=None), account_id: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
-        shopping_list = await _active_list(session, account_id)
+        shopping_list = await _active_list(session, account_id, space_id)
         food = await _owned(session, Food, body.food_id, account_id) if body.food_id else None
         title = body.title.strip()
         category, icon = classify_article(title)
@@ -66,7 +85,7 @@ async def create_item(body: ShoppingItemCreate, account_id: uuid.UUID = Depends(
 @router.put("/items/{item_id}", response_model=ShoppingItemResponse)
 async def update_item(item_id: uuid.UUID, body: ShoppingItemUpdate, account_id: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
-        row = await _owned(session, ShoppingItem, item_id, account_id)
+        row = await _accessible_item(session, item_id, account_id)
         for key, value in body.model_dump(exclude_unset=True).items():
             setattr(row, key, value)
         if body.title is not None and body.category_key is None and body.icon_key is None:
@@ -82,7 +101,7 @@ async def update_item(item_id: uuid.UUID, body: ShoppingItemUpdate, account_id: 
 @router.post("/items/{item_id}/toggle", response_model=ShoppingItemResponse)
 async def toggle_item(item_id: uuid.UUID, account_id: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
-        row = await _owned(session, ShoppingItem, item_id, account_id)
+        row = await _accessible_item(session, item_id, account_id)
         row.status = "done" if row.status == "open" else "open"
         row.completed_at = datetime.now(timezone.utc) if row.status == "done" else None
         await session.commit(); await session.refresh(row)
@@ -92,7 +111,7 @@ async def toggle_item(item_id: uuid.UUID, account_id: uuid.UUID = Depends(get_cu
 @router.delete("/items/{item_id}", status_code=204)
 async def delete_item(item_id: uuid.UUID, account_id: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
-        await session.delete(await _owned(session, ShoppingItem, item_id, account_id)); await session.commit()
+        await session.delete(await _accessible_item(session, item_id, account_id)); await session.commit()
 
 
 @router.get("/meal-preview", response_model=ShoppingMealPreviewResponse)

@@ -28,6 +28,9 @@ import type {
   ShoppingItem,
   ShoppingList,
   ShoppingMealPreview,
+  Space,
+  SpaceInvitation,
+  SpaceProject,
 } from "./types";
 import { db, queueSync, type DayEntryRecord, type TodoRecord } from "./db";
 
@@ -377,6 +380,18 @@ class ApiClient {
     }
   }
 
+  // Shared spaces are online-only: membership changes must be verified before
+  // a browser can show or mutate shared household content.
+  async getSpaces(): Promise<Space[]> { return (await this.request<Space[]>('/spaces')) ?? []; }
+  async createSpace(name: string): Promise<Space | null> { return this.request<Space>('/spaces', { method: 'POST', body: JSON.stringify({ name }) }); }
+  async inviteToSpace(spaceId: string, email: string): Promise<boolean> { return Boolean(await this.request(`/spaces/${spaceId}/invitations`, { method: 'POST', body: JSON.stringify({ email }) })); }
+  async removeSpaceMember(spaceId: string, accountId: string): Promise<boolean> { return this.requestOk(`/spaces/${spaceId}/members/${accountId}`, { method: 'DELETE' }); }
+  async getSpaceProjects(spaceId: string): Promise<SpaceProject[]> { return (await this.request<SpaceProject[]>(`/spaces/${spaceId}/projects`)) ?? []; }
+  async createSpaceProject(spaceId: string, name: string, description?: string): Promise<SpaceProject | null> { return this.request<SpaceProject>(`/spaces/${spaceId}/projects`, { method: 'POST', body: JSON.stringify({ name, description: description || null }) }); }
+  async getSpaceInvitations(): Promise<SpaceInvitation[]> { return (await this.request<SpaceInvitation[]>('/space-invitations')) ?? []; }
+  async acceptSpaceInvitation(id: string): Promise<Space | null> { return this.request<Space>(`/space-invitations/${id}/accept`, { method: 'POST' }); }
+  async declineSpaceInvitation(id: string): Promise<boolean> { return this.requestOk(`/space-invitations/${id}/decline`, { method: 'POST' }); }
+
   async draftTodo(text: string, date: string): Promise<TodoDraft | null> {
     return this.request<TodoDraft>("/todo-planning/draft", {
       method: "POST", body: JSON.stringify({ text, date }),
@@ -434,12 +449,12 @@ class ApiClient {
 
   // Shopping stays online-first: a meal import is an explicit, account-scoped
   // command and must never be replayed through the legacy todo sync queue.
-  async getShoppingList(): Promise<ShoppingList | null> {
-    return this.request<ShoppingList>("/shopping");
+  async getShoppingList(spaceId?: string): Promise<ShoppingList | null> {
+    return this.request<ShoppingList>(`/shopping${spaceId ? `?space_id=${encodeURIComponent(spaceId)}` : ""}`);
   }
 
-  async createShoppingItem(data: Partial<ShoppingItem>): Promise<ShoppingItem | null> {
-    return this.request<ShoppingItem>("/shopping/items", { method: "POST", body: JSON.stringify(data) });
+  async createShoppingItem(data: Partial<ShoppingItem>, spaceId?: string): Promise<ShoppingItem | null> {
+    return this.request<ShoppingItem>(`/shopping/items${spaceId ? `?space_id=${encodeURIComponent(spaceId)}` : ""}`, { method: "POST", body: JSON.stringify(data) });
   }
 
   async updateShoppingItem(id: string, data: Partial<ShoppingItem>): Promise<ShoppingItem | null> {
@@ -451,7 +466,7 @@ class ApiClient {
   }
 
   async deleteShoppingItem(id: string): Promise<boolean> {
-    try { await this.request(`/shopping/items/${id}`, { method: "DELETE" }); return true; } catch { return false; }
+    return this.requestOk(`/shopping/items/${id}`, { method: "DELETE" });
   }
 
   async getShoppingMealPreview(from: string, to: string): Promise<ShoppingMealPreview | null> {

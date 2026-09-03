@@ -11,6 +11,7 @@
   import ShoppingItemEditor from '$lib/components/ShoppingItemEditor.svelte';
   import ShoppingMealImport from '$lib/components/ShoppingMealImport.svelte';
   import GeneralTodoQuickPanel from '$lib/components/GeneralTodoQuickPanel.svelte';
+  import SpaceManager from '$lib/components/SpaceManager.svelte';
   import { pageTitle } from '$lib/brand';
 
   $: data = $dayData;
@@ -39,6 +40,13 @@
   let previousRenderedDate = '';
   let dayTransitionDirection = 1;
   let prefersReducedMotion = false;
+  let spaces: import('$lib/types').Space[] = [];
+  let spaceInvitations: import('$lib/types').SpaceInvitation[] = [];
+  let shoppingSpaceId: string | null = null;
+
+  async function loadSpaces() {
+    [spaces, spaceInvitations] = await Promise.all([api.getSpaces(), api.getSpaceInvitations()]);
+  }
 
   $: renderedDate = data?.dayEntry?.date ?? '';
   $: if (renderedDate && renderedDate !== previousRenderedDate) {
@@ -140,18 +148,19 @@
   async function loadShopping() {
     if (shopping || shoppingLoading) return;
     shoppingLoading = true;
-    try { shopping = await api.getShoppingList(); }
+    try { shopping = await api.getShoppingList(shoppingSpaceId ?? undefined); }
     finally { shoppingLoading = false; }
   }
-  async function addShopping(event: CustomEvent<string>) { if (shoppingAdding || !event.detail.trim()) return; shoppingAdding = true; const item = await api.createShoppingItem({ title: event.detail.trim() }); if (item) { shopping = shopping ? { ...shopping, items: [...shopping.items, item] } : await api.getShoppingList(); shoppingTitle = ''; } shoppingAdding = false; }
+  async function addShopping(event: CustomEvent<string>) { if (shoppingAdding || !event.detail.trim()) return; shoppingAdding = true; const item = await api.createShoppingItem({ title: event.detail.trim() }, shoppingSpaceId ?? undefined); if (item) { shopping = shopping ? { ...shopping, items: [...shopping.items, item] } : await api.getShoppingList(shoppingSpaceId ?? undefined); shoppingTitle = ''; } shoppingAdding = false; }
   async function toggleShopping(item: import('$lib/types').ShoppingItem) { const updated = await api.toggleShoppingItem(item.id); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === updated.id ? updated : value) }; }
   async function removeShopping(item: import('$lib/types').ShoppingItem) { if (await api.deleteShoppingItem(item.id) && shopping) shopping = { ...shopping, items: shopping.items.filter((value) => value.id !== item.id) }; }
   async function saveShopping(event: CustomEvent<{ id: string; data: Partial<import('$lib/types').ShoppingItem> }>) { const updated = await api.updateShoppingItem(event.detail.id, event.detail.data); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === updated.id ? updated : value) }; }
   function setShoppingPanelHeight(height: number) { shoppingPanelHeight = Math.max(1, Math.min(900, Math.round(height))); }
-  function openShoppingFromFooter(event: CustomEvent<number>) { shoppingOpen = true; setShoppingPanelHeight(220 + event.detail); void loadShopping(); }
+  function openShoppingFromFooter(event: CustomEvent<number>) { shoppingSpaceId = null; shopping = null; shoppingOpen = true; setShoppingPanelHeight(220 + event.detail); void loadShopping(); }
+  async function openSpaceShopping(event: CustomEvent<string>) { shoppingSpaceId = event.detail; shopping = null; shoppingOpen = true; generalTodoOpen = false; await loadShopping(); }
 
   // Preload the drawer's content before it is opened, matching the day-view cache.
-  onMount(() => { void loadShopping(); void loadGeneralTodos(); });
+  onMount(() => { void loadShopping(); void loadGeneralTodos(); void loadSpaces(); });
 
 </script>
 
@@ -181,11 +190,12 @@
     <div class="loading" role="status" aria-live="polite"><div class="spinner"></div><span class="sr-only">Tagesdaten werden geladen</span></div>
   {/if}
   <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} bind:generalTodoOpen bind:generalTodoTitle {generalTodoAdding} generalTodoCount={generalTodos.filter((todo) => todo.status === 'open').length} on:todoadd={addFooterTodo} on:shoppinggesture={(event) => { generalTodoOpen = false; openShoppingFromFooter(event); }} on:shoppingadd={addShopping} on:generaltodogesture={(event) => openGeneralTodos(event.detail)} on:generaltodoadd={addGeneralTodo} on:aiplan={() => assistantOpen = true} />
+  <SpaceManager {spaces} invitations={spaceInvitations} on:changed={loadSpaces} on:shopping={openSpaceShopping} />
   <GeneralTodoQuickPanel bind:open={generalTodoOpen} todos={generalTodos} loading={generalTodosLoading} panelHeight={generalTodoPanelHeight} on:resize={(event) => generalTodoPanelHeight = event.detail} on:close={(event) => { generalTodoOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.todo-toggle')?.focus(); }} on:toggle={(event) => toggleGeneralTodo(event.detail)} on:edit={(event) => todoDetails = event.detail} on:remove={(event) => removeGeneralTodo(event.detail)} />
-  <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} loading={shoppingLoading} query={shoppingTitle} panelHeight={shoppingPanelHeight} on:resize={(event) => setShoppingPanelHeight(event.detail)} on:close={(event) => { shoppingOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
+  <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} loading={shoppingLoading} query={shoppingTitle} panelHeight={shoppingPanelHeight} allowMealImport={!shoppingSpaceId} on:resize={(event) => setShoppingPanelHeight(event.detail)} on:close={(event) => { shoppingOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
   <ShoppingItemEditor bind:item={editingShopping} on:close={() => editingShopping = null} on:save={saveShopping} />
   <ShoppingMealImport bind:open={mealImportOpen} startDate={$currentDate} on:close={() => mealImportOpen = false} on:imported={(event) => shopping = event.detail} />
-  <TodoDetailsSheet bind:todo={todoDetails} {suggestedPlaceQuery} {suggestedTravelMode} on:close={() => { todoDetails = null; suggestedPlaceQuery = ''; suggestedTravelMode = null; }} on:updated={onTodoDetailsUpdate} />
+  <TodoDetailsSheet bind:todo={todoDetails} {suggestedPlaceQuery} {suggestedTravelMode} {spaces} on:close={() => { todoDetails = null; suggestedPlaceQuery = ''; suggestedTravelMode = null; }} on:updated={onTodoDetailsUpdate} />
   <AssistantChatSheet bind:open={assistantOpen} date={$currentDate} initialText={todoTitle} on:close={() => assistantOpen = false} />
 </div>
 

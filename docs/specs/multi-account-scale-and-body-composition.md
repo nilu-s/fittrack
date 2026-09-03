@@ -32,8 +32,9 @@ available only if the scale protocol supplies genuine BIA impedance data.
 
 ### Out of scope
 
-- Household sharing, social features, cross-account dashboards or delegated
-  access.
+- Household sharing outside the explicit task/list/project spaces governed by
+  `shared-spaces.md`, social features, cross-account dashboards or delegated
+  access to private data.
 - User-selected account/profile on the ESP32 or in the scale request.
 - Guessing body fat, water, muscle, visceral fat, protein or bone mass from
   weight alone.

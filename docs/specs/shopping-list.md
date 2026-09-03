@@ -6,12 +6,14 @@
 
 ## Ziel und Grenzen
 
-Jedes Konto besitzt eine private Einkaufsliste. Die Liste ist ein eigener
+Jedes Konto besitzt eine private Einkaufsliste. Zusätzlich kann ein Space eine
+gemeinsame manuelle Liste besitzen; deren Mitgliedschaft und Grenzen regelt
+`shared-spaces.md`. Die private Liste ist ein eigener
 Arbeitsbereich, kein Tages-To-do und keine automatische Änderung des
 Mahlzeitenplans. Sie kann Zutaten aus dem aktiven Plan für einen explizit
 gewählten Horizont von 1 bis 14 Tagen übernehmen.
 
-Haushaltsfreigaben, Vorratsverwaltung, Barcode-Scanning, externe Kataloge und
+Vorratsverwaltung, Barcode-Scanning, externe Kataloge und
 Produktfotos sind nicht Teil dieses Releases. Artikel verwenden ausschließlich
 lokale, skizzierte SVG-Icons.
 

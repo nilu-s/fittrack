@@ -56,6 +56,7 @@ from app.routes.goals import router as goals_router
 from app.routes.configurable_meals import router as configurable_meals_router
 from app.routes.todo_planning import router as todo_planning_router
 from app.routes.shopping import router as shopping_router
+from app.routes.spaces import router as spaces_router, invitation_router as space_invitations_router
 
 
 # Device ingestion and OAuth are deliberately outside the browser-session
@@ -114,3 +115,5 @@ app.include_router(profile_router, prefix="/api")
 app.include_router(google_calendar_router, prefix="/api")
 app.include_router(todo_planning_router, prefix="/api")
 app.include_router(shopping_router, prefix="/api")
+app.include_router(spaces_router, prefix="/api")
+app.include_router(space_invitations_router, prefix="/api")
