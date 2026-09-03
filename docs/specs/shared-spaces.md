@@ -44,15 +44,20 @@ Kontoberechtigungen außerhalb seiner eigenen Ressourcen.
    bleiben privat. Sie können nicht in einen Space verschoben oder dort
    erstellt werden, weil ihr Ausführungs- oder Integrationskontext persönlich
    ist.
-4. Oberhalb der Tagesansicht wechselt eine horizontale Kontextleiste zwischen
-   „Privat“ und den gemeinsamen Spaces. Sie bietet sichtbare Buttons und
-   Wischbeschleunigung. Der private Kontext zeigt den vollständigen Tagesfeed;
-   ein Space zeigt nur dessen To-dos und Arbeitsaktionen.
-5. In der Tagesansicht bleiben To-dos kompakte, direkt abschließbare Einträge.
+4. Der Tagesfeed bleibt einheitlich: private und Space-To-dos mit Datum
+   erscheinen zusammen in der normalen Reihenfolge. Ein Space-To-do trägt
+   dort ein kompaktes Bereichs-Label, damit seine Zugehörigkeit verständlich
+   bleibt. Es gibt keine eigene Space-Tagesansicht.
+5. Direkt über der Tagesnavigation wählt eine kompakte, horizontal scroll- und
+   wischbare Leiste „Privat“ oder einen Space für die allgemeine To-do- und
+   Einkaufsliste. Sichtbare Vor-/Zurück-Schaltflächen und Buttons machen die
+   Auswahl ohne Geste erreichbar. Footer-To-dos und Footer-Einkauf verwenden
+   diesen Kontext; der Tagesfeed, das Datum und private Tagesinhalte bleiben
+   unverändert.
+6. In der Tagesansicht bleiben To-dos kompakte, direkt abschließbare Einträge.
    Space und Zuweisung sind im Editor als native Auswahlfelder sichtbar; bei
    Änderung des Space wird ein unpassendes Projekt oder eine unpassende
-   Zuweisung zurückgesetzt. Footer-To-dos und Footer-Einkauf verwenden immer
-   den aktuell gewählten Kontext.
+   Zuweisung zurückgesetzt.
 
 ## Einkaufslisten
 

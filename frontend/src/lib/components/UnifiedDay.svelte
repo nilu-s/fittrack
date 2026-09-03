@@ -35,7 +35,7 @@
   const deferredReorderTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const REORDER_DELAY_MS = 420;
 
-  type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; fiber?: number | null; sugar?: number | null; mealTime?: string | null; entryData?: MealEntry; todoData?: Todo; travelLabel?: string | null; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bmi: number | null }; weightEstimate?: { value: number; beforeDate: string; afterDate: string }; };
+  type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; fiber?: number | null; sugar?: number | null; mealTime?: string | null; entryData?: MealEntry; todoData?: Todo; travelLabel?: string | null; workspaceName?: string | null; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bmi: number | null }; weightEstimate?: { value: number; beforeDate: string; afterDate: string }; };
 
   $: unifiedItems = buildUnifiedItems(entry, mealEntries, todos, trainingSuggestion);
 
@@ -61,7 +61,7 @@
     if (trainingType && trainingType !== 'Ruhetag') {
       items.push({ id: 'training', type: 'training', icon: 'training', title: trainingType, done: entry.training_done ?? false, sortKey: '02-00' });
     }
-    for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.start_time ?? t.due_time ?? '99:99'}`, todoData: t, travelLabel: travelSummary(t) }); }
+    for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.start_time ?? t.due_time ?? '99:99'}`, todoData: t, travelLabel: travelSummary(t), workspaceName: t.workspace_name }); }
     // Alles, was abgehakt ist, wird im Tagesfluss ans Ende verschoben.
     // Innerhalb der offenen bzw. erledigten Gruppe bleibt die Tagesreihenfolge erhalten.
     return items.sort((a, b) => {
@@ -832,6 +832,7 @@
           {#if item.type === 'meal' && item.kcal}<PillBadge value={Math.round(item.kcal)} unit="kcal" color="var(--data-nutrition-energy)" />{/if}
           {#if item.type === 'meal' && item.protein}<PillBadge value={Math.round(item.protein)} unit="g P" color="var(--data-nutrition-protein)" />{/if}
           {#if item.mealTime}<span class="item-time">{item.mealTime}</span>{/if}
+          {#if item.type === 'todo' && item.workspaceName}<span class="item-workspace">{item.workspaceName}</span>{/if}
           {#if item.type === 'todo' && item.travelLabel}<span class="item-travel">{item.travelLabel}</span>{/if}
         </div>
       </div>
@@ -1037,6 +1038,7 @@
   .item-title.strike { text-decoration: line-through; }
   .item-badges { display: flex; align-items: center; gap: 4px; }
   .item-time { font-size: 11px; color: var(--text-tertiary); font-weight: 500; }
+  .item-workspace { max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 6px; border-radius: var(--radius-full); background: var(--surface-accent); color: var(--action-primary); font-size: 10px; font-weight: 700; }
   .item-travel { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-tertiary); font-size:11px; }
   .item-prog { flex: 0 0 70px; }
   /* Biometrics — Schritte + Schlaf nebeneinander */

@@ -2,6 +2,8 @@
   import { createEventDispatcher } from 'svelte';
   import { currentDate } from '$lib/stores';
   import Icon from '$lib/components/Icon.svelte';
+  import SpaceContextSwitcher from '$lib/components/SpaceContextSwitcher.svelte';
+  import type { Space } from '$lib/types';
 
   export let todoTitle = '';
   export let todoAdding = false;
@@ -14,7 +16,9 @@
   export let generalTodoTitle = '';
   export let generalTodoAdding = false;
   export let generalTodoCount = 0;
-  const dispatch = createEventDispatcher<{ todoadd: string; aiplan: string; shoppingadd: string; shoppinggesture: number; generaltodoadd: string; generaltodogesture: number }>();
+  export let spaces: Space[] = [];
+  export let activeSpaceId: string | null = null;
+  const dispatch = createEventDispatcher<{ todoadd: string; aiplan: string; shoppingadd: string; shoppinggesture: number; generaltodoadd: string; generaltodogesture: number; spacechange: string | null }>();
   const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
   const daysFull = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
   $: dateLabel = formatDateLabel($currentDate);
@@ -80,6 +84,7 @@
     {/if}
   </form>
   {#if todoAddError}<p id="footer-todo-error" class="todo-add-error" role="status">{todoAddError}</p>{/if}
+  <SpaceContextSwitcher {spaces} {activeSpaceId} on:change={(event) => dispatch('spacechange', event.detail)} />
   <nav aria-label="Tagesnavigation">
   <div class="dnav" role="slider" aria-label="Horizontal wischen zum Wechseln" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0" aria-valuetext={`${dow}, ${dateLabel}`} tabindex="0" onkeydown={onNavigationKeydown} ontouchstart={onTouchStart} ontouchend={onTouchEnd}>
     <span class="dnav-arrow" aria-hidden="true"><Icon name="chevron-left" size={20} /></span>
