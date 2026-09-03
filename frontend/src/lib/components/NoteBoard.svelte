@@ -7,7 +7,7 @@
   export let notes: Note[] = [];
   export let spaces: Space[] = [];
   export let loading = false;
-  const dispatch = createEventDispatcher<{ close: void; changed: void }>();
+  const dispatch = createEventDispatcher<{ close: void; changed: Note }>();
 
   let selected: Note | null = null;
   let title = '';
@@ -44,7 +44,7 @@
     const result = await api.updateNote(selected.id, { title: title.trim(), body: body.trim() || null });
     saving = false;
     if (!result) { error = 'Notiz konnte nicht gespeichert werden.'; return; }
-    dispatch('changed'); closeDetails();
+    dispatch('changed', result); closeDetails();
   }
   async function move(note: Note, spaceId: string) {
     if (!spaceId || saving || note.space_id === spaceId) return;
@@ -53,7 +53,7 @@
     const result = await api.moveNote(note.id, spaceId, true);
     saving = false;
     if (!result) { error = 'Bereich konnte nicht zugeordnet werden.'; return; }
-    dispatch('changed');
+    dispatch('changed', result);
   }
   async function plan(note: Note, dueDate: string, startTime?: string) {
     if (!dueDate || saving) return;
@@ -61,7 +61,7 @@
     const result = await api.planNote(note.id, dueDate, startTime || null);
     saving = false;
     if (!result) { error = 'Notiz konnte nicht geplant werden.'; return; }
-    dispatch('changed'); closeDetails();
+    dispatch('changed', result); closeDetails();
   }
   async function unschedule(note: Note) {
     if (saving) return;
@@ -69,7 +69,7 @@
     const result = await api.unscheduleNote(note.id);
     saving = false;
     if (!result) { error = 'Planung konnte nicht aufgehoben werden.'; return; }
-    dispatch('changed'); closeDetails();
+    dispatch('changed', result); closeDetails();
   }
   function dragStart(event: DragEvent, note: Note) { draggedId = note.id; event.dataTransfer?.setData('text/plain', note.id); if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'; }
   function droppedNote(event: DragEvent) { return event.dataTransfer?.getData('text/plain') || draggedId; }

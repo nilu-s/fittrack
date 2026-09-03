@@ -133,6 +133,11 @@
     try { generalTodos = await api.getNotes(); }
     finally { generalTodosLoading = false; }
   }
+  function onNoteChanged(event: CustomEvent<import('$lib/types').Note>) {
+    const note = event.detail;
+    generalTodos = generalTodos.map((current) => current.id === note.id ? note : current);
+    void loadGeneralTodos();
+  }
   async function addGeneralTodo(event: CustomEvent<string>) {
     const title = event.detail.trim();
     if (!title || generalTodoAdding) return;
@@ -193,7 +198,7 @@
     <div class="loading" role="status" aria-live="polite"><div class="spinner"></div><span class="sr-only">Tagesdaten werden geladen</span></div>
   {/if}
   <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} bind:generalTodoOpen bind:generalTodoTitle {generalTodoAdding} generalTodoCount={generalTodos.filter((note) => !note.space_id && note.status === 'active').length} on:todoadd={addFooterTodo} on:shoppinggesture={(event) => { generalTodoOpen = false; openShoppingFromFooter(event); }} on:shoppingadd={addShopping} on:generaltodogesture={(event) => openGeneralTodos(event.detail)} on:generaltodoadd={addGeneralTodo} on:aiplan={() => assistantOpen = true} />
-  <NoteBoard bind:open={generalTodoOpen} notes={generalTodos} {spaces} loading={generalTodosLoading} on:close={() => { generalTodoOpen = false; document.querySelector<HTMLElement>('.todo-toggle')?.focus(); }} on:changed={loadGeneralTodos} />
+  <NoteBoard bind:open={generalTodoOpen} notes={generalTodos} {spaces} loading={generalTodosLoading} on:close={() => { generalTodoOpen = false; document.querySelector<HTMLElement>('.todo-toggle')?.focus(); }} on:changed={onNoteChanged} />
   <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} loading={shoppingLoading} query={shoppingTitle} panelHeight={shoppingPanelHeight} allowMealImport={!activeSpaceId} on:resize={(event) => setShoppingPanelHeight(event.detail)} on:close={(event) => { shoppingOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
   <ShoppingItemEditor bind:item={editingShopping} on:close={() => editingShopping = null} on:save={saveShopping} />
   <ShoppingMealImport bind:open={mealImportOpen} startDate={$currentDate} on:close={() => mealImportOpen = false} on:imported={(event) => shopping = event.detail} />
