@@ -7,7 +7,9 @@
 ## Ziel
 
 Ein Space ist ein ausdrücklich gemeinsamer Arbeitsbereich, etwa „Haushalt“.
-Er fasst Projekte, To-dos und manuell gepflegte Einkaufslisten zusammen.
+Er fasst Projekte, To-dos und manuell gepflegte Einkaufslisten zusammen und
+ist ein Kontext der vorhandenen Arbeitsabläufe, keine zweite Startseiten- oder
+Listenoberfläche.
 Persönliche Fitness-, Gesundheits-, Ernährungs-, Trainings- und Google-Daten
 bleiben immer kontoprivat. Ein Space erweitert weder die Sitzung noch die
 Kontoberechtigungen außerhalb seiner eigenen Ressourcen.
@@ -42,16 +44,22 @@ Kontoberechtigungen außerhalb seiner eigenen Ressourcen.
    bleiben privat. Sie können nicht in einen Space verschoben oder dort
    erstellt werden, weil ihr Ausführungs- oder Integrationskontext persönlich
    ist.
-4. In der Tagesansicht bleiben To-dos kompakte, direkt abschließbare Einträge.
+4. Oberhalb der Tagesansicht wechselt eine horizontale Kontextleiste zwischen
+   „Privat“ und den gemeinsamen Spaces. Sie bietet sichtbare Buttons und
+   Wischbeschleunigung. Der private Kontext zeigt den vollständigen Tagesfeed;
+   ein Space zeigt nur dessen To-dos und Arbeitsaktionen.
+5. In der Tagesansicht bleiben To-dos kompakte, direkt abschließbare Einträge.
    Space und Zuweisung sind im Editor als native Auswahlfelder sichtbar; bei
    Änderung des Space wird ein unpassendes Projekt oder eine unpassende
-   Zuweisung zurückgesetzt. Tastatur, Touch und Screenreader erreichen alle
-   Funktionen gleichwertig.
+   Zuweisung zurückgesetzt. Footer-To-dos und Footer-Einkauf verwenden immer
+   den aktuell gewählten Kontext.
 
 ## Einkaufslisten
 
 1. Jeder Space kann eine aktive gemeinsame manuelle Einkaufsliste haben.
-   Alle Mitglieder können Artikel anlegen, bearbeiten und abhaken.
+   Alle Mitglieder können Artikel anlegen, bearbeiten und abhaken. Dieselbe
+   Einkaufsansicht und derselbe Footer-Drawer werden kontextbezogen genutzt;
+   es gibt keinen separaten Space-Einkaufszugang.
 2. Die private Einkaufslisten- und Mahlzeitenplan-Übernahme bleibt privat.
    Eine Planübernahme in eine gemeinsame Liste ist ausgeschlossen, da sie
    private Lebensmittel- und Planinformationen offenlegen würde.
@@ -60,6 +68,9 @@ Kontoberechtigungen außerhalb seiner eigenen Ressourcen.
 
 Bestehende To-dos und Listen bleiben privat (`space_id = NULL`). Die neue
 Migration ist rückwärtskompatibel und hat keine automatische Freigabe.
+
+Mitgliedschaften und Einladungen werden ausschließlich unter Einstellungen
+verwaltet. Sie erscheinen nicht als Verwaltungsblock im Tagesfeed.
 
 | Verpflichtung | Verifikation |
 | --- | --- |

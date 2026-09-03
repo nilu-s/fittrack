@@ -5,7 +5,7 @@
 
   export let spaces: Space[] = [];
   export let invitations: SpaceInvitation[] = [];
-  const dispatch = createEventDispatcher<{ changed: void; shopping: string }>();
+  const dispatch = createEventDispatcher<{ changed: void }>();
   let name = ''; let inviteEmail = ''; let projectName = ''; let selectedId = ''; let projects: SpaceProject[] = []; let message = '';
   $: selected = spaces.find((space) => space.id === selectedId) ?? null;
   async function refreshProjects() { projects = selectedId ? await api.getSpaceProjects(selectedId) : []; }
@@ -18,11 +18,11 @@
 </script>
 
 <section class="spaces" aria-labelledby="spaces-title">
-  <header><div><p>GEMEINSAM ORGANISIEREN</p><h2 id="spaces-title">Spaces</h2></div></header>
+  <header><div><p>GEMEINSAM ORGANISIEREN</p><h2 id="spaces-title">Gemeinsame Bereiche</h2></div></header>
   {#if invitations.length}<div class="invites" aria-label="Offene Einladungen">{#each invitations as invitation (invitation.id)}<p><strong>{invitation.space_name}</strong>{#if invitation.invited_by_display_name} · von {invitation.invited_by_display_name}{/if}<span><button type="button" onclick={() => accept(invitation.id)}>Annehmen</button><button type="button" onclick={() => decline(invitation.id)}>Ablehnen</button></span></p>{/each}</div>{/if}
   <form class="create" onsubmit={(event) => { event.preventDefault(); create(); }}><label for="space-name">Neuer Space<input id="space-name" bind:value={name} placeholder="z. B. Haushalt" required></label><button class="primary">Anlegen</button></form>
   {#if spaces.length}<label for="space-select">Space auswählen<select id="space-select" bind:value={selectedId} onchange={refreshProjects}><option value="">Auswählen</option>{#each spaces as space (space.id)}<option value={space.id}>{space.name}</option>{/each}</select></label>{/if}
-  {#if selected}<div class="details"><h3>{selected.name}</h3><ul class="members">{#each selected.members as member (member.member_id)}<li>{member.display_name ?? 'Mitglied'}{#if selected.role === 'owner' && member.role !== 'owner'}<button type="button" class="remove" onclick={() => remove(member.member_id)}>Entfernen</button>{/if}</li>{/each}</ul><button type="button" onclick={() => dispatch('shopping', selected!.id)}>Gemeinsame Einkaufsliste öffnen</button>{#if selected.role === 'owner'}<form onsubmit={(event) => { event.preventDefault(); invite(); }}><label for="space-invite">Mitglied einladen<input id="space-invite" type="email" bind:value={inviteEmail} placeholder="name@example.com" required></label><button type="submit">Einladen</button></form>{/if}<form onsubmit={(event) => { event.preventDefault(); createProject(); }}><label for="space-project">Projekt<input id="space-project" bind:value={projectName} placeholder="z. B. Renovierung" required></label><button type="submit">Projekt anlegen</button></form>{#if projects.length}<ul>{#each projects as project (project.id)}<li>{project.name}{#if project.description} — {project.description}{/if}</li>{/each}</ul>{:else}<p class="hint">Noch keine Projekte in diesem Space.</p>{/if}</div>{/if}
+  {#if selected}<div class="details"><h3>{selected.name}</h3><ul class="members">{#each selected.members as member (member.member_id)}<li>{member.display_name ?? 'Mitglied'}{#if selected.role === 'owner' && member.role !== 'owner'}<button type="button" class="remove" onclick={() => remove(member.member_id)}>Entfernen</button>{/if}</li>{/each}</ul>{#if selected.role === 'owner'}<form onsubmit={(event) => { event.preventDefault(); invite(); }}><label for="space-invite">Mitglied einladen<input id="space-invite" type="email" bind:value={inviteEmail} placeholder="name@example.com" required></label><button type="submit">Einladen</button></form>{/if}<form onsubmit={(event) => { event.preventDefault(); createProject(); }}><label for="space-project">Projekt<input id="space-project" bind:value={projectName} placeholder="z. B. Renovierung" required></label><button type="submit">Projekt anlegen</button></form>{#if projects.length}<ul>{#each projects as project (project.id)}<li>{project.name}{#if project.description} — {project.description}{/if}</li>{/each}</ul>{:else}<p class="hint">Noch keine Projekte in diesem Space.</p>{/if}</div>{/if}
   {#if message}<p class="message" role="status">{message}</p>{/if}
 </section>
 

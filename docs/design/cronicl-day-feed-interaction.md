@@ -16,6 +16,9 @@ vereinheitlichen.
    einer nachvollziehbaren Reihenfolge.
 4. **Schnellerfassung:** sichtbarer Einstieg zum Ergänzen einer Aufgabe oder
    eines passenden Tagesinhalts.
+5. **Bereichskontext:** Oberhalb des Inhalts wechselt eine horizontale,
+   antipp- und wischbare Leiste zwischen „Privat“ und aktiven gemeinsamen
+   Bereichen. Der Footer wechselt weiterhin ausschließlich das Datum.
 
 ## Eintragstypen
 
@@ -34,6 +37,8 @@ vereinheitlichen.
   verstecken.
 - Dialoge und Sheets stellen Fokus beim Öffnen sinnvoll ein und geben ihn beim
   Schließen zum Auslöser zurück.
+- Der Bereichswechsler hat sichtbare Vor-/Zurück-Schaltflächen und einen
+  nativen Button für jeden Bereich; Wischen ist nur ein Beschleuniger.
 - Erledigte Einträge dürfen nur dann ans Ende wandern, wenn die Zeitreihenfolge
   dadurch nicht die Verständlichkeit des Tages verliert. Die endgültige Regel
   wird vor der Umsetzung an Beispiel-Tagen entschieden.
@@ -42,3 +47,8 @@ vereinheitlichen.
 
 Dieser Vertrag entscheidet Informationsstruktur und Verhalten. Farbwerte,
 Typografie und Backend-Datenverträge werden hier nicht festgelegt.
+
+Im privaten Kontext bleibt der vollständige Tagesfeed sichtbar. In einem
+gemeinsamen Bereich zeigt derselbe Tag ausschließlich dessen To-dos und die
+gemeinsamen Arbeitsaktionen; Biometrie, Mahlzeiten, Training und Integrationen
+bleiben privat und werden dort nicht als leere oder gesperrte Karten gezeigt.

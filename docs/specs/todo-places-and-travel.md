@@ -52,8 +52,9 @@ ein Eintrag ohne `due_date` erscheint ausschließlich in diesem Bereich.
 - Die Footer-Schaltfläche mit To-do-Symbol links vom Datum öffnet die
   allgemeine Liste als mobilen, höhenverstellbaren Split-Screen (Desktop:
   gleichwertige Seitenleiste). Die Fußzeilen-Eingabe legt dort ein To-do ohne
-  Datum an. Sie wird beim Öffnen fokussiert; Escape und „Schließen“ kehren zum
-  Auslöser zurück. Einkauf und allgemeine Liste sind nie gleichzeitig offen.
+  Datum im aktuell gewählten privaten oder gemeinsamen Bereich an. Sie wird
+  beim Öffnen fokussiert; Escape und „Schließen“ kehren zum Auslöser zurück.
+  Einkauf und allgemeine Liste sind nie gleichzeitig offen.
 - `✦` öffnet den KI-Chat für Fragen und komplexe Planungswünsche. Er gibt
   Antworten, führt aber keine Datenänderung aus.
 - Ein Ortsvorschlag wird über die Place-Suche ausgewählt und bestätigt. Die

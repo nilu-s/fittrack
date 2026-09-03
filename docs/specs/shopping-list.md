@@ -41,8 +41,9 @@ lokale, skizzierte SVG-Icons.
 
 * Der Footer der Tagesansicht hat eine sichtbare Schaltfläche „Einkauf“. Sie
   öffnet einen mobilen, höhenverstellbaren Einkaufsbereich; Ziehen ist nur ein
-  Beschleuniger. Desktop zeigt stattdessen eine rechte, gleichwertig bedienbare
-  Seitenleiste.
+  Beschleuniger. Der Bereich folgt dem aktuell gewählten privaten oder
+  gemeinsamen Space-Kontext. Desktop zeigt stattdessen eine rechte,
+  gleichwertig bedienbare Seitenleiste.
 * Im geöffneten Bereich wird die Tages-To-do-Eingabe eindeutig durch die
   Artikelsuche ersetzt. Beide Eingabewerte bleiben getrennt erhalten.
 * Suche schlägt eigene offene und erledigte Artikel sowie den lokalen Katalog

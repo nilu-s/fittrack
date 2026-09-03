@@ -18,6 +18,10 @@
     <SettingsTile href="/settings/meals" icon="meal" title="Mahlzeiten" description="Vorlagen und Gerichte" />
     <SettingsTile href="/settings/todos" icon="todo" title="Wiederkehrende To-dos" description="Routinen für deine Tagesliste" />
   </section>
+  <div class="section-label">Gemeinsam</div>
+  <section class="settings-list" aria-label="Gemeinsame Bereiche">
+    <SettingsTile href="/settings/spaces" icon="todo" title="Gemeinsame Bereiche" description="Haushalt, Mitglieder und Projekte" summary="Geteilte To-dos und Einkauf" />
+  </section>
   <div class="section-label">Konto &amp; Daten</div>
   <section class="settings-list" aria-label="Konto und Daten">
     <SettingsTile href="/settings/integrations" icon="refresh" title="Integrationen" description="Google-Konto und Synchronisation" />

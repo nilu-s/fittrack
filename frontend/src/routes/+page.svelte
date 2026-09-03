@@ -11,7 +11,8 @@
   import ShoppingItemEditor from '$lib/components/ShoppingItemEditor.svelte';
   import ShoppingMealImport from '$lib/components/ShoppingMealImport.svelte';
   import GeneralTodoQuickPanel from '$lib/components/GeneralTodoQuickPanel.svelte';
-  import SpaceManager from '$lib/components/SpaceManager.svelte';
+  import SpaceContextSwitcher from '$lib/components/SpaceContextSwitcher.svelte';
+  import SharedSpaceDay from '$lib/components/SharedSpaceDay.svelte';
   import { pageTitle } from '$lib/brand';
 
   $: data = $dayData;
@@ -41,11 +42,16 @@
   let dayTransitionDirection = 1;
   let prefersReducedMotion = false;
   let spaces: import('$lib/types').Space[] = [];
-  let spaceInvitations: import('$lib/types').SpaceInvitation[] = [];
-  let shoppingSpaceId: string | null = null;
+  let activeSpaceId: string | null = null;
 
   async function loadSpaces() {
-    [spaces, spaceInvitations] = await Promise.all([api.getSpaces(), api.getSpaceInvitations()]);
+    spaces = await api.getSpaces();
+    if (activeSpaceId && !spaces.some((space) => space.id === activeSpaceId)) activeSpaceId = null;
+  }
+  function changeSpace(event: CustomEvent<string | null>) {
+    activeSpaceId = event.detail; shopping = null; generalTodos = [];
+    if (typeof localStorage !== 'undefined') localStorage.setItem('active_space_id', activeSpaceId ?? '');
+    void loadGeneralTodos();
   }
 
   $: renderedDate = data?.dayEntry?.date ?? '';
@@ -89,7 +95,7 @@
     todoAdding = true;
     todoAddError = '';
     try {
-      const routine = routineFromText(title);
+      const routine = activeSpaceId ? null : routineFromText(title);
       if (routine) {
         const createdRoutine = await api.createTodoRoutine(routine);
         if (!createdRoutine) throw new Error('Routine konnte nicht erstellt werden.');
@@ -97,7 +103,7 @@
         todoAddError = 'Routine wurde angelegt.';
         return;
       }
-      const created = await api.createTodo({ due_date: $currentDate, title, status: 'open', priority: 2, source: 'manual' });
+      const created = await api.createTodo({ due_date: $currentDate, title, status: 'open', priority: 2, source: 'manual', space_id: activeSpaceId });
       if (!created) throw new Error('To-do konnte nicht erstellt werden.');
       onTodoAdd(new CustomEvent('todoadd', { detail: created }));
       todoTitle = '';
@@ -120,14 +126,14 @@
   async function loadGeneralTodos() {
     if (generalTodosLoading) return;
     generalTodosLoading = true;
-    try { generalTodos = (await api.getTodos()).filter((todo) => !todo.due_date); }
+    try { generalTodos = (await api.getTodos()).filter((todo) => !todo.due_date && (activeSpaceId ? todo.space_id === activeSpaceId : !todo.space_id)); }
     finally { generalTodosLoading = false; }
   }
   async function addGeneralTodo(event: CustomEvent<string>) {
     const title = event.detail.trim();
     if (!title || generalTodoAdding) return;
     generalTodoAdding = true;
-    const created = await api.createTodo({ title, status: 'open', priority: 2, source: 'manual' });
+    const created = await api.createTodo({ title, status: 'open', priority: 2, source: 'manual', space_id: activeSpaceId });
     if (created) { generalTodos = [...generalTodos, created]; generalTodoTitle = ''; }
     generalTodoAdding = false;
   }
@@ -148,19 +154,18 @@
   async function loadShopping() {
     if (shopping || shoppingLoading) return;
     shoppingLoading = true;
-    try { shopping = await api.getShoppingList(shoppingSpaceId ?? undefined); }
+    try { shopping = await api.getShoppingList(activeSpaceId ?? undefined); }
     finally { shoppingLoading = false; }
   }
-  async function addShopping(event: CustomEvent<string>) { if (shoppingAdding || !event.detail.trim()) return; shoppingAdding = true; const item = await api.createShoppingItem({ title: event.detail.trim() }, shoppingSpaceId ?? undefined); if (item) { shopping = shopping ? { ...shopping, items: [...shopping.items, item] } : await api.getShoppingList(shoppingSpaceId ?? undefined); shoppingTitle = ''; } shoppingAdding = false; }
+  async function addShopping(event: CustomEvent<string>) { if (shoppingAdding || !event.detail.trim()) return; shoppingAdding = true; const item = await api.createShoppingItem({ title: event.detail.trim() }, activeSpaceId ?? undefined); if (item) { shopping = shopping ? { ...shopping, items: [...shopping.items, item] } : await api.getShoppingList(activeSpaceId ?? undefined); shoppingTitle = ''; } shoppingAdding = false; }
   async function toggleShopping(item: import('$lib/types').ShoppingItem) { const updated = await api.toggleShoppingItem(item.id); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === updated.id ? updated : value) }; }
   async function removeShopping(item: import('$lib/types').ShoppingItem) { if (await api.deleteShoppingItem(item.id) && shopping) shopping = { ...shopping, items: shopping.items.filter((value) => value.id !== item.id) }; }
   async function saveShopping(event: CustomEvent<{ id: string; data: Partial<import('$lib/types').ShoppingItem> }>) { const updated = await api.updateShoppingItem(event.detail.id, event.detail.data); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === updated.id ? updated : value) }; }
   function setShoppingPanelHeight(height: number) { shoppingPanelHeight = Math.max(1, Math.min(900, Math.round(height))); }
-  function openShoppingFromFooter(event: CustomEvent<number>) { shoppingSpaceId = null; shopping = null; shoppingOpen = true; setShoppingPanelHeight(220 + event.detail); void loadShopping(); }
-  async function openSpaceShopping(event: CustomEvent<string>) { shoppingSpaceId = event.detail; shopping = null; shoppingOpen = true; generalTodoOpen = false; await loadShopping(); }
+  function openShoppingFromFooter(event: CustomEvent<number>) { shopping = null; shoppingOpen = true; setShoppingPanelHeight(220 + event.detail); void loadShopping(); }
 
   // Preload the drawer's content before it is opened, matching the day-view cache.
-  onMount(() => { void loadShopping(); void loadGeneralTodos(); void loadSpaces(); });
+  onMount(() => { const saved = localStorage.getItem('active_space_id'); activeSpaceId = saved || null; void loadShopping(); void loadGeneralTodos(); void loadSpaces(); });
 
 </script>
 
@@ -169,15 +174,18 @@
 
 <div class="page">
   {#if data && renderedDate === $currentDate}
+    <SpaceContextSwitcher {spaces} {activeSpaceId} on:change={changeSpace} />
     {#key renderedDate}
       <div class="day-slide" in:fly={incomingDayTransition()} out:fly={outgoingDayTransition()}>
-        <UnifiedDay dayData={data} currentDate={renderedDate}
+        {#if activeSpaceId}
+          <SharedSpaceDay spaceName={spaces.find((space) => space.id === activeSpaceId)?.name ?? 'Gemeinsamer Bereich'} date={renderedDate} todos={(data.todos ?? []).filter((todo) => todo.space_id === activeSpaceId)} on:updated={(event) => onTodoDetailsUpdate(event)} on:edit={(event) => todoDetails = event.detail} />
+        {:else}<UnifiedDay dayData={{ ...data, todos: (data.todos ?? []).filter((todo) => !todo.space_id) }} currentDate={renderedDate}
           on:update={onUnifiedUpdate}
           on:mealentrychange={onMealEntryChange}
           on:trainingtoggle={(e) => onUnifiedUpdate(new CustomEvent('update', { detail: { field: 'training_done', value: e.detail } }))}
           on:cardiotoggle={(e) => onUnifiedUpdate(new CustomEvent('update', { detail: { field: 'cardio_done', value: e.detail } }))}
           on:todotoggle={onTodoToggle}
-          on:todoadd={onTodoAdd} />
+          on:todoadd={onTodoAdd} />{/if}
       </div>
     {/key}
     <div class="sync" class:ok={$syncStatus === 'synced'} class:syncing={$syncStatus === 'syncing'} class:off={$syncStatus === 'offline'} class:err={$syncStatus === 'error'}>
@@ -190,9 +198,8 @@
     <div class="loading" role="status" aria-live="polite"><div class="spinner"></div><span class="sr-only">Tagesdaten werden geladen</span></div>
   {/if}
   <DateNav bind:todoTitle {todoAdding} {todoAddError} bind:shoppingOpen bind:shoppingTitle {shoppingAdding} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} bind:generalTodoOpen bind:generalTodoTitle {generalTodoAdding} generalTodoCount={generalTodos.filter((todo) => todo.status === 'open').length} on:todoadd={addFooterTodo} on:shoppinggesture={(event) => { generalTodoOpen = false; openShoppingFromFooter(event); }} on:shoppingadd={addShopping} on:generaltodogesture={(event) => openGeneralTodos(event.detail)} on:generaltodoadd={addGeneralTodo} on:aiplan={() => assistantOpen = true} />
-  <SpaceManager {spaces} invitations={spaceInvitations} on:changed={loadSpaces} on:shopping={openSpaceShopping} />
   <GeneralTodoQuickPanel bind:open={generalTodoOpen} todos={generalTodos} loading={generalTodosLoading} panelHeight={generalTodoPanelHeight} on:resize={(event) => generalTodoPanelHeight = event.detail} on:close={(event) => { generalTodoOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.todo-toggle')?.focus(); }} on:toggle={(event) => toggleGeneralTodo(event.detail)} on:edit={(event) => todoDetails = event.detail} on:remove={(event) => removeGeneralTodo(event.detail)} />
-  <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} loading={shoppingLoading} query={shoppingTitle} panelHeight={shoppingPanelHeight} allowMealImport={!shoppingSpaceId} on:resize={(event) => setShoppingPanelHeight(event.detail)} on:close={(event) => { shoppingOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
+  <ShoppingQuickPanel bind:open={shoppingOpen} {shopping} loading={shoppingLoading} query={shoppingTitle} panelHeight={shoppingPanelHeight} allowMealImport={!activeSpaceId} on:resize={(event) => setShoppingPanelHeight(event.detail)} on:close={(event) => { shoppingOpen = false; if (event.detail === 'keyboard') document.querySelector<HTMLElement>('.shopping-toggle')?.focus(); }} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
   <ShoppingItemEditor bind:item={editingShopping} on:close={() => editingShopping = null} on:save={saveShopping} />
   <ShoppingMealImport bind:open={mealImportOpen} startDate={$currentDate} on:close={() => mealImportOpen = false} on:imported={(event) => shopping = event.detail} />
   <TodoDetailsSheet bind:todo={todoDetails} {suggestedPlaceQuery} {suggestedTravelMode} {spaces} on:close={() => { todoDetails = null; suggestedPlaceQuery = ''; suggestedTravelMode = null; }} on:updated={onTodoDetailsUpdate} />
