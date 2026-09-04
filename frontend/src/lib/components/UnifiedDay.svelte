@@ -410,7 +410,22 @@
     detailItemTrigger = trigger ?? null;
     detailItemOverlayTop = null;
     detailItem = item;
-    void tick().then(positionDetailItemOverlay);
+    void tick().then(() => {
+      positionDetailItemOverlay();
+      detailItemOverlay?.querySelector<HTMLButtonElement>('.detail-close')?.focus();
+    });
+  }
+
+  /** Opens the existing detail flow for a compact value in the fixed footer. */
+  export function openFooterMetricDetails(metric: 'steps' | 'sleep' | 'weight' | 'calories', trigger: HTMLElement) {
+    if (metric === 'calories') {
+      void openNutritionDetails(trigger);
+      return;
+    }
+    const item = unifiedItems.find((candidate) => candidate.id === `metric-${metric}`);
+    if (!item) return;
+    if (metric === 'steps' || metric === 'sleep') void openMetricTrend(item, trigger);
+    else openItemDetails(item, trigger);
   }
   function closeItemDetails() {
     detailItem = null;

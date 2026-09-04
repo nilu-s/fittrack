@@ -47,6 +47,7 @@
   let spaces: import('$lib/types').Space[] = [];
   let activeSpaceId: string | null = null;
   let showAllTodos = false;
+  let unifiedDay: { openFooterMetricDetails: (metric: 'steps' | 'sleep' | 'weight' | 'calories', trigger: HTMLElement) => void } | null = null;
 
   async function loadSpaces() {
     spaces = await api.getSpaces();
@@ -63,7 +64,9 @@
   function moveSpace(direction: number) {
     const contexts = [{ spaceId: null as string | null, showAllTodos: true }, { spaceId: null as string | null, showAllTodos: false }, ...spaces.map((space) => ({ spaceId: space.id, showAllTodos: false }))];
     const index = Math.max(0, contexts.findIndex((context) => context.showAllTodos === showAllTodos && (context.showAllTodos || context.spaceId === activeSpaceId)));
-    changeSpace(new CustomEvent('change', { detail: contexts[(index + direction + contexts.length) % contexts.length] }));
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= contexts.length) return;
+    changeSpace(new CustomEvent('change', { detail: contexts[targetIndex] }));
   }
 
   $: renderedDate = data?.dayEntry?.date ?? '';
@@ -201,7 +204,7 @@
       </header>
       {#key renderedDate}
         <div class="day-slide" in:fly={incomingDayTransition()} out:fly={outgoingDayTransition()}>
-          <UnifiedDay dayData={{ ...data, todos: showAllTodos ? data.todos ?? [] : (data.todos ?? []).filter((todo) => activeSpaceId ? todo.space_id === activeSpaceId : !todo.space_id) }} currentDate={renderedDate} workspaceMode={Boolean(activeSpaceId)} allTasksMode={showAllTodos} showDayList={!shoppingOpen && !noteBoardOpen}
+          <UnifiedDay bind:this={unifiedDay} dayData={{ ...data, todos: showAllTodos ? data.todos ?? [] : (data.todos ?? []).filter((todo) => activeSpaceId ? todo.space_id === activeSpaceId : !todo.space_id) }} currentDate={renderedDate} workspaceMode={Boolean(activeSpaceId)} allTasksMode={showAllTodos} showDayList={!shoppingOpen && !noteBoardOpen}
             on:update={onUnifiedUpdate}
             on:mealentrychange={onMealEntryChange}
             on:trainingtoggle={(e) => onUnifiedUpdate(new CustomEvent('update', { detail: { field: 'training_done', value: e.detail } }))}
@@ -225,7 +228,7 @@
   </main>
   <DateNav bind:todoTitle bind:noteTitle bind:shoppingTitle {todoAdding} {noteAdding} {shoppingAdding} {todoAddError} {noteAddError} {shoppingAddError} {shoppingOpen} {noteBoardOpen} noteTargetName={spaces.find((space) => space.id === noteAreaId)?.name ?? ''} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} noteCount={generalTodos.filter((note) => !note.space_id && note.status === 'active').length} on:todoadd={addFooterTodo} on:noteadd={addNote} on:shoppingadd={addShopping} on:shoppingopen={openShoppingFromFooter} on:noteboardopen={openNoteBoard} on:aiplan={() => assistantOpen = true}>
     {#if data && renderedDate === $currentDate}
-      <DayMetricStrip entry={data.dayEntry} mealEntries={data.mealEntries} />
+      <DayMetricStrip entry={data.dayEntry} mealEntries={data.mealEntries} on:open={(event) => unifiedDay?.openFooterMetricDetails(event.detail.metric, event.detail.trigger)} />
     {/if}
   </DateNav>
   <ShoppingItemEditor bind:item={editingShopping} on:close={() => editingShopping = null} on:save={saveShopping} />

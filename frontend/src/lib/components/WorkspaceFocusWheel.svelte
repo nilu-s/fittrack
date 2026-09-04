@@ -15,13 +15,14 @@
     ...spaces.map((space) => ({ id: space.id, name: space.name, showAllTodos: false })),
   ];
   $: activeIndex = Math.max(0, contexts.findIndex((context) => showAllTodos ? context.showAllTodos : !context.showAllTodos && context.id === activeSpaceId));
-  $: previous = contexts[(activeIndex - 1 + contexts.length) % contexts.length];
+  $: previous = activeIndex > 0 ? contexts[activeIndex - 1] : null;
   $: current = contexts[activeIndex];
-  $: next = contexts[(activeIndex + 1) % contexts.length];
+  $: next = activeIndex < contexts.length - 1 ? contexts[activeIndex + 1] : null;
 
   function move(direction: number) {
-    if (contexts.length < 2) return;
-    const context = contexts[(activeIndex + direction + contexts.length) % contexts.length];
+    const targetIndex = activeIndex + direction;
+    if (targetIndex < 0 || targetIndex >= contexts.length) return;
+    const context = contexts[targetIndex];
     dispatch('change', { spaceId: context.showAllTodos ? null : context.id, showAllTodos: context.showAllTodos });
   }
   function startManage() {
@@ -35,13 +36,13 @@
 
 <section class="workspace-focus" aria-label="Aktiver Arbeitsbereich">
   <div class="wheel">
-    <button type="button" class="neighbor previous" onclick={() => move(-1)} disabled={contexts.length < 2} aria-label={`Vorheriger Bereich: ${previous.name}`}>
-      <span>{previous.name}</span>
+    <button type="button" class="neighbor previous" onclick={() => move(-1)} disabled={!previous} aria-label={previous ? `Vorheriger Bereich: ${previous.name}` : 'Kein vorheriger Bereich'}>
+      <span>{previous?.name ?? ''}</span>
     </button>
     {#if activeSpaceId && !showAllTodos}<button type="button" class="current" aria-label={`Einstellungen für ${current.name} öffnen`} onpointerdown={startManage} onpointerup={cancelManage} onpointerleave={cancelManage} onpointercancel={cancelManage} onclick={manage}><span>{current.name}</span></button>
     {:else}<div class="current" aria-live="polite"><span>{current.name}</span></div>{/if}
-    <button type="button" class="neighbor next" onclick={() => move(1)} disabled={contexts.length < 2} aria-label={`Nächster Bereich: ${next.name}`}>
-      <span>{next.name}</span>
+    <button type="button" class="neighbor next" onclick={() => move(1)} disabled={!next} aria-label={next ? `Nächster Bereich: ${next.name}` : 'Kein nächster Bereich'}>
+      <span>{next?.name ?? ''}</span>
     </button>
   </div>
 </section>
