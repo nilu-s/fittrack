@@ -1,8 +1,8 @@
 # Cronicl: Gemeinsame Spaces
 
-**Status:** approved  
+**Status:** approved (revised by all-tasks home context)
 **Owner:** Cronicl household  
-**Last updated:** 2026-09-03
+**Last updated:** 2026-09-04
 
 ## Ziel
 
@@ -46,26 +46,31 @@ Kontoberechtigungen außerhalb seiner eigenen Ressourcen.
    bleiben privat. Sie können nicht in einen Space verschoben oder dort
    erstellt werden, weil ihr Ausführungs- oder Integrationskontext persönlich
    ist.
-4. „Privat“ und jeder Bereich sind getrennte Listen-Kontexte. Der private
-   Tagesablauf zeigt nur private To-dos; ein Space zeigt nur dessen To-dos.
-   Zusätzlich bietet derselbe Picker „Alle Aufgaben“ als reine Sammelansicht
-   für die To-dos, die das angemeldete Konto bereits lesen darf: seine privaten
-   To-dos und die To-dos seiner Spaces. Zusätzlich erscheinen dort die privaten
-   Mahlzeiten und das Training dieses Kontos im gemeinsamen Tagesablauf. Die
-   Auswahl erweitert keine Berechtigungen und zeigt weder private To-dos noch
-   private Tagesdaten anderer Konten. Alle Kontexte verwenden dieselbe
-   Tageslisten-Komponente und denselben Detailfluss, nicht separate Oberflächen.
-5. Oberhalb des Inhalts zeigt eine schmale Rollenanzeige den aktiven Bereich
-   mittig und den vorherigen sowie nächsten Bereich zurückhaltend daneben.
+4. „Übersicht“ ist der Start- und Sammelkontext des Pickers; einen
+   separaten Picker-Eintrag „Privat“ gibt es nicht. Er zeigt die To-dos, die
+   das angemeldete Konto bereits lesen darf: seine privaten To-dos und die
+   To-dos seiner Spaces. Zusätzlich erscheinen dort die privaten Mahlzeiten
+   und das Training dieses Kontos im gemeinsamen Tagesablauf. Ein Space zeigt
+   weiterhin nur dessen To-dos. Die Auswahl erweitert keine Berechtigungen und
+   zeigt weder private To-dos noch private Tagesdaten anderer Konten. Alle
+   Kontexte verwenden dieselbe Tageslisten-Komponente und denselben Detailfluss,
+   nicht separate Oberflächen.
+5. Oberhalb des Inhalts zeigt eine schmale Rollenanzeige den aktiven Kontext
+   mittig und den vorherigen sowie nächsten Kontext zurückhaltend daneben.
+   Die endliche Reihenfolge beginnt bei „Übersicht“ und endet beim letzten
+   Space; die Navigation kehrt an den Grenzen nicht zum Anfang zurück.
    Ein horizontaler Wisch im gesamten Inhaltsbereich oberhalb der festen
-   Footer-Navigation wechselt den Kontext; die sichtbaren Bereichsnamen sind
-   zusätzlich antippbar. Der Footer-Einkauf verwendet immer den aktiven
+   Footer-Navigation oder auf der Bereichsanzeige wechselt den Kontext; die
+   sichtbaren Bereichsnamen sind zusätzlich antippbar. Account-Einstieg und Bereichsanzeige bleiben beim
+   Scrollen sichtbar; der Picker bewegt sich bei einem Wechsel kurz in dessen
+   Richtung, außer bei reduzierter Bewegung. Der Footer-Einkauf verwendet immer den aktiven
    Kontext. Neue Notizen beginnen dagegen immer privat im Notiz-Board und
    werden erst bewusst einem Bereich zugeordnet.
    Ein Long-Press auf den aktiven Space öffnet dessen Einstellungen als mobilen
-   Schnellzugriff. Die mittige Bereichsbezeichnung ist zugleich ein sichtbarer,
-   per Tastatur bedienbarer Weg dorthin; „Privat“ hat keinen entsprechenden
-   Link. Die Verwaltung bleibt ausschließlich unter Einstellungen verfügbar.
+   Schnellzugriff. Die mittige Space-Bezeichnung ist zugleich ein sichtbarer,
+   per Tastatur bedienbarer Weg dorthin; „Übersicht“ hat keinen
+   entsprechenden Link. Die Verwaltung bleibt ausschließlich unter
+   Einstellungen verfügbar.
 6. In der Tagesansicht bleiben To-dos kompakte, direkt abschließbare Einträge.
    Bereich und Zuweisung sind im Editor als native Auswahlfelder sichtbar.
 
@@ -96,8 +101,8 @@ Berechtigung.
 | Kontakte erzeugen sofort Mitgliedschaft; Entfernen entzieht Zugriff | `backend/tests/test_shared_spaces_contract.py` |
 | Bereichsmitgliedschaften begrenzen gemeinsame Notizen und daraus geplante To-dos | `backend/tests/test_notes_contract.py`, account-isolation integration suite |
 | Gesundheits-, Integrations- und private Listen bleiben privat | Account-Isolation-Suite und Shopping-Contract |
-| Sichtbare und zugängliche Auswahlfelder, einschließlich „Alle Aufgaben“ | `npm run check`, `npm run lint:design`, `npm run build` |
-| „Alle Aufgaben“ bündelt nur bereits zugängliche To-dos | `backend/tests/test_shared_spaces_contract.py`, account-isolation integration suite, `npm run check` |
+| Sichtbare und zugängliche Auswahlfelder, mit „Übersicht“ als Startkontext | `npm run check`, `npm run lint:design`, `npm run build` |
+| „Übersicht“ bündelt nur bereits zugängliche To-dos | `backend/tests/test_shared_spaces_contract.py`, account-isolation integration suite, `npm run check` |
 | Long-Press ist nur Beschleuniger; der Dialog ist per Tastatur erreichbar | `npm run check`, `npm run lint:design`, manuelle Tastatur-/Touch-Prüfung |
 
 ## Revisionswirkung

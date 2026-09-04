@@ -78,7 +78,7 @@
 </div>
 
 <style>
-  .account-menu { position:absolute; z-index:20; top:calc(12px + env(safe-area-inset-top, 0px)); right:16px; }
+  .account-menu { position:fixed; z-index:60; top:max(8px, env(safe-area-inset-top, 0px)); right:max(16px, calc((100vw - var(--account-shell-width, 480px)) / 2 + 16px)); }
   .account-trigger { display:grid; place-items:center; width:40px; height:40px; border:1px solid var(--border-strong); border-radius:var(--radius-full); background:var(--action-primary); color:var(--text-on-accent); font-size:13px; font-weight:750; letter-spacing:.02em; cursor:pointer; }
   .account-trigger:active { background:color-mix(in srgb, var(--action-primary) 82%, black); }
   .account-popover { position:absolute; top:calc(100% + 8px); right:0; display:grid; min-width:220px; overflow:hidden; border:1px solid var(--border-default); border-radius:var(--radius-surface); background:var(--surface-default); }

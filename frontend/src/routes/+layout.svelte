@@ -160,7 +160,7 @@
   async function onTouchEnd() { if (!isPulling || isRefreshing) return; isPulling = false; if (pullDistance >= pullThreshold) { isRefreshing = true; pullDistance = pullThreshold; await loadDayData($currentDate, true); if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30); isRefreshing = false; } pullDistance = 0; }
 </script>
 
-<div class:wide-shell={isMealSettings || isShopping} class="shell">
+<div class:wide-shell={isMealSettings || isShopping} class="shell" style:--account-shell-width={isMealSettings || isShopping ? '1180px' : '480px'}>
   {#if !isLogin && !isAliasOnboarding && $isAuthenticated}<AccountMenu />{/if}
 
   <main bind:this={mainEl} class="main">

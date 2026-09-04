@@ -46,27 +46,36 @@
   let prefersReducedMotion = false;
   let spaces: import('$lib/types').Space[] = [];
   let activeSpaceId: string | null = null;
-  let showAllTodos = false;
+  let showAllTodos = true;
+  let workspaceMotionDirection = 0;
+  let workspaceMotionToken = 0;
   let unifiedDay: { openFooterMetricDetails: (metric: 'steps' | 'sleep' | 'weight' | 'calories', trigger: HTMLElement) => void } | null = null;
 
   async function loadSpaces() {
     spaces = await api.getSpaces();
-    if (activeSpaceId && !spaces.some((space) => space.id === activeSpaceId)) activeSpaceId = null;
+    if (activeSpaceId && !spaces.some((space) => space.id === activeSpaceId)) {
+      activeSpaceId = null;
+      showAllTodos = true;
+    }
   }
-  function changeSpace(event: CustomEvent<{ spaceId: string | null; showAllTodos: boolean }>) {
+  function changeSpace(event: CustomEvent<{ spaceId: string | null; showAllTodos: boolean; direction?: number }>) {
     activeSpaceId = event.detail.spaceId;
     showAllTodos = event.detail.showAllTodos;
+    if (event.detail.direction) {
+      workspaceMotionDirection = event.detail.direction;
+      workspaceMotionToken += 1;
+    }
     shopping = null;
     if (typeof localStorage !== 'undefined') localStorage.setItem('active_space_id', showAllTodos ? 'all' : activeSpaceId ?? '');
     if (shoppingOpen) void loadShopping();
   }
   function manageSpace(event: CustomEvent<string>) { void goto(`/settings/spaces?space=${encodeURIComponent(event.detail)}`); }
   function moveSpace(direction: number) {
-    const contexts = [{ spaceId: null as string | null, showAllTodos: true }, { spaceId: null as string | null, showAllTodos: false }, ...spaces.map((space) => ({ spaceId: space.id, showAllTodos: false }))];
+    const contexts = [{ spaceId: null as string | null, showAllTodos: true }, ...spaces.map((space) => ({ spaceId: space.id, showAllTodos: false }))];
     const index = Math.max(0, contexts.findIndex((context) => context.showAllTodos === showAllTodos && (context.showAllTodos || context.spaceId === activeSpaceId)));
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= contexts.length) return;
-    changeSpace(new CustomEvent('change', { detail: contexts[targetIndex] }));
+    changeSpace(new CustomEvent('change', { detail: { ...contexts[targetIndex], direction } }));
   }
 
   $: renderedDate = data?.dayEntry?.date ?? '';
@@ -191,7 +200,7 @@
   }
 
   // Preload the drawer's content before it is opened, matching the day-view cache.
-  onMount(() => { const saved = localStorage.getItem('active_space_id'); showAllTodos = saved === 'all'; activeSpaceId = showAllTodos ? null : saved || null; void loadShopping(); void loadGeneralTodos(); void loadSpaces(); const refreshSpaces = () => void loadSpaces(); const onVisibilityChange = () => { if (document.visibilityState === 'visible') refreshSpaces(); }; window.addEventListener('focus', refreshSpaces); window.addEventListener('pageshow', refreshSpaces); document.addEventListener('visibilitychange', onVisibilityChange); const interval = window.setInterval(refreshSpaces, 5_000); return () => { window.removeEventListener('focus', refreshSpaces); window.removeEventListener('pageshow', refreshSpaces); document.removeEventListener('visibilitychange', onVisibilityChange); window.clearInterval(interval); }; });
+  onMount(() => { const saved = localStorage.getItem('active_space_id'); activeSpaceId = saved && saved !== 'all' ? saved : null; showAllTodos = !activeSpaceId; void loadShopping(); void loadGeneralTodos(); void loadSpaces(); const refreshSpaces = () => void loadSpaces(); const onVisibilityChange = () => { if (document.visibilityState === 'visible') refreshSpaces(); }; window.addEventListener('focus', refreshSpaces); window.addEventListener('pageshow', refreshSpaces); document.addEventListener('visibilitychange', onVisibilityChange); const interval = window.setInterval(refreshSpaces, 5_000); return () => { window.removeEventListener('focus', refreshSpaces); window.removeEventListener('pageshow', refreshSpaces); document.removeEventListener('visibilitychange', onVisibilityChange); window.clearInterval(interval); }; });
 
 </script>
 
@@ -200,7 +209,7 @@
   <main class="content-area">
     {#if data && renderedDate === $currentDate}
       <header class="workspace-header">
-        <WorkspaceFocusWheel {spaces} {activeSpaceId} {showAllTodos} on:change={changeSpace} on:manage={manageSpace} />
+        <WorkspaceFocusWheel {spaces} {activeSpaceId} {showAllTodos} motionDirection={workspaceMotionDirection} motionToken={workspaceMotionToken} on:change={changeSpace} on:manage={manageSpace} />
       </header>
       {#key renderedDate}
         <div class="day-slide" in:fly={incomingDayTransition()} out:fly={outgoingDayTransition()}>
@@ -240,7 +249,8 @@
 <style>
   .page { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; padding-bottom: calc(174px + env(safe-area-inset-bottom, 0px)); }
   .content-area { min-width: 0; }
-  .workspace-header { padding: 4px 52px 6px 0; background: transparent; }
+  .workspace-header { position:sticky; top:0; z-index:30; margin:0 -12px; padding:4px 64px 6px 12px; border-bottom:1px solid var(--border-subtle); background:var(--color-bg); }
+  .content-area :global(button),.content-area :global(a),.content-area :global(input),.content-area :global(select),.content-area :global(textarea) { scroll-margin-top:56px; }
   .day-slide { will-change: transform, opacity; }
 
   .loading { display: flex; justify-content: center; align-items: center; padding: 40px 16px; }

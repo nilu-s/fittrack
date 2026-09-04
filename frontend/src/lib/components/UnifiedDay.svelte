@@ -153,18 +153,13 @@
   let metricTrendError = '';
   let metricTrendTrigger: HTMLElement | null = null;
   let metricTrendCloseButton: HTMLButtonElement | null = null;
-  let metricTrendOverlay: HTMLDialogElement | null = null;
-  let metricTrendOverlayTop: number | null = null;
   let estimatedWeight: { value: number; beforeDate: string; afterDate: string } | null = null;
   let estimateRequest = 0;
   let nutritionDetailsOpen = false;
   let nutritionDetailsTrigger: HTMLElement | null = null;
   let nutritionDetailsCloseButton: HTMLButtonElement | null = null;
-  let nutritionDetailsOverlay: HTMLDialogElement | null = null;
-  let nutritionDetailsOverlayTop: number | null = null;
   let detailItemTrigger: HTMLElement | null = null;
-  let detailItemOverlay: HTMLDialogElement | null = null;
-  let detailItemOverlayTop: number | null = null;
+  let detailItemCloseButton: HTMLButtonElement | null = null;
   let travelUpdateError = '';
 
   /** Only one task detail may be open in the daily list at a time. */
@@ -408,11 +403,9 @@
     }
     closeOpenTodoDetails();
     detailItemTrigger = trigger ?? null;
-    detailItemOverlayTop = null;
     detailItem = item;
     void tick().then(() => {
-      positionDetailItemOverlay();
-      detailItemOverlay?.querySelector<HTMLButtonElement>('.detail-close')?.focus();
+      detailItemCloseButton?.focus();
     });
   }
 
@@ -430,46 +423,17 @@
   function closeItemDetails() {
     detailItem = null;
     weightEditing = false;
-    detailItemOverlayTop = null;
     const trigger = detailItemTrigger;
     detailItemTrigger = null;
     setTimeout(() => trigger?.focus(), 0);
   }
 
-  function overlayTopFor(trigger: HTMLElement | null, overlay: HTMLDialogElement | null) {
-    const card = overlay?.firstElementChild as HTMLElement | null;
-    if (!trigger || !card || typeof window === 'undefined') return null;
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-    const headerBottom = document.querySelector<HTMLElement>('.hdr')?.getBoundingClientRect().bottom ?? 16;
-    const navTop = document.querySelector<HTMLElement>('.day-footer')?.getBoundingClientRect().top ?? viewportHeight - 16;
-    const safeTop = Math.max(16, headerBottom + 12);
-    const safeBottom = Math.min(viewportHeight - 16, navTop - 12);
-    const triggerRect = trigger.getBoundingClientRect();
-    const cardHeight = card.getBoundingClientRect().height;
-    const preferredTop = triggerRect.top + triggerRect.height / 2 - cardHeight / 2;
-    const maximumTop = Math.max(safeTop, safeBottom - cardHeight);
-    return Math.round(Math.min(Math.max(preferredTop, safeTop), maximumTop));
-  }
-
-  function positionDetailItemOverlay() { detailItemOverlayTop = overlayTopFor(detailItemTrigger, detailItemOverlay); }
-  function positionMetricTrendOverlay() { metricTrendOverlayTop = overlayTopFor(metricTrendTrigger, metricTrendOverlay); }
-  function positionNutritionDetailsOverlay() { nutritionDetailsOverlayTop = overlayTopFor(nutritionDetailsTrigger, nutritionDetailsOverlay); }
-
   onMount(() => {
-    const reposition = () => {
-      if (detailItem) positionDetailItemOverlay();
-      if (metricTrendItem) positionMetricTrendOverlay();
-      if (nutritionDetailsOpen) positionNutritionDetailsOverlay();
-    };
-    window.addEventListener('resize', reposition);
-    window.visualViewport?.addEventListener('resize', reposition);
     void refreshMonitoredTravel();
     const travelTimer = window.setInterval(() => { if (document.visibilityState === 'visible') void refreshMonitoredTravel(); }, 5 * 60_000);
     return () => {
       deferredReorderTimers.forEach((timer) => clearTimeout(timer));
       deferredReorderTimers.clear();
-      window.removeEventListener('resize', reposition);
-      window.visualViewport?.removeEventListener('resize', reposition);
       window.clearInterval(travelTimer);
     };
   });
@@ -482,9 +446,7 @@
     metricTrendError = '';
     metricTrendLoading = true;
     metricTrendTrigger = trigger ?? null;
-    metricTrendOverlayTop = null;
     await tick();
-    positionMetricTrendOverlay();
     metricTrendCloseButton?.focus();
     try {
       const metric = item.id === 'metric-weight' ? 'weight' : item.id === 'metric-steps' ? 'steps' : 'sleep_hours';
@@ -494,15 +456,12 @@
       metricTrendError = 'Der Verlauf konnte gerade nicht geladen werden.';
     } finally {
       metricTrendLoading = false;
-      await tick();
-      positionMetricTrendOverlay();
     }
   }
 
   function closeMetricTrend() {
     metricTrendItem = null;
     metricTrend = [];
-    metricTrendOverlayTop = null;
     const trigger = metricTrendTrigger;
     metricTrendTrigger = null;
     setTimeout(() => trigger?.focus(), 0);
@@ -511,16 +470,13 @@
   async function openNutritionDetails(trigger: HTMLElement) {
     closeOpenTodoDetails();
     nutritionDetailsTrigger = trigger;
-    nutritionDetailsOverlayTop = null;
     nutritionDetailsOpen = true;
     await tick();
-    positionNutritionDetailsOverlay();
     nutritionDetailsCloseButton?.focus();
   }
 
   function closeNutritionDetails() {
     nutritionDetailsOpen = false;
-    nutritionDetailsOverlayTop = null;
     const trigger = nutritionDetailsTrigger;
     nutritionDetailsTrigger = null;
     setTimeout(() => trigger?.focus(), 0);
@@ -823,7 +779,7 @@
 <MealEntryEditorSheet meal={mealEntryEditorItem ? getMealFromItem(mealEntryEditorItem) ?? null : null} open={Boolean(mealEntryEditorItem)} autoOpenCamera={mealEntryEditorCamera} on:close={closeMealEntryEditor} on:saved={(event) => { applyMealEntryUpdate(event.detail.entry); closeMealEntryEditor(); }} />
 
 {#if nutritionDetailsOpen}
-  <dialog bind:this={nutritionDetailsOverlay} class="modal-overlay trend-overlay" class:overlay-positioned={nutritionDetailsOverlayTop !== null} style={nutritionDetailsOverlayTop === null ? undefined : `--overlay-offset-top: ${nutritionDetailsOverlayTop}px`} open aria-labelledby="nutrition-detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeNutritionDetails(); }} oncancel={(event) => { event.preventDefault(); closeNutritionDetails(); }}>
+  <dialog class="modal-overlay trend-overlay" open aria-labelledby="nutrition-detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeNutritionDetails(); }} oncancel={(event) => { event.preventDefault(); closeNutritionDetails(); }}>
     <section class="modal-card trend-detail ui-dialog">
       <header class="detail-header ui-dialog__header"><div><p class="detail-kind ui-dialog__eyebrow">Tagesübersicht</p><h2 id="nutrition-detail-title">Nährstoffe</h2></div><button bind:this={nutritionDetailsCloseButton} class="detail-close ui-dialog__close" type="button" aria-label="Nährwertdetails schließen" onclick={closeNutritionDetails}>×</button></header>
       <p class="nutrition-intro">Summen aus den verzehrten Mahlzeiten dieses Tages. „≥“ bedeutet: Ein Teil der Zutaten hat noch keine Referenzwerte.</p>
@@ -843,7 +799,7 @@
 
 {#if metricTrendItem}
   {@const chart = metricChart(metricTrend, metricTrendRange, metricTrendItem)}
-  <dialog bind:this={metricTrendOverlay} class="modal-overlay trend-overlay" class:overlay-positioned={metricTrendOverlayTop !== null} style={metricTrendOverlayTop === null ? undefined : `--overlay-offset-top: ${metricTrendOverlayTop}px`} open aria-labelledby="metric-trend-title" onclick={(event) => { if (event.target === event.currentTarget) closeMetricTrend(); }} oncancel={(event) => { event.preventDefault(); closeMetricTrend(); }}>
+  <dialog class="modal-overlay trend-overlay" open aria-labelledby="metric-trend-title" onclick={(event) => { if (event.target === event.currentTarget) closeMetricTrend(); }} oncancel={(event) => { event.preventDefault(); closeMetricTrend(); }}>
     <section class="modal-card trend-detail ui-dialog">
       <header class="detail-header ui-dialog__header">
         <div><p class="detail-kind ui-dialog__eyebrow">Verlauf · {trendRangeLabel(metricTrendRange)}</p><h2 id="metric-trend-title">{metricTrendItem.title}</h2></div>
@@ -887,9 +843,9 @@
 {/if}
 
 {#if detailItem}
-  <dialog bind:this={detailItemOverlay} class="modal-overlay compact-overlay" class:overlay-positioned={detailItemOverlayTop !== null} style={detailItemOverlayTop === null ? undefined : `--overlay-offset-top: ${detailItemOverlayTop}px`} open aria-labelledby="detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeItemDetails(); }} oncancel={(event) => { event.preventDefault(); closeItemDetails(); }}>
+  <dialog class="modal-overlay compact-overlay" open aria-labelledby="detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeItemDetails(); }} oncancel={(event) => { event.preventDefault(); closeItemDetails(); }}>
     <div class="modal-card compact-detail ui-dialog">
-      <header class="detail-header ui-dialog__header"><div><p class="detail-kind ui-dialog__eyebrow">{detailItem.type === 'meal' ? 'Mahlzeit' : detailItem.type === 'training' ? 'Training' : detailItem.type === 'todo' ? 'To-do' : 'Tageswert'}</p><h2 id="detail-title">{detailItem.title}</h2></div><button class="detail-close ui-dialog__close" type="button" aria-label="Details schließen" onclick={closeItemDetails}>×</button></header>
+      <header class="detail-header ui-dialog__header"><div><p class="detail-kind ui-dialog__eyebrow">{detailItem.type === 'meal' ? 'Mahlzeit' : detailItem.type === 'training' ? 'Training' : detailItem.type === 'todo' ? 'To-do' : 'Tageswert'}</p><h2 id="detail-title">{detailItem.title}</h2></div><button bind:this={detailItemCloseButton} class="detail-close ui-dialog__close" type="button" aria-label="Details schließen" onclick={closeItemDetails}>×</button></header>
       {#if detailItem.type === 'meal'}
         {@const detailMeal = getMealFromItem(detailItem)}
         <div class="modal-pills">
@@ -1072,7 +1028,7 @@
   .nutrition-detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .nutrition-detail-grid span { min-height:58px; }
   @media (min-width:560px) { .nutrition-detail-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
-  @media (min-width: 700px) { .modal-overlay { padding:32px 24px; } .compact-detail { max-width:360px; } }
+  @media (min-width: 700px) { .compact-detail { max-width:360px; } }
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }

@@ -5,13 +5,19 @@
   export let spaces: Space[] = [];
   export let activeSpaceId: string | null = null;
   export let showAllTodos = false;
-  const dispatch = createEventDispatcher<{ change: { spaceId: string | null; showAllTodos: boolean }; manage: string }>();
+  export let motionDirection = 0;
+  export let motionToken = 0;
+  const dispatch = createEventDispatcher<{ change: { spaceId: string | null; showAllTodos: boolean; direction: number }; manage: string }>();
   let longPress: ReturnType<typeof setTimeout> | undefined;
   let suppressClick = false;
+  let animationDirection = 0;
+  let animationFrame: number | undefined;
+  let swipeStartX = 0;
+  let swipeStartY = 0;
+  let trackingSwipe = false;
 
   $: contexts = [
-    { id: 'all' as const, name: 'Alle Aufgaben', showAllTodos: true },
-    { id: null as string | null, name: 'Privat', showAllTodos: false },
+    { id: 'all' as const, name: 'Übersicht', showAllTodos: true },
     ...spaces.map((space) => ({ id: space.id, name: space.name, showAllTodos: false })),
   ];
   $: activeIndex = Math.max(0, contexts.findIndex((context) => showAllTodos ? context.showAllTodos : !context.showAllTodos && context.id === activeSpaceId));
@@ -23,7 +29,36 @@
     const targetIndex = activeIndex + direction;
     if (targetIndex < 0 || targetIndex >= contexts.length) return;
     const context = contexts[targetIndex];
-    dispatch('change', { spaceId: context.showAllTodos ? null : context.id, showAllTodos: context.showAllTodos });
+    dispatch('change', { spaceId: context.showAllTodos ? null : context.id, showAllTodos: context.showAllTodos, direction });
+  }
+  function animateMovement(direction: number) {
+    if (!direction || typeof window === 'undefined') return;
+    animationDirection = 0;
+    if (animationFrame) cancelAnimationFrame(animationFrame);
+    animationFrame = requestAnimationFrame(() => { animationDirection = direction; });
+  }
+  $: if (motionToken) animateMovement(motionDirection);
+  function startSwipe(event: TouchEvent) {
+    swipeStartX = event.touches[0]?.clientX ?? 0;
+    swipeStartY = event.touches[0]?.clientY ?? 0;
+    trackingSwipe = true;
+  }
+  function trackSwipe(event: TouchEvent) {
+    if (!trackingSwipe) return;
+    const touch = event.touches[0];
+    if (!touch) return;
+    const dx = touch.clientX - swipeStartX;
+    const dy = touch.clientY - swipeStartY;
+    if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) event.preventDefault();
+  }
+  function finishSwipe(event: TouchEvent) {
+    if (!trackingSwipe) return;
+    trackingSwipe = false;
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - swipeStartX;
+    const dy = touch.clientY - swipeStartY;
+    if (Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.15) move(dx < 0 ? 1 : -1);
   }
   function startManage() {
     if (!activeSpaceId) return;
@@ -34,8 +69,8 @@
   function manage() { if (!activeSpaceId || suppressClick) { suppressClick = false; return; } dispatch('manage', activeSpaceId); }
 </script>
 
-<section class="workspace-focus" aria-label="Aktiver Arbeitsbereich">
-  <div class="wheel">
+<section class="workspace-focus" aria-label="Aktiver Arbeitsbereich" ontouchstart={startSwipe} ontouchmove={trackSwipe} ontouchend={finishSwipe} ontouchcancel={() => trackingSwipe = false}>
+  <div class="wheel" class:motion-forward={animationDirection > 0} class:motion-backward={animationDirection < 0}>
     <button type="button" class="neighbor previous" onclick={() => move(-1)} disabled={!previous} aria-label={previous ? `Vorheriger Bereich: ${previous.name}` : 'Kein vorheriger Bereich'}>
       <span>{previous?.name ?? ''}</span>
     </button>
@@ -48,7 +83,7 @@
 </section>
 
 <style>
-  .workspace-focus { overflow:hidden; height:30px; padding:0; }
+  .workspace-focus { overflow:hidden; height:30px; padding:0; touch-action:pan-y; }
   .wheel { display:grid; grid-template-columns:minmax(0,1fr) minmax(88px,1.15fr) minmax(0,1fr); align-items:center; gap:8px; height:30px; }
   .current { display:grid; place-items:center; align-self:stretch; padding:0 10px 2px; border:0; border-bottom:2px solid var(--action-primary); background:transparent; color:var(--text-primary); font:inherit; font-size:13px; font-weight:750; cursor:pointer; }
   .current span,.neighbor span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -56,4 +91,9 @@
   .previous { justify-content:flex-end; text-align:right; } .next { justify-content:flex-start; text-align:left; }
   .neighbor:focus-visible,.current:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; border-radius:var(--radius-control); }
   .neighbor:disabled { visibility:hidden; }
+  .motion-forward { animation:workspace-enter-forward 220ms cubic-bezier(.2,.8,.2,1); }
+  .motion-backward { animation:workspace-enter-backward 220ms cubic-bezier(.2,.8,.2,1); }
+  @keyframes workspace-enter-forward { from { opacity:.45; transform:translateX(18px); } to { opacity:1; transform:translateX(0); } }
+  @keyframes workspace-enter-backward { from { opacity:.45; transform:translateX(-18px); } to { opacity:1; transform:translateX(0); } }
+  @media (prefers-reduced-motion: reduce) { .motion-forward,.motion-backward { animation:none; } }
 </style>
