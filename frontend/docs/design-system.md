@@ -37,11 +37,11 @@ The daily page (`/`) is Cronicl’s visual source of truth. Secondary routes inh
 | `ui-empty`, `ui-loading`, `ui-spinner` | Empty and loading states |
 | `modal-overlay`, `modal-card`, `ui-dialog` | Standard dialog surface/layer with shared header, eyebrow, close control, content section and action row |
 
-Detail overlays follow their trigger within the currently visible area and are
-clamped between the header and lower navigation. Their content scrolls within
-the dialog when needed; opening moves focus to the close control and closing
-restores it to the trigger. Bottom action sheets remain bottom-aligned by
-contract.
+Detail overlays open at the top edge of the viewport, below no additional
+application chrome; this gives dialogs a stable position while the account and
+workspace controls remain fixed. Their content scrolls within the dialog when
+needed; opening moves focus to the close control and closing restores it to
+the trigger. Bottom action sheets remain bottom-aligned by contract.
 
 ## Verification
 
