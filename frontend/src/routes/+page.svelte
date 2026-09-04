@@ -201,7 +201,7 @@
       </header>
       {#key renderedDate}
         <div class="day-slide" in:fly={incomingDayTransition()} out:fly={outgoingDayTransition()}>
-          <UnifiedDay dayData={{ ...data, todos: showAllTodos ? data.todos ?? [] : (data.todos ?? []).filter((todo) => activeSpaceId ? todo.space_id === activeSpaceId : !todo.space_id) }} currentDate={renderedDate} workspaceMode={showAllTodos || Boolean(activeSpaceId)} showDayList={!shoppingOpen && !noteBoardOpen}
+          <UnifiedDay dayData={{ ...data, todos: showAllTodos ? data.todos ?? [] : (data.todos ?? []).filter((todo) => activeSpaceId ? todo.space_id === activeSpaceId : !todo.space_id) }} currentDate={renderedDate} workspaceMode={Boolean(activeSpaceId)} allTasksMode={showAllTodos} showDayList={!shoppingOpen && !noteBoardOpen}
             on:update={onUnifiedUpdate}
             on:mealentrychange={onMealEntryChange}
             on:trainingtoggle={(e) => onUnifiedUpdate(new CustomEvent('update', { detail: { field: 'training_done', value: e.detail } }))}

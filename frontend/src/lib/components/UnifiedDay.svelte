@@ -16,6 +16,7 @@
   export let dayData: DayData;
   export let currentDate: string;
   export let workspaceMode = false;
+  export let allTasksMode = false;
   export let showDayList = true;
   const dispatch = createEventDispatcher();
   let contentSwipeStartX = 0;
@@ -758,7 +759,7 @@
 <!-- Day list -->
 <div class="daylist" role="region" aria-label="Tagesablauf">
   <div class="daylist-hdr">
-    <span>{workspaceMode ? 'Aufgaben' : 'Tagesablauf'}</span><span>{openCount} offen</span>
+    <span>{allTasksMode ? 'Alle Aufgaben' : workspaceMode ? 'Aufgaben' : 'Tagesablauf'}</span><span>{openCount} offen</span>
   </div>
 
   {#if manualItems.length === 0}

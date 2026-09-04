@@ -50,10 +50,11 @@ Kontoberechtigungen außerhalb seiner eigenen Ressourcen.
    Tagesablauf zeigt nur private To-dos; ein Space zeigt nur dessen To-dos.
    Zusätzlich bietet derselbe Picker „Alle Aufgaben“ als reine Sammelansicht
    für die To-dos, die das angemeldete Konto bereits lesen darf: seine privaten
-   To-dos und die To-dos seiner Spaces. Die Auswahl erweitert keine
-   Berechtigungen und zeigt weder private To-dos anderer Konten noch weitere
-   private Tagesdaten. Alle Kontexte verwenden dieselbe Tageslisten-Komponente
-   und denselben Detailfluss, nicht separate Oberflächen.
+   To-dos und die To-dos seiner Spaces. Zusätzlich erscheinen dort die privaten
+   Mahlzeiten und das Training dieses Kontos im gemeinsamen Tagesablauf. Die
+   Auswahl erweitert keine Berechtigungen und zeigt weder private To-dos noch
+   private Tagesdaten anderer Konten. Alle Kontexte verwenden dieselbe
+   Tageslisten-Komponente und denselben Detailfluss, nicht separate Oberflächen.
 5. Oberhalb des Inhalts zeigt eine schmale Rollenanzeige den aktiven Bereich
    mittig und den vorherigen sowie nächsten Bereich zurückhaltend daneben.
    Ein horizontaler Wisch im gesamten Inhaltsbereich oberhalb der festen
