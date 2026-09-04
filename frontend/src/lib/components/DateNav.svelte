@@ -141,4 +141,7 @@
   .footer-icon { width:38px; height:38px; }
   .dnav-mid { height:40px; padding:3px 8px; }
   .dnav-date { font-size:13px; }
+  .day-footer { background:transparent; border:0; box-shadow:none; }
+  .todo-add input,.todo-add .todo-ai,.dnav { background:transparent; }
+  .footer-status { margin:0 -10px; padding:2px 10px; background:var(--surface-navigation); }
 </style>
