@@ -23,6 +23,8 @@ class NotesContractTests(unittest.TestCase):
         space_id = uuid.uuid4()
         self.assertFalse(NoteMove(space_id=space_id).confirm_share)
         self.assertTrue(NoteMove(space_id=space_id, confirm_share=True).confirm_share)
+        self.assertFalse(NoteMove().confirm_private)
+        self.assertTrue(NoteMove(confirm_private=True).confirm_private)
         with self.assertRaises(ValidationError):
             NotePlan()
 

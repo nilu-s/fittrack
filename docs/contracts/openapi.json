@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Cronicl API",
+    "title": "Chronickel API",
     "version": "1.0.0"
   },
   "paths": {
@@ -9093,6 +9093,18 @@
               }
             ],
             "title": "Body"
+          },
+          "space_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space Id"
           }
         },
         "additionalProperties": false,
@@ -9105,21 +9117,30 @@
       "NoteMove": {
         "properties": {
           "space_id": {
-            "type": "string",
-            "format": "uuid",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Space Id"
           },
           "confirm_share": {
             "type": "boolean",
             "title": "Confirm Share",
             "default": false
+          },
+          "confirm_private": {
+            "type": "boolean",
+            "title": "Confirm Private",
+            "default": false
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "space_id"
-        ],
         "title": "NoteMove"
       },
       "NotePlan": {

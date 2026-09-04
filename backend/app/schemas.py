@@ -510,8 +510,9 @@ class NoteUpdate(_Base):
 
 class NoteMove(_Base):
     model_config = ConfigDict(extra="forbid")
-    space_id: uuid.UUID
+    space_id: Optional[uuid.UUID] = None
     confirm_share: bool = False
+    confirm_private: bool = False
 
 
 class NotePlan(_Base):

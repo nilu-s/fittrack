@@ -2,7 +2,7 @@
 
 **Status:** approved  
 **Owner:** Cronicl household  
-**Last updated:** 2026-09-03
+**Last updated:** 2026-09-04
 
 ## Ziel
 
@@ -22,9 +22,11 @@ die zweite Art sichtbar.
    einen Bereich. Ohne Bereich ist sie privat und nur für den Ersteller lesbar.
 2. Der private Eingang zeigt bis zu neun unzugeordnete Notizen als Raster.
    Weitere Einträge bleiben über die vollständige Liste erreichbar.
-3. Jede Bereichszuordnung oder der Wechsel in einen anderen Bereich benötigt
-   eine explizite Bestätigung. Die Mitgliedschaft wird serverseitig geprüft;
-   die Browserdaten entscheiden nie über ein Konto oder eine Berechtigung.
+3. Jede Bereichszuordnung, der Wechsel in einen anderen Bereich und das
+   Zurückziehen in den privaten Eingang benötigt eine explizite Bestätigung.
+   Nur das Erstellerkonto darf eine geteilte Notiz zurückziehen. Die
+   Mitgliedschaft wird serverseitig geprüft; die Browserdaten entscheiden nie
+   über ein Konto oder eine Berechtigung.
 4. Das Ablegen einer Notiz auf einen Kalendertag erzeugt ein ganztägiges To-do;
    das Ablegen auf einen Zeit-Slot erzeugt ein To-do mit Startzeit. Das To-do
    behält die Bereichszuordnung der Notiz und verweist auf seine Ursprungsnotiz.
@@ -40,8 +42,10 @@ die zweite Art sichtbar.
 - Mitglieder eines Bereichs haben Zugriff auf dessen Notizen und die daraus
   abgeleiteten manuellen To-dos. Das Entfernen der Mitgliedschaft entzieht den
   Zugriff sofort.
-- Eine geteilte Notiz wird nicht durch Verschieben in den privaten Eingang
-  unsichtbar gemacht. Eine private Kopie ist ein bewusster, späterer Vorgang.
+- Das Erstellerkonto darf eine geteilte Notiz bewusst in den privaten Eingang
+  zurückziehen. Der Zugriff für Bereichsmitglieder endet sofort. Ein offenes,
+  daraus abgeleitetes To-do wird dabei ebenfalls privat; ein erledigtes
+  gemeinsames To-do bleibt als Verlaufseintrag im Bereich bestehen.
 - Kalender-, Google-, Standort- und Routineintegrationen bleiben privat. Ein
   gemeinsames aus einer Notiz geplantes To-do hat keine dieser Integrationen.
 
@@ -51,6 +55,7 @@ die zweite Art sichtbar.
 | --- | --- |
 | Neue Notiz ist nur für ihren Ersteller sichtbar | API-Isolationstest für `GET /notes` |
 | Private Notiz kann ohne `confirm_share` nicht geteilt werden | API-Contract-Test für Bereichszuordnung |
+| Nur das Erstellerkonto kann eine geteilte Notiz mit Bestätigung zurückziehen | API-Contract- und Isolationstest |
 | Bereichsmitglied sieht Notiz und abgeleitetes To-do; Nichtmitglied nicht | API-Isolationstest |
 | Tag- und Zeit-Slot-Planung setzen Datum bzw. Startzeit und Bereich korrekt | API-Contract-Test |
 | Board bietet für Drag-Ziele sichtbare Button-Alternativen sowie fokussierbare Details | Frontend check/build und Accessibility Review |

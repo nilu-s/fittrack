@@ -268,8 +268,8 @@ class ApiClient {
     return await this.request<Note>(`/notes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
-  async moveNote(id: string, space_id: string, confirm_share = false): Promise<Note | null> {
-    return await this.request<Note>(`/notes/${id}/move`, { method: 'POST', body: JSON.stringify({ space_id, confirm_share }) });
+  async moveNote(id: string, space_id: string | null, confirm_share = false, confirm_private = false): Promise<Note | null> {
+    return await this.request<Note>(`/notes/${id}/move`, { method: 'POST', body: JSON.stringify({ space_id, confirm_share, confirm_private }) });
   }
 
   async planNote(id: string, due_date: string, start_time?: string | null): Promise<Note | null> {

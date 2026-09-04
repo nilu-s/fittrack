@@ -10,6 +10,7 @@ from app.database import async_session
 from app.models import Note, SpaceMembership, Todo
 from app.routes.auth import get_current_user
 from app.schemas import NoteCreate, NoteMove, NotePlan, NoteResponse, NoteUpdate
+from app.services.notes import withdraw_note_to_private
 from app.services.spaces import member_space
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -85,10 +86,13 @@ async def update_note(note_id: uuid.UUID, body: NoteUpdate, account_id: uuid.UUI
 async def move_note(note_id: uuid.UUID, body: NoteMove, account_id: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
         note = await _accessible_note(session, note_id, account_id)
-        await member_space(session, body.space_id, account_id)
-        if note.space_id != body.space_id and not body.confirm_share:
-            raise HTTPException(422, "Confirm sharing before moving a note into another area")
-        note.space_id = body.space_id
+        if body.space_id is None:
+            await withdraw_note_to_private(session, note, account_id, body.confirm_private)
+        else:
+            await member_space(session, body.space_id, account_id)
+            if note.space_id != body.space_id and not body.confirm_share:
+                raise HTTPException(422, "Confirm sharing before moving a note into another area")
+            note.space_id = body.space_id
         await session.commit(); await session.refresh(note)
         return await _response(session, note)
 
