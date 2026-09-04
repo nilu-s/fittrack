@@ -20,6 +20,7 @@
   const dispatch = createEventDispatcher<{ todoadd: string; noteadd: string; shoppingadd: string; aiplan: string; shoppingopen: void; noteboardopen: void }>();
   const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
   const daysFull = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  const dateDoubleTapDelay = 360;
   $: dateLabel = formatDateLabel($currentDate);
   $: isToday = $currentDate === todayStr();
   $: dow = daysFull[new Date(`${$currentDate}T00:00:00`).getDay()];
@@ -35,7 +36,9 @@
   function formatDateLabel(dateStr: string) { const d = new Date(`${dateStr}T00:00:00`); return `${d.getDate()}. ${months[d.getMonth()]}`; }
   function changeDate(delta: number) { const d = new Date(`${$currentDate}T00:00:00`); d.setDate(d.getDate() + delta); currentDate.set(formatDate(d)); }
   function openPicker() { pickerMonth = new Date(`${$currentDate}T00:00:00`); calendarOpen = true; }
-  function onDateTap() { if (dateTapTimer) { clearTimeout(dateTapTimer); dateTapTimer = null; currentDate.set(todayStr()); return; } dateTapTimer = setTimeout(() => { dateTapTimer = null; openPicker(); }, 240); }
+  function goToToday() { if (dateTapTimer) clearTimeout(dateTapTimer); dateTapTimer = null; calendarOpen = false; currentDate.set(todayStr()); }
+  function onDateTap() { if (dateTapTimer) { goToToday(); return; } dateTapTimer = setTimeout(() => { dateTapTimer = null; openPicker(); }, dateDoubleTapDelay); }
+  function onDateDoubleTap(event: MouseEvent) { event.preventDefault(); goToToday(); }
   function closePicker() { calendarOpen = false; calendarButton?.focus(); }
   function selectDate(date: string) { currentDate.set(date); closePicker(); }
   function changeMonth(delta: number) { pickerMonth = new Date(pickerMonth.getFullYear(), pickerMonth.getMonth() + delta, 1); }
@@ -108,7 +111,7 @@
   <nav class="dnav" aria-label="Tagesnavigation; horizontal wischen, um den Tag zu wechseln" ontouchstart={startFooterSwipe} ontouchend={finishFooterSwipe}>
     <button type="button" class="footer-icon day-arrow" aria-label="Vorheriger Tag" title="Vorheriger Tag" onclick={() => changeDateFromButton(-1)}><Icon name="chevron-left" size={20} /></button>
     <button type="button" class="footer-icon" class:open={noteBoardOpen} aria-controls="note-board" aria-expanded={noteBoardOpen} aria-label="Notiz-Board öffnen" title="Notizen" onclick={openNoteBoard}><Icon name="edit" size={18} />{#if noteCount}<span class="count">{noteCount}</span>{/if}</button>
-    <button bind:this={calendarButton} type="button" class="dnav-mid" onclick={openDatePicker} aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label="Kalender öffnen; doppeltippen für heute"><span class="dnav-date">{dow}, {dateLabel}</span><span class="dnav-today">{isToday ? 'Heute' : 'Datum wählen'}</span></button>
+    <button bind:this={calendarButton} type="button" class="dnav-mid" onclick={openDatePicker} ondblclick={onDateDoubleTap} aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label="Kalender öffnen; doppeltippen für heute"><span class="dnav-date">{dow}, {dateLabel}</span><span class="dnav-today">{isToday ? 'Heute' : 'Datum wählen'}</span></button>
     <button type="button" class="footer-icon" class:open={shoppingOpen} aria-controls="shopping-quick-panel" aria-expanded={shoppingOpen} aria-label="Einkaufsliste öffnen" title="Einkauf" onclick={openShopping}><Icon name="shopping" size={18} />{#if shoppingCount}<span class="count">{shoppingCount}</span>{/if}</button>
     <button type="button" class="footer-icon day-arrow" aria-label="Nächster Tag" title="Nächster Tag" onclick={() => changeDateFromButton(1)}><Icon name="chevron-right" size={20} /></button>
   </nav>
