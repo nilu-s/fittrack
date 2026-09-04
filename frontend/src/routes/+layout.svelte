@@ -9,8 +9,7 @@
   import { db } from '$lib/db';
   import { aliasRequired, isAuthenticated, checkAuth } from '$lib/auth';
   import Icon from '$lib/components/Icon.svelte';
-  import { APP_NAME } from '$lib/brand';
-  import UiIconButton from '$lib/components/ui/UiIconButton.svelte';
+  import AccountMenu from '$lib/components/AccountMenu.svelte';
   import type { DayData, DayEntry, MealCategory, MealEntry, Todo, TrainingSuggestion } from '$lib/types';
 
   let syncIcon = '✓';
@@ -32,8 +31,6 @@
   $: isShopping = $page?.url?.pathname === '/shopping';
   $: isLogin = $page?.url?.pathname === '/login';
   $: isAliasOnboarding = $page?.url?.pathname === '/onboarding/alias';
-  $: isHome = $page?.url?.pathname === '/';
-  $: backTarget = $page?.url?.pathname?.startsWith('/settings/') ? '/settings' : '/';
   // Optimistic edits are written to the shared day store by child components.
   // Mirror them so a quick return to this day never restores an older cache copy.
   $: if ($dayData?.dayEntry?.date) dayCache.set($dayData.dayEntry.date, $dayData);
@@ -164,18 +161,7 @@
 </script>
 
 <div class:wide-shell={isMealSettings || isShopping} class="shell">
-  {#if !isLogin && !isAliasOnboarding}<header class="hdr">
-    {#if isHome}
-      <a href="/" class="hdr-title" aria-label={`${APP_NAME} Startseite`}><img class="brand-icon" src="/brand-icon.svg" alt="" /><span>{APP_NAME}</span></a>
-    {:else}
-      <a href={backTarget} class="header-back" aria-label="Zurück"><Icon name="chevron-left" size={20} /><span>Zurück</span></a>
-    {/if}
-    <div class="hdr-spacer"></div>
-    <div class="hdr-actions">
-      {#if $isAuthenticated}<a href="/contacts" class="header-friends" aria-label="Kontakte"><Icon name="contacts" size={19} /></a>{/if}
-      {#if $isAuthenticated}<UiIconButton ariaLabel="Einstellungen" onclick={() => goto('/settings')}><Icon name="settings" size={18} /></UiIconButton>{/if}
-    </div>
-  </header>{/if}
+  {#if !isLogin && !isAliasOnboarding && $isAuthenticated}<AccountMenu />{/if}
 
   <main bind:this={mainEl} class="main">
     {#if pullDistance > 0 || isRefreshing}
@@ -188,16 +174,7 @@
 </div>
 
 <style>
-  .shell { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; max-width: 480px; margin: 0 auto; width: 100%; }
-  .hdr { display: flex; align-items: center; min-height: 52px; padding: 2px 16px; padding-top: calc(2px + env(safe-area-inset-top, 0px)); gap: 10px; background:var(--surface-navigation); border-bottom: 1px solid var(--border-strong); }
-  .hdr-title { display:flex; align-items:center; gap:10px; font-size:17px; font-weight:720; letter-spacing:-.03em; text-transform:uppercase; color:var(--text-primary); text-decoration:none; }
-  .brand-icon { display:block; width:48px; height:48px; flex:none; }
-  .header-back { display:flex; align-items:center; gap:3px; min-height:var(--control-min); padding:0 8px 0 3px; border-radius:var(--radius-control); color:var(--text-primary); font-size:14px; font-weight:700; }
-  .header-back:active, .header-back:focus-visible { background:var(--surface-raised); }
-  .hdr-spacer { flex: 1; }
-  .hdr-actions { display: flex; align-items: center; gap: 2px; }
-  .header-friends { display:grid; place-items:center; min-height:var(--control-min); padding:0 8px; border-radius:var(--radius-control); color:var(--action-primary); font-size:12px; font-weight:750; text-decoration:none; }
-  .header-friends:active,.header-friends:focus-visible { background:var(--surface-raised); }
+  .shell { position:relative; display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; max-width: 480px; margin: 0 auto; width: 100%; }
   .main { flex: 1; padding: 0 12px calc(24px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; overscroll-behavior-y: contain; position: relative; }
   .ptr { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; z-index: 10; transition: opacity 0.15s; pointer-events: none; color: var(--text-secondary); }
   @media (min-width: 481px) {

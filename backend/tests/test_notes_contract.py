@@ -26,6 +26,12 @@ class NotesContractTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             NotePlan()
 
+    def test_note_can_target_a_space_without_client_owned_identity(self):
+        space_id = uuid.uuid4()
+        self.assertEqual(NoteCreate(title="Bereichsnotiz", space_id=space_id).space_id, space_id)
+        with self.assertRaises(ValidationError):
+            NoteCreate(title="Bereichsnotiz", space_id=space_id, account_id=uuid.uuid4())
+
 
 if __name__ == "__main__":
     unittest.main()

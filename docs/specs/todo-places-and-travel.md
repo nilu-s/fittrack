@@ -2,14 +2,14 @@
 
 **Status:** approved
 **Owner:** Cronicl household
-**Last updated:** 2026-09-02
+**Last updated:** 2026-09-04
 
 ## Ziel
 
 Ein persönliches oder Space-To-do kann einen eindeutig bestätigten Zielort und eine
-Anreiseart erhalten. Die Schnellerfassung verwendet ein gemeinsames Textfeld:
-`+` legt den Text sofort an und öffnet danach ein Detail-Overlay, in dem
-Angaben ergänzt oder korrigiert werden können. `✦` öffnet einen allgemeinen,
+Anreiseart erhalten. Die Schnellerfassung verwendet ein gemeinsames Footer-Textfeld:
+Standardmäßig legt `+` ein To-do für den aktuell gewählten Tag sofort an; in einer
+geöffneten Notiz- oder Einkaufsansicht wird es für diesen Kontext verwendet. `✦` öffnet einen allgemeinen,
 explizit angeforderten KI-Chat; er speichert keine To-dos, Orte oder
 Anreiseüberwachung.
 
@@ -47,12 +47,19 @@ Ort oder Anreise erhalten.
 
 ## Interaktion
 
-- `+` neben der Schnellerfassung legt eine private Notiz an. Das Notiz-Board
-  bietet das sichtbare Bearbeiten, Bereichszuordnen und Einplanen; ein Drop auf
-  einen Kalender-Tag oder -Zeit-Slot erzeugt das To-do.
-- Die Footer-Schaltfläche „Notizen“ öffnet das Board. Touch- und
-  Tastaturbedienung haben dort gleichwertige native Detailaktionen; Einkauf
-  und Board sind nie gleichzeitig offen.
+- `+` neben der Schnellerfassung legt standardmäßig ein normales To-do für den
+  aktuell gewählten Tag an. Bei geöffneter Notiz- oder Einkaufsansicht wird
+  dasselbe Footer-Feld kontextbezogen für eine private Notiz beziehungsweise
+  einen Einkaufsartikel verwendet; nach dem Schließen kehrt es zur
+  To-do-Schnellerfassung zurück.
+- Die Footer-Icons für Notizen, Einkauf sowie vorherigen und nächsten Tag sind
+  normale Buttons. Vertikale Aufzieh- oder Split-Screen-Gesten gehören nicht
+  zum Footer.
+- Die Footer-Schaltflächen „Notizen“ und „Einkauf“ ersetzen ausschließlich den
+  Tagesablauf im Inhaltsbereich. Kopfzeile, Tageswerte und Footer bleiben
+  sichtbar; die Ansichten besitzen keine separaten Eingabefelder, sondern
+  nutzen das umgeschaltete Footer-Feld. Einkauf und Board sind nie gleichzeitig
+  offen.
 - `✦` öffnet den KI-Chat für Fragen und komplexe Planungswünsche. Er gibt
   Antworten, führt aber keine Datenänderung aus.
 - Ein Ortsvorschlag wird über die Place-Suche ausgewählt und bestätigt. Die
@@ -77,5 +84,6 @@ stille Standortüberwachung ein.
 | Keine clientgesteuerte Identität oder Schlüssel | OpenAPI-/Schema-Test und Quellcodeprüfung |
 | Relative KI-Datumsauflösung | `backend/tests/test_todo_places_contract.py` |
 | Browser-UI hat sichtbare, native Aktionen | `npm run check`, Accessibility-Review |
+| Footer-Eingabe erzeugt To-dos und schaltet in Notiz- oder Einkaufsansichten passend um | `npm run check`, Accessibility-Review |
 | Ungeplante Notizen bleiben konto-privat bis zur bestätigten Bereichszuordnung | Notes-Contract- und Account-Isolation-Suite |
 | API-Vertrag | `backend/scripts/update-openapi`, Contract-Snapshot-Test |

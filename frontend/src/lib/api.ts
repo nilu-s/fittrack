@@ -260,7 +260,7 @@ class ApiClient {
     return (await this.request<Note[]>(`/notes`)) ?? [];
   }
 
-  async createNote(data: Pick<Note, 'title'> & Partial<Pick<Note, 'body'>>): Promise<Note | null> {
+  async createNote(data: Pick<Note, 'title'> & Partial<Pick<Note, 'body' | 'space_id'>>): Promise<Note | null> {
     return await this.request<Note>(`/notes`, { method: 'POST', body: JSON.stringify(data) });
   }
 

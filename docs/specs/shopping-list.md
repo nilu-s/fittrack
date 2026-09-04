@@ -40,17 +40,17 @@ lokale, skizzierte SVG-Icons.
 ## UX-Vertrag
 
 * Der Footer der Tagesansicht hat eine sichtbare Schaltfläche „Einkauf“. Sie
-  öffnet einen mobilen, höhenverstellbaren Einkaufsbereich; Ziehen ist nur ein
-  Beschleuniger. Der Bereich folgt dem im Fokus-Rad gewählten privaten oder
-  gemeinsamen Space-Kontext. Desktop zeigt stattdessen eine rechte,
-  gleichwertig bedienbare Seitenleiste.
+  ersetzt den Tagesablauf im zentralen Inhaltsbereich; Kopfzeile, Tageswerte
+  und Footer bleiben sichtbar. Der Bereich folgt dem im Fokus-Rad gewählten
+  privaten oder gemeinsamen Space-Kontext und verwendet auf allen Bildschirmgrößen
+  denselben Inhaltsbereich.
 * Im geöffneten Bereich wird die Tages-To-do-Eingabe eindeutig durch die
   Artikelsuche ersetzt. Beide Eingabewerte bleiben getrennt erhalten.
 * Suche schlägt eigene offene und erledigte Artikel sowie den lokalen Katalog
   vor, akzeptiert aber immer freien Text. Checkbox, Detailbearbeitung,
   Schließen und Mahlzeitenübernahme sind sichtbare, native Controls.
-* Öffnen fokussiert die Artikelsuche, Schließen stellt den Fokus zum Auslöser
-  zurück. Escape und ein sichtbarer Schließen-Button schließen den Bereich.
+* Das Öffnen fokussiert die Artikelsuche nicht und öffnet keine Bildschirmtastatur.
+  Escape und ein sichtbarer Schließen-Button schließen den Bereich.
 
 ## Akzeptanz und Verifikation
 

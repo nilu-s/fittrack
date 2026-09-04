@@ -498,6 +498,7 @@ class NoteCreate(_Base):
     model_config = ConfigDict(extra="forbid")
     title: str = Field(min_length=1, max_length=300)
     body: Optional[str] = Field(default=None, max_length=20_000)
+    space_id: Optional[uuid.UUID] = None
 
 
 class NoteUpdate(_Base):

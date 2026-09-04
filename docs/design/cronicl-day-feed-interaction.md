@@ -13,14 +13,17 @@ vereinheitlichen.
 2. **Biometrie:** Gewicht, Schritte und Schlaf als Beobachtungsbereich;
    niemals durch einen Erledigt-Status verfälschen.
 3. **Tagesliste:** offene und erledigte To-dos, Mahlzeiten und Training in
-   einer nachvollziehbaren Reihenfolge.
+   einer nachvollziehbaren Reihenfolge. Notizen und Einkauf können genau
+   diesen Inhaltsbereich ersetzen, ohne Kopfzeile, Tageswerte oder Footer zu
+   verändern.
 4. **Schnellerfassung:** sichtbarer Einstieg zum Ergänzen einer Aufgabe oder
    eines passenden Tagesinhalts.
 5. **Bereichsfokus:** Oberhalb des Inhalts zeigt eine schmale Rollenanzeige
    den aktiven Bereich mittig sowie den vorherigen und nächsten Bereich
-   zurückhaltend daneben. Der gesamte Inhaltsbereich oberhalb der festen
-   Footer-Navigation wechselt den Bereich per horizontalem Wisch; die
-   sichtbaren Bereichsnamen sind zusätzlich antippbar.
+   zurückhaltend daneben. Nur der austauschbare Inhaltsbereich unterhalb der
+   Tageswerte und oberhalb der festen Footer-Navigation wechselt den Bereich
+   per horizontalem Wisch; die sichtbaren Bereichsnamen sind zusätzlich
+   antippbar.
 
 ## Eintragstypen
 
@@ -55,5 +58,9 @@ Tageslisten-Komponente zeigt im privaten Bereich nur private To-dos; in einem
 gemeinsamen Bereich nur dessen To-dos. Neue Footer-Notizen starten immer
 privat im Notiz-Board und werden erst durch eine bewusste Bereichszuordnung
 geteilt; der Footer-Einkauf verwendet weiterhin den aktiven Bereich.
-Biometrie, Mahlzeiten, Training und Integrationen bleiben privat und erscheinen
-nicht im gemeinsamen Bereich.
+Biometrie, Mahlzeiten, Training und Integrationen bleiben privat. Die
+Tageswerte Gewicht, Schritte, Schlaf und Energie bleiben beim Bereichswechsel
+sichtbar; nur private Mahlzeiten und Training erscheinen nicht in der
+gemeinsamen Tagesliste. Das private Notiz-Board bleibt beim Bereichswechsel
+unverändert sichtbar; nur die Einkaufsliste lädt ihren aktiven Space-Kontext
+nach.

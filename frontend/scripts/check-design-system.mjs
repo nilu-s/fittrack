@@ -44,5 +44,5 @@ expect(!sportSettings.includes('backdrop-filter'), 'sport settings retains a com
 expect(!sportSettings.includes('rgba('), 'sport settings retains local colour values');
 expect(manifest.includes('"theme_color": "#c9cbc0"'), 'manifest does not use the canonical muted-light background');
 expect(appHtml.includes('content="#c9cbc0"'), 'HTML shell does not use the canonical muted-light theme colour');
-expect(layout.includes('UiIconButton'), 'main shell does not use the canonical icon button');
+expect(layout.includes('AccountMenu'), 'main shell does not provide the canonical account menu');
 console.log('design contract: PASS');

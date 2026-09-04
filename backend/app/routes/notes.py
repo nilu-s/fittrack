@@ -63,7 +63,9 @@ async def list_notes(account_id: uuid.UUID = Depends(get_current_user)):
 @router.post("", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)
 async def create_note(body: NoteCreate, account_id: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
-        note = Note(account_id=account_id, title=body.title.strip(), body=body.body.strip() if body.body else None)
+        if body.space_id is not None:
+            await member_space(session, body.space_id, account_id)
+        note = Note(account_id=account_id, title=body.title.strip(), body=body.body.strip() if body.body else None, space_id=body.space_id)
         session.add(note)
         await session.commit(); await session.refresh(note)
         return await _response(session, note)

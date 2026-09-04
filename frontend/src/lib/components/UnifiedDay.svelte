@@ -16,7 +16,11 @@
   export let dayData: DayData;
   export let currentDate: string;
   export let workspaceMode = false;
+  export let showDayList = true;
   const dispatch = createEventDispatcher();
+  let contentSwipeStartX = 0;
+  let contentSwipeStartY = 0;
+  let trackingContentSwipe = false;
 
   let entry: DayEntry = dayData.dayEntry ?? { date: currentDate };
   let mealEntries: MealEntry[] = dayData.mealEntries ?? [];
@@ -26,6 +30,23 @@
   $: mealEntries = dayData.mealEntries ?? [];
   $: todos = dayData.todos ?? [];
   $: trainingSuggestion = dayData.trainingSuggestion ?? null;
+
+  function startContentSwipe(event: TouchEvent) {
+    const target = event.target as HTMLElement | null;
+    if (document.querySelector('dialog[open]') || target?.closest('input, textarea, select, [contenteditable="true"], [draggable="true"]')) return;
+    contentSwipeStartX = event.touches[0]?.clientX ?? 0;
+    contentSwipeStartY = event.touches[0]?.clientY ?? 0;
+    trackingContentSwipe = true;
+  }
+  function finishContentSwipe(event: TouchEvent) {
+    if (!trackingContentSwipe) return;
+    trackingContentSwipe = false;
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - contentSwipeStartX;
+    const dy = touch.clientY - contentSwipeStartY;
+    if (Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.15) dispatch('workspacechange', dx < 0 ? 1 : -1);
+  }
 
   $: goals = $dailyGoals;
 
@@ -43,10 +64,6 @@
   function buildUnifiedItems(entry: DayEntry | null, mealList: MealEntry[], todoList: Todo[], suggestion: TrainingSuggestion | null): UnifiedItem[] {
     const items: UnifiedItem[] = [];
     if (!entry) return items;
-    if (workspaceMode) {
-      for (const t of todoList) items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.start_time ?? t.due_time ?? '99:99'}`, todoData: t, travelLabel: travelSummary(t) });
-      return items.sort((a, b) => Number(a.done) - Number(b.done) || a.sortKey.localeCompare(b.sortKey));
-    }
     // Weight: biometric — automated from ESP32 scale, but manually editable too
     const hasBmi = entry.bmi != null;
     const weightEstimate = entry.weight_kg == null ? estimatedWeight : null;
@@ -55,16 +72,18 @@
     items.push({ id: 'metric-steps', type: 'metric', icon: 'steps', title: 'Schritte', done: false, sortKey: '00-01', metricField: 'steps', metricValue: entry.steps ?? null, hasProgress: true, progressCurrent: entry.steps ?? 0, progressTarget: goals.steps, stepsConfirmed: entry.steps_confirmed ?? false, biometric: true });
     // Sleep: biometric — automated from Google Fit, shows quality score and details instead
     items.push({ id: 'metric-sleep', type: 'metric', icon: 'sleep', title: 'Schlaf', done: false, sortKey: '00-02', metricField: 'sleep_hours', metricValue: entry.sleep_hours ?? null, metricUnit: 'h', hasProgress: true, progressCurrent: entry.sleep_hours ?? 0, progressTarget: goals.sleepHours, sleepQuality: entry.sleep_quality ?? 0, sleepDetails: (entry.sleep_deep_hours != null || entry.sleep_rem_hours != null) ? { deep: Number(entry.sleep_deep_hours) || 0, rem: Number(entry.sleep_rem_hours) || 0, light: Number(entry.sleep_light_hours) || 0, awake: Number(entry.sleep_awake_hours) || 0, efficiency: Number(entry.sleep_efficiency) || 0 } : undefined, biometric: true });
-    // Mahlzeiten gehören in denselben Tagesfluss wie Training und freie To-dos.
-    const sortedMeals = [...mealList].sort((a, b) => (a.category_sort_order ?? 99) - (b.category_sort_order ?? 99));
-    for (const m of sortedMeals) {
-      const slotLabel = m.category_name || 'Mahlzeit';
-      const dishName = m.name || '— Mahlzeit wählen —';
-      items.push({ id: `meal-${m.id}`, type: 'meal', icon: 'meal', title: `${slotLabel}: ${dishName}`, done: m.status !== 'planned', sortKey: `01-${String(m.category_sort_order ?? 99).padStart(2, '0')}`, kcal: Number(m.nutrition?.kcal) || null, protein: Number(m.nutrition?.protein_g) || null, fiber: Number(m.nutrition?.fiber_g) || null, sugar: Number(m.nutrition?.sugar_g) || null, mealTime: null, entryData: m });
-    }
-    const trainingType = suggestion?.training_type ?? entry.training_type;
-    if (trainingType && trainingType !== 'Ruhetag') {
-      items.push({ id: 'training', type: 'training', icon: 'training', title: trainingType, done: entry.training_done ?? false, sortKey: '02-00' });
+    if (!workspaceMode) {
+      // Mahlzeiten und Training bleiben privat, Tageswerte dagegen bereichsübergreifend sichtbar.
+      const sortedMeals = [...mealList].sort((a, b) => (a.category_sort_order ?? 99) - (b.category_sort_order ?? 99));
+      for (const m of sortedMeals) {
+        const slotLabel = m.category_name || 'Mahlzeit';
+        const dishName = m.name || '— Mahlzeit wählen —';
+        items.push({ id: `meal-${m.id}`, type: 'meal', icon: 'meal', title: `${slotLabel}: ${dishName}`, done: m.status !== 'planned', sortKey: `01-${String(m.category_sort_order ?? 99).padStart(2, '0')}`, kcal: Number(m.nutrition?.kcal) || null, protein: Number(m.nutrition?.protein_g) || null, fiber: Number(m.nutrition?.fiber_g) || null, sugar: Number(m.nutrition?.sugar_g) || null, mealTime: null, entryData: m });
+      }
+      const trainingType = suggestion?.training_type ?? entry.training_type;
+      if (trainingType && trainingType !== 'Ruhetag') {
+        items.push({ id: 'training', type: 'training', icon: 'training', title: trainingType, done: entry.training_done ?? false, sortKey: '02-00' });
+      }
     }
     for (const t of todoList) { items.push({ id: `todo-${t.id}`, type: 'todo', icon: 'todo', title: t.title, done: t.status === 'done', sortKey: `03-${t.start_time ?? t.due_time ?? '99:99'}`, todoData: t, travelLabel: travelSummary(t) }); }
     // Alles, was abgehakt ist, wird im Tagesfluss ans Ende verschoben.
@@ -709,7 +728,7 @@
 
 </script>
 
-{#if !workspaceMode}<div class="daily-overview" aria-label="Tagesübersicht">
+<div class="daily-overview" aria-label="Tagesübersicht">
 <!-- Biometrics: Schritte + Schlaf nebeneinander -->
 {#if biometricItems.length > 0}
   <div class="biometrics-row">
@@ -784,8 +803,10 @@
   </section>
 </div>
 
-</div>{/if}
+</div>
 
+<section class="switchable-content" role="group" aria-label="Wechselbarer Tagesinhalt" ontouchstart={startContentSwipe} ontouchend={finishContentSwipe} ontouchcancel={() => trackingContentSwipe = false}>
+{#if showDayList}
 {#if recommendedTodo}
   <section class="todo-highlight" aria-labelledby="todo-highlight-title">
     <div class="todo-highlight-copy">
@@ -855,6 +876,10 @@
   {/each}{/if}
 
 </div>
+{:else}
+  <slot name="content" />
+{/if}
+</section>
 
 <MealEntryEditorSheet meal={mealEntryEditorItem ? getMealFromItem(mealEntryEditorItem) ?? null : null} open={Boolean(mealEntryEditorItem)} autoOpenCamera={mealEntryEditorCamera} on:close={closeMealEntryEditor} on:saved={(event) => { applyMealEntryUpdate(event.detail.entry); closeMealEntryEditor(); }} />
 
@@ -1012,6 +1037,7 @@
 {/if}
 
 <style>
+  .switchable-content { min-height: max(120px, calc(100dvh - 296px)); touch-action: pan-y; }
   .daily-overview { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
   .daily-overview > .biometrics-row,.daily-overview > .feature-card-row { display:contents; }
   .daily-overview .bio-section,.daily-overview .weight-section,.daily-overview .nutrition-section { min-width:0; }

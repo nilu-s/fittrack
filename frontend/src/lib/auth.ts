@@ -3,6 +3,7 @@ import { clearAccountData } from './db';
 
 export const isAuthenticated = writable<boolean>(false);
 export const authEmail = writable<string | null>(null);
+export const authDisplayName = writable<string | null>(null);
 export const aliasRequired = writable<boolean>(false);
 
 const API_BASE =
@@ -20,6 +21,7 @@ export async function checkAuth(): Promise<void> {
       window.localStorage.removeItem('app_account_id');
       isAuthenticated.set(false);
       authEmail.set(null);
+      authDisplayName.set(null);
       aliasRequired.set(false);
       return;
     }
@@ -32,10 +34,12 @@ export async function checkAuth(): Promise<void> {
       window.localStorage.setItem('app_account_id', data.id);
       isAuthenticated.set(true);
       authEmail.set(data.email);
+      authDisplayName.set(data.display_name ?? null);
       aliasRequired.set(Boolean(data.alias_required));
     } else {
       isAuthenticated.set(false);
       authEmail.set(null);
+      authDisplayName.set(null);
       aliasRequired.set(false);
     }
   } catch {
@@ -44,6 +48,7 @@ export async function checkAuth(): Promise<void> {
     window.localStorage.removeItem('app_account_id');
     isAuthenticated.set(false);
     authEmail.set(null);
+    authDisplayName.set(null);
     aliasRequired.set(false);
   }
 }
@@ -59,6 +64,7 @@ export async function logout(): Promise<void> {
   }
   isAuthenticated.set(false);
   authEmail.set(null);
+  authDisplayName.set(null);
   aliasRequired.set(false);
   await clearAccountData();
   window.localStorage.removeItem('app_account_id');
