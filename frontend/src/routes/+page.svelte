@@ -13,6 +13,7 @@
   import ShoppingMealImport from '$lib/components/ShoppingMealImport.svelte';
   import NoteBoard from '$lib/components/NoteBoard.svelte';
   import WorkspaceFocusWheel from '$lib/components/WorkspaceFocusWheel.svelte';
+  import DayMetricStrip from '$lib/components/DayMetricStrip.svelte';
   import { pageTitle } from '$lib/brand';
 
   $: data = $dayData;
@@ -192,7 +193,9 @@
 <div class="page">
   <main class="content-area">
     {#if data && renderedDate === $currentDate}
-      <WorkspaceFocusWheel {spaces} {activeSpaceId} on:change={changeSpace} on:manage={manageSpace} />
+      <header class="workspace-header">
+        <WorkspaceFocusWheel {spaces} {activeSpaceId} on:change={changeSpace} on:manage={manageSpace} />
+      </header>
       {#key renderedDate}
         <div class="day-slide" in:fly={incomingDayTransition()} out:fly={outgoingDayTransition()}>
           <UnifiedDay dayData={{ ...data, todos: (data.todos ?? []).filter((todo) => activeSpaceId ? todo.space_id === activeSpaceId : !todo.space_id) }} currentDate={renderedDate} workspaceMode={Boolean(activeSpaceId)} showDayList={!shoppingOpen && !noteBoardOpen}
@@ -217,7 +220,11 @@
       <div class="loading" role="status" aria-live="polite"><div class="spinner"></div><span class="sr-only">Tagesdaten werden geladen</span></div>
     {/if}
   </main>
-  <DateNav bind:todoTitle bind:noteTitle bind:shoppingTitle {todoAdding} {noteAdding} {shoppingAdding} {todoAddError} {noteAddError} {shoppingAddError} {shoppingOpen} {noteBoardOpen} noteTargetName={spaces.find((space) => space.id === noteAreaId)?.name ?? ''} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} noteCount={generalTodos.filter((note) => !note.space_id && note.status === 'active').length} on:todoadd={addFooterTodo} on:noteadd={addNote} on:shoppingadd={addShopping} on:shoppingopen={openShoppingFromFooter} on:noteboardopen={openNoteBoard} on:aiplan={() => assistantOpen = true} />
+  <DateNav bind:todoTitle bind:noteTitle bind:shoppingTitle {todoAdding} {noteAdding} {shoppingAdding} {todoAddError} {noteAddError} {shoppingAddError} {shoppingOpen} {noteBoardOpen} noteTargetName={spaces.find((space) => space.id === noteAreaId)?.name ?? ''} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} noteCount={generalTodos.filter((note) => !note.space_id && note.status === 'active').length} on:todoadd={addFooterTodo} on:noteadd={addNote} on:shoppingadd={addShopping} on:shoppingopen={openShoppingFromFooter} on:noteboardopen={openNoteBoard} on:aiplan={() => assistantOpen = true}>
+    {#if data && renderedDate === $currentDate}
+      <DayMetricStrip entry={data.dayEntry} mealEntries={data.mealEntries} />
+    {/if}
+  </DateNav>
   <ShoppingItemEditor bind:item={editingShopping} on:close={() => editingShopping = null} on:save={saveShopping} />
   <ShoppingMealImport bind:open={mealImportOpen} startDate={$currentDate} on:close={() => mealImportOpen = false} on:imported={(event) => shopping = event.detail} />
   <TodoDetailsSheet bind:todo={todoDetails} {suggestedPlaceQuery} {suggestedTravelMode} {spaces} on:close={() => { todoDetails = null; suggestedPlaceQuery = ''; suggestedTravelMode = null; }} on:updated={onTodoDetailsUpdate} />
@@ -225,8 +232,9 @@
 </div>
 
 <style>
-  .page { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; padding-bottom: calc(136px + env(safe-area-inset-bottom, 0px)); }
+  .page { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; padding-bottom: calc(174px + env(safe-area-inset-bottom, 0px)); }
   .content-area { min-width: 0; }
+  .workspace-header { position: sticky; z-index: 40; top: 0; padding: 4px 0 6px; background: var(--surface-default); border-bottom: 1px solid var(--border-subtle); }
   .day-slide { will-change: transform, opacity; }
 
   .loading { display: flex; justify-content: center; align-items: center; padding: 40px 16px; }
