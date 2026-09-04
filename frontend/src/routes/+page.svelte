@@ -46,21 +46,24 @@
   let prefersReducedMotion = false;
   let spaces: import('$lib/types').Space[] = [];
   let activeSpaceId: string | null = null;
+  let showAllTodos = false;
 
   async function loadSpaces() {
     spaces = await api.getSpaces();
     if (activeSpaceId && !spaces.some((space) => space.id === activeSpaceId)) activeSpaceId = null;
   }
-  function changeSpace(event: CustomEvent<string | null>) {
-    activeSpaceId = event.detail; shopping = null;
-    if (typeof localStorage !== 'undefined') localStorage.setItem('active_space_id', activeSpaceId ?? '');
+  function changeSpace(event: CustomEvent<{ spaceId: string | null; showAllTodos: boolean }>) {
+    activeSpaceId = event.detail.spaceId;
+    showAllTodos = event.detail.showAllTodos;
+    shopping = null;
+    if (typeof localStorage !== 'undefined') localStorage.setItem('active_space_id', showAllTodos ? 'all' : activeSpaceId ?? '');
     if (shoppingOpen) void loadShopping();
   }
   function manageSpace(event: CustomEvent<string>) { void goto(`/settings/spaces?space=${encodeURIComponent(event.detail)}`); }
   function moveSpace(direction: number) {
-    const contexts = [{ id: null as string | null }, ...spaces.map((space) => ({ id: space.id }))];
-    const index = Math.max(0, contexts.findIndex((context) => context.id === activeSpaceId));
-    changeSpace(new CustomEvent('change', { detail: contexts[(index + direction + contexts.length) % contexts.length].id }));
+    const contexts = [{ spaceId: null as string | null, showAllTodos: true }, { spaceId: null as string | null, showAllTodos: false }, ...spaces.map((space) => ({ spaceId: space.id, showAllTodos: false }))];
+    const index = Math.max(0, contexts.findIndex((context) => context.showAllTodos === showAllTodos && (context.showAllTodos || context.spaceId === activeSpaceId)));
+    changeSpace(new CustomEvent('change', { detail: contexts[(index + direction + contexts.length) % contexts.length] }));
   }
 
   $: renderedDate = data?.dayEntry?.date ?? '';
@@ -185,7 +188,7 @@
   }
 
   // Preload the drawer's content before it is opened, matching the day-view cache.
-  onMount(() => { const saved = localStorage.getItem('active_space_id'); activeSpaceId = saved || null; void loadShopping(); void loadGeneralTodos(); void loadSpaces(); const refreshSpaces = () => void loadSpaces(); const onVisibilityChange = () => { if (document.visibilityState === 'visible') refreshSpaces(); }; window.addEventListener('focus', refreshSpaces); window.addEventListener('pageshow', refreshSpaces); document.addEventListener('visibilitychange', onVisibilityChange); const interval = window.setInterval(refreshSpaces, 5_000); return () => { window.removeEventListener('focus', refreshSpaces); window.removeEventListener('pageshow', refreshSpaces); document.removeEventListener('visibilitychange', onVisibilityChange); window.clearInterval(interval); }; });
+  onMount(() => { const saved = localStorage.getItem('active_space_id'); showAllTodos = saved === 'all'; activeSpaceId = showAllTodos ? null : saved || null; void loadShopping(); void loadGeneralTodos(); void loadSpaces(); const refreshSpaces = () => void loadSpaces(); const onVisibilityChange = () => { if (document.visibilityState === 'visible') refreshSpaces(); }; window.addEventListener('focus', refreshSpaces); window.addEventListener('pageshow', refreshSpaces); document.addEventListener('visibilitychange', onVisibilityChange); const interval = window.setInterval(refreshSpaces, 5_000); return () => { window.removeEventListener('focus', refreshSpaces); window.removeEventListener('pageshow', refreshSpaces); document.removeEventListener('visibilitychange', onVisibilityChange); window.clearInterval(interval); }; });
 
 </script>
 
@@ -194,11 +197,11 @@
   <main class="content-area">
     {#if data && renderedDate === $currentDate}
       <header class="workspace-header">
-        <WorkspaceFocusWheel {spaces} {activeSpaceId} on:change={changeSpace} on:manage={manageSpace} />
+        <WorkspaceFocusWheel {spaces} {activeSpaceId} {showAllTodos} on:change={changeSpace} on:manage={manageSpace} />
       </header>
       {#key renderedDate}
         <div class="day-slide" in:fly={incomingDayTransition()} out:fly={outgoingDayTransition()}>
-          <UnifiedDay dayData={{ ...data, todos: (data.todos ?? []).filter((todo) => activeSpaceId ? todo.space_id === activeSpaceId : !todo.space_id) }} currentDate={renderedDate} workspaceMode={Boolean(activeSpaceId)} showDayList={!shoppingOpen && !noteBoardOpen}
+          <UnifiedDay dayData={{ ...data, todos: showAllTodos ? data.todos ?? [] : (data.todos ?? []).filter((todo) => activeSpaceId ? todo.space_id === activeSpaceId : !todo.space_id) }} currentDate={renderedDate} workspaceMode={showAllTodos || Boolean(activeSpaceId)} showDayList={!shoppingOpen && !noteBoardOpen}
             on:update={onUnifiedUpdate}
             on:mealentrychange={onMealEntryChange}
             on:trainingtoggle={(e) => onUnifiedUpdate(new CustomEvent('update', { detail: { field: 'training_done', value: e.detail } }))}
@@ -234,7 +237,7 @@
 <style>
   .page { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; padding-bottom: calc(174px + env(safe-area-inset-bottom, 0px)); }
   .content-area { min-width: 0; }
-  .workspace-header { position: sticky; z-index: 40; top: 0; padding: 4px 0 6px; background: var(--surface-default); border-bottom: 1px solid var(--border-subtle); }
+  .workspace-header { padding: 4px 52px 6px 0; background: transparent; }
   .day-slide { will-change: transform, opacity; }
 
   .loading { display: flex; justify-content: center; align-items: center; padding: 40px 16px; }

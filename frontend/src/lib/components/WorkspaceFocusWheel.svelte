@@ -4,19 +4,25 @@
 
   export let spaces: Space[] = [];
   export let activeSpaceId: string | null = null;
-  const dispatch = createEventDispatcher<{ change: string | null; manage: string }>();
+  export let showAllTodos = false;
+  const dispatch = createEventDispatcher<{ change: { spaceId: string | null; showAllTodos: boolean }; manage: string }>();
   let longPress: ReturnType<typeof setTimeout> | undefined;
   let suppressClick = false;
 
-  $: contexts = [{ id: null as string | null, name: 'Privat' }, ...spaces.map((space) => ({ id: space.id, name: space.name }))];
-  $: activeIndex = Math.max(0, contexts.findIndex((context) => context.id === activeSpaceId));
+  $: contexts = [
+    { id: 'all' as const, name: 'Alle Aufgaben', showAllTodos: true },
+    { id: null as string | null, name: 'Privat', showAllTodos: false },
+    ...spaces.map((space) => ({ id: space.id, name: space.name, showAllTodos: false })),
+  ];
+  $: activeIndex = Math.max(0, contexts.findIndex((context) => showAllTodos ? context.showAllTodos : !context.showAllTodos && context.id === activeSpaceId));
   $: previous = contexts[(activeIndex - 1 + contexts.length) % contexts.length];
   $: current = contexts[activeIndex];
   $: next = contexts[(activeIndex + 1) % contexts.length];
 
   function move(direction: number) {
     if (contexts.length < 2) return;
-    dispatch('change', contexts[(activeIndex + direction + contexts.length) % contexts.length].id);
+    const context = contexts[(activeIndex + direction + contexts.length) % contexts.length];
+    dispatch('change', { spaceId: context.showAllTodos ? null : context.id, showAllTodos: context.showAllTodos });
   }
   function startManage() {
     if (!activeSpaceId) return;
@@ -32,7 +38,7 @@
     <button type="button" class="neighbor previous" onclick={() => move(-1)} disabled={contexts.length < 2} aria-label={`Vorheriger Bereich: ${previous.name}`}>
       <span>{previous.name}</span>
     </button>
-    {#if activeSpaceId}<button type="button" class="current" aria-label={`Einstellungen für ${current.name} öffnen`} onpointerdown={startManage} onpointerup={cancelManage} onpointerleave={cancelManage} onpointercancel={cancelManage} onclick={manage}><span>{current.name}</span></button>
+    {#if activeSpaceId && !showAllTodos}<button type="button" class="current" aria-label={`Einstellungen für ${current.name} öffnen`} onpointerdown={startManage} onpointerup={cancelManage} onpointerleave={cancelManage} onpointercancel={cancelManage} onclick={manage}><span>{current.name}</span></button>
     {:else}<div class="current" aria-live="polite"><span>{current.name}</span></div>{/if}
     <button type="button" class="neighbor next" onclick={() => move(1)} disabled={contexts.length < 2} aria-label={`Nächster Bereich: ${next.name}`}>
       <span>{next.name}</span>

@@ -48,8 +48,12 @@ Kontoberechtigungen außerhalb seiner eigenen Ressourcen.
    ist.
 4. „Privat“ und jeder Bereich sind getrennte Listen-Kontexte. Der private
    Tagesablauf zeigt nur private To-dos; ein Space zeigt nur dessen To-dos.
-   Beide Kontexte verwenden dieselbe Tageslisten-Komponente und denselben
-   Detailfluss, nicht separate Oberflächen.
+   Zusätzlich bietet derselbe Picker „Alle Aufgaben“ als reine Sammelansicht
+   für die To-dos, die das angemeldete Konto bereits lesen darf: seine privaten
+   To-dos und die To-dos seiner Spaces. Die Auswahl erweitert keine
+   Berechtigungen und zeigt weder private To-dos anderer Konten noch weitere
+   private Tagesdaten. Alle Kontexte verwenden dieselbe Tageslisten-Komponente
+   und denselben Detailfluss, nicht separate Oberflächen.
 5. Oberhalb des Inhalts zeigt eine schmale Rollenanzeige den aktiven Bereich
    mittig und den vorherigen sowie nächsten Bereich zurückhaltend daneben.
    Ein horizontaler Wisch im gesamten Inhaltsbereich oberhalb der festen
@@ -91,7 +95,8 @@ Berechtigung.
 | Kontakte erzeugen sofort Mitgliedschaft; Entfernen entzieht Zugriff | `backend/tests/test_shared_spaces_contract.py` |
 | Bereichsmitgliedschaften begrenzen gemeinsame Notizen und daraus geplante To-dos | `backend/tests/test_notes_contract.py`, account-isolation integration suite |
 | Gesundheits-, Integrations- und private Listen bleiben privat | Account-Isolation-Suite und Shopping-Contract |
-| Sichtbare und zugängliche Auswahlfelder | `npm run check`, `npm run lint:design`, `npm run build` |
+| Sichtbare und zugängliche Auswahlfelder, einschließlich „Alle Aufgaben“ | `npm run check`, `npm run lint:design`, `npm run build` |
+| „Alle Aufgaben“ bündelt nur bereits zugängliche To-dos | `backend/tests/test_shared_spaces_contract.py`, account-isolation integration suite, `npm run check` |
 | Long-Press ist nur Beschleuniger; der Dialog ist per Tastatur erreichbar | `npm run check`, `npm run lint:design`, manuelle Tastatur-/Touch-Prüfung |
 
 ## Revisionswirkung

@@ -55,12 +55,15 @@ Typografie und Backend-Datenverträge werden hier nicht festgelegt.
 
 Der Bereich ist ein Datenfilter, keine zweite Tagesdarstellung: Die identische
 Tageslisten-Komponente zeigt im privaten Bereich nur private To-dos; in einem
-gemeinsamen Bereich nur dessen To-dos. Neue Footer-Notizen starten immer
-privat im Notiz-Board und werden erst durch eine bewusste Bereichszuordnung
-geteilt; der Footer-Einkauf verwendet weiterhin den aktiven Bereich.
-Biometrie, Mahlzeiten, Training und Integrationen bleiben privat. Die
-Tageswerte Gewicht, Schritte, Schlaf und Energie bleiben beim Bereichswechsel
-sichtbar; nur private Mahlzeiten und Training erscheinen nicht in der
-gemeinsamen Tagesliste. Das private Notiz-Board bleibt beim Bereichswechsel
-unverändert sichtbar; nur die Einkaufsliste lädt ihren aktiven Space-Kontext
-nach.
+gemeinsamen Bereich nur dessen To-dos. Der Picker bietet zusätzlich „Alle
+Aufgaben“ als Sammelansicht aller To-dos, die das angemeldete Konto bereits
+lesen darf. Diese Auswahl zeigt ausschließlich To-dos; sie erweitert keine
+Berechtigung und verändert nicht den privaten Einkaufs- oder Notiz-Kontext.
+Neue Footer-Notizen starten immer privat im Notiz-Board und werden erst durch
+eine bewusste Bereichszuordnung geteilt; der Footer-Einkauf verwendet weiterhin
+den aktiven Bereich. Biometrie, Mahlzeiten, Training und Integrationen bleiben
+privat. Die Tageswerte Gewicht, Schritte, Schlaf und Energie bleiben beim
+Bereichswechsel sichtbar; nur private Mahlzeiten und Training erscheinen nicht
+in der gemeinsamen oder gesammelten Aufgabenliste. Das private Notiz-Board
+bleibt beim Bereichswechsel unverändert sichtbar; nur die Einkaufsliste lädt
+ihren aktiven Space-Kontext nach.
