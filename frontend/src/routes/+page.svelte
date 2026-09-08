@@ -4,6 +4,7 @@
   import { fly } from 'svelte/transition';
   import DateNav from '$lib/components/DateNav.svelte';
   import UnifiedDay from '$lib/components/UnifiedDay.svelte';
+  import { pendingTravelTodo } from '$lib/travel';
   import { dayData, currentDate } from '$lib/stores';
   import { api } from '$lib/api';
   import TodoDetailsSheet from '$lib/components/TodoDetailsSheet.svelte';
@@ -47,6 +48,7 @@
   let spaces: import('$lib/types').Space[] = [];
   let activeSpaceId: string | null = null;
   let showAllTodos = true;
+  $: if ($pendingTravelTodo) { activeSpaceId = null; showAllTodos = true; }
   let workspaceMotionDirection = 0;
   let workspaceMotionToken = 0;
   let unifiedDay: { openFooterMetricDetails: (metric: 'steps' | 'sleep' | 'weight' | 'calories', trigger: HTMLElement) => void } | null = null;
@@ -247,9 +249,9 @@
 </div>
 
 <style>
-  .page { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px)); }
+  .page { display: flex; flex-direction: column; gap: 10px; padding-top: calc(8px + env(safe-area-inset-top, 0px)); padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px)); }
   .content-area { min-width: 0; }
-  .workspace-header { position:sticky; top:0; z-index:30; margin:0 -12px; padding:2px 64px 2px 12px; border-bottom:1px solid var(--border-subtle); background:transparent; }
+  .workspace-header { position:sticky; top:env(safe-area-inset-top, 0px); z-index:30; margin:0 -12px; padding:2px 64px 2px 12px; border-bottom:1px solid var(--border-subtle); background:transparent; }
   .content-area :global(button),.content-area :global(a),.content-area :global(input),.content-area :global(select),.content-area :global(textarea) { scroll-margin-top:50px; }
   .day-slide { will-change: transform, opacity; }
 

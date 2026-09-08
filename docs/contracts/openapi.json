@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Chronickel API",
+    "title": "Cronicl API",
     "version": "1.0.0"
   },
   "paths": {
@@ -5371,6 +5371,380 @@
           }
         }
       }
+    },
+    "/api/native/login": {
+      "post": {
+        "tags": [
+          "native"
+        ],
+        "summary": "Begin Login",
+        "operationId": "begin_login_api_native_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginStarted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/native/exchange": {
+      "post": {
+        "tags": [
+          "native"
+        ],
+        "summary": "Exchange",
+        "operationId": "exchange_api_native_exchange_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginExchange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginCredential"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/native/push": {
+      "put": {
+        "tags": [
+          "native"
+        ],
+        "summary": "Register Push",
+        "operationId": "register_push_api_native_push_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushRegistration"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/native/logout": {
+      "post": {
+        "tags": [
+          "native"
+        ],
+        "summary": "Logout",
+        "operationId": "logout_api_native_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/api/travel": {
+      "get": {
+        "tags": [
+          "travel"
+        ],
+        "summary": "List Watches",
+        "operationId": "list_watches_api_travel_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TravelState"
+                  },
+                  "type": "array",
+                  "title": "Response List Watches Api Travel Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/travel/{todo_id}": {
+      "put": {
+        "tags": [
+          "travel"
+        ],
+        "summary": "Setup",
+        "operationId": "setup_api_travel__todo_id__put",
+        "parameters": [
+          {
+            "name": "todo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Todo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TravelSetup"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravelState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "travel"
+        ],
+        "summary": "Stop",
+        "operationId": "stop_api_travel__todo_id__delete",
+        "parameters": [
+          {
+            "name": "todo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Todo Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/travel/{todo_id}/start": {
+      "post": {
+        "tags": [
+          "travel"
+        ],
+        "summary": "Start",
+        "operationId": "start_api_travel__todo_id__start_post",
+        "parameters": [
+          {
+            "name": "todo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Todo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravelState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/travel/{todo_id}/location": {
+      "post": {
+        "tags": [
+          "travel"
+        ],
+        "summary": "Location",
+        "operationId": "location_api_travel__todo_id__location_post",
+        "parameters": [
+          {
+            "name": "todo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Todo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationFix"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/travel/{todo_id}/pause": {
+      "post": {
+        "tags": [
+          "travel"
+        ],
+        "summary": "Pause",
+        "operationId": "pause_api_travel__todo_id__pause_post",
+        "parameters": [
+          {
+            "name": "todo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Todo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravelState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -8111,6 +8485,133 @@
         ],
         "title": "HistoricalNutrientEnrichmentResponse"
       },
+      "LocationFix": {
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          },
+          "accuracy": {
+            "type": "number",
+            "maximum": 200.0,
+            "minimum": 0.0,
+            "title": "Accuracy"
+          },
+          "measured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Measured At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "latitude",
+          "longitude",
+          "accuracy",
+          "measured_at"
+        ],
+        "title": "LocationFix"
+      },
+      "LoginCredential": {
+        "properties": {
+          "credential": {
+            "type": "string",
+            "title": "Credential"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "device_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Device Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "credential",
+          "expires_at",
+          "device_id"
+        ],
+        "title": "LoginCredential"
+      },
+      "LoginExchange": {
+        "properties": {
+          "login_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Login Id"
+          },
+          "verifier": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 43,
+            "pattern": "^[A-Za-z0-9._~-]+$",
+            "title": "Verifier"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "login_id",
+          "verifier"
+        ],
+        "title": "LoginExchange"
+      },
+      "LoginStart": {
+        "properties": {
+          "challenge": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "title": "Challenge"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "ios",
+              "android"
+            ],
+            "title": "Platform"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "challenge",
+          "platform"
+        ],
+        "title": "LoginStart"
+      },
+      "LoginStarted": {
+        "properties": {
+          "login_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Login Id"
+          },
+          "login_url": {
+            "type": "string",
+            "title": "Login Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "login_id",
+          "login_url"
+        ],
+        "title": "LoginStarted"
+      },
       "MealCategoryCreate": {
         "properties": {
           "name": {
@@ -9551,6 +10052,25 @@
           "name"
         ],
         "title": "PlaceSuggestion"
+      },
+      "PushRegistration": {
+        "properties": {
+          "token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PushRegistration"
       },
       "RecipeCreate": {
         "properties": {
@@ -12708,6 +13228,241 @@
           "traffic_aware"
         ],
         "title": "TravelEstimateResponse"
+      },
+      "TravelSetup": {
+        "properties": {
+          "origin_place_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Place Id"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": -90.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": -180.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Timezone",
+            "default": "Europe/Berlin"
+          },
+          "lead_minutes": {
+            "type": "integer",
+            "maximum": 180.0,
+            "minimum": 15.0,
+            "title": "Lead Minutes",
+            "default": 60
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TravelSetup"
+      },
+      "TravelState": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "todo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Todo Id"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "lead_minutes": {
+            "type": "integer",
+            "title": "Lead Minutes"
+          },
+          "live_active": {
+            "type": "boolean",
+            "title": "Live Active"
+          },
+          "origin_status": {
+            "type": "string",
+            "enum": [
+              "live",
+              "stale",
+              "fixed",
+              "none"
+            ],
+            "title": "Origin Status"
+          },
+          "location_checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Checked At"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "depart_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depart At"
+          },
+          "arrival_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrival At"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "push_available": {
+            "type": "boolean",
+            "title": "Push Available"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "departure_change_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Departure Change Minutes"
+          },
+          "departure_changed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Departure Changed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "todo_id",
+          "active",
+          "timezone",
+          "lead_minutes",
+          "live_active",
+          "origin_status",
+          "location_checked_at",
+          "checked_at",
+          "depart_at",
+          "arrival_at",
+          "duration_seconds",
+          "expires_at",
+          "error",
+          "push_available",
+          "starts_at",
+          "departure_change_minutes",
+          "departure_changed_at"
+        ],
+        "title": "TravelState"
       },
       "TrendPoint": {
         "properties": {

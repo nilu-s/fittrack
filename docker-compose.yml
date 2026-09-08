@@ -17,7 +17,7 @@ services:
 
   api:
     build: ./backend
-    environment:
+    environment: &api-environment
       ENVIRONMENT: production
       TZ: Europe/Berlin
       APP_NAME: ${APP_NAME:-Cronicl}
@@ -30,6 +30,15 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       ALLOWED_GOOGLE_EMAILS: ${ALLOWED_GOOGLE_EMAILS}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      TRAVEL_PUSH_ENABLED: ${TRAVEL_PUSH_ENABLED:-false}
+      TRAVEL_MAX_CHECKS_PER_TICK: ${TRAVEL_MAX_CHECKS_PER_TICK:-10}
+      APNS_KEY_FILE: ${APNS_KEY_FILE:-}
+      APNS_KEY_ID: ${APNS_KEY_ID:-}
+      APNS_TEAM_ID: ${APNS_TEAM_ID:-}
+      APNS_TOPIC: ${APNS_TOPIC:-app.cronicl.mobile}
+      APNS_SANDBOX: ${APNS_SANDBOX:-true}
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      FCM_CREDENTIALS_FILE: ${FCM_CREDENTIALS_FILE:-}
     volumes:
       - ./photos:/app/photos
     ports:
@@ -41,6 +50,18 @@ services:
     networks:
       - app-net
       - agent_net
+    restart: unless-stopped
+
+  travel-worker:
+    build: ./backend
+    command: ["python", "-m", "app.travel_worker"]
+    environment: *api-environment
+    volumes:
+      - ./secrets/travel:/run/secrets/travel:ro
+    depends_on:
+      - db
+    networks:
+      - app-net
     restart: unless-stopped
 
   web:

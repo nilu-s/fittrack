@@ -1,5 +1,7 @@
 <script lang="ts">
   import '../app.css';
+  import { isNative, installNativeEvents } from '$lib/native';
+  import { pendingTravelTodo } from '$lib/travel';
   import { onMount, afterUpdate } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
@@ -133,13 +135,18 @@
   }
 
   onMount(() => {
+    let disposed = false;
+    let stopNative: (() => void) | undefined;
+    void installNativeEvents(async () => { await checkAuth(); authChecked = true; await goto($aliasRequired ? '/onboarding/alias' : '/'); }, (id, date) => {
+      pendingTravelTodo.set({ id, date }); currentDate.set(date); void goto('/');
+    }).then((stop) => { if (disposed) stop(); else stopNative = stop; });
     const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
     Promise.race([checkAuth(), timeout]).then(() => {
       authChecked = true;
       const checkAuthGate = () => { const p = $page?.url?.pathname ?? ''; if (!$isAuthenticated && p !== '/login') return void goto('/login'); if ($isAuthenticated && $aliasRequired && p !== '/onboarding/alias') return void goto('/onboarding/alias'); if ($isAuthenticated && !$aliasRequired && p === '/onboarding/alias') return void goto('/'); };
       checkAuthGate();
     });
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch((e) => console.warn('SW registration failed:', e));
+    if (!isNative() && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch((e) => console.warn('SW registration failed:', e));
     initSync();
     const onOnline = () => onlineStatus.set(true);
     const onOffline = () => onlineStatus.set(false);
@@ -150,7 +157,7 @@
     mainEl.addEventListener('touchstart', onStart, { passive: true });
     mainEl.addEventListener('touchmove', onMove, { passive: false });
     mainEl.addEventListener('touchend', onEnd, { passive: true });
-    return () => { window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); mainEl.removeEventListener('touchstart', onStart); mainEl.removeEventListener('touchmove', onMove); mainEl.removeEventListener('touchend', onEnd); };
+    return () => { disposed = true; stopNative?.(); window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); mainEl.removeEventListener('touchstart', onStart); mainEl.removeEventListener('touchmove', onMove); mainEl.removeEventListener('touchend', onEnd); };
   });
 
   afterUpdate(() => { if (!authChecked) return; const p = $page?.url?.pathname ?? ''; if (!$isAuthenticated && p !== '/login') return void goto('/login'); if ($isAuthenticated && $aliasRequired && p !== '/onboarding/alias') return void goto('/onboarding/alias'); if ($isAuthenticated && !$aliasRequired && p === '/onboarding/alias') return void goto('/'); });

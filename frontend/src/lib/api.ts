@@ -1,3 +1,4 @@
+import { apiFetch, isNative } from "./native";
 import type {
   DayEntry,
   Todo,
@@ -36,6 +37,7 @@ import type {
 import { db, queueSync, type DayEntryRecord, type TodoRecord } from "./db";
 
 function getBaseUrl(): string {
+  if (isNative()) return "/api";
   if (typeof window !== "undefined") {
     const host = window.location?.hostname ?? "";
     if (host === "localhost" || host === "127.0.0.1") {
@@ -174,7 +176,7 @@ class ApiClient {
   ): Promise<T | null> {
     try {
       const url = `${this.baseUrl}${path}`;
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         ...options,
         credentials: "include",
         headers: {
@@ -205,7 +207,7 @@ class ApiClient {
     options?: RequestInit,
   ): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}${path}`, {
+      const response = await apiFetch(`${this.baseUrl}${path}`, {
         ...options,
         credentials: "include",
         headers: { "Content-Type": "application/json", ...options?.headers },
@@ -577,7 +579,7 @@ class ApiClient {
   }
 
   async deleteExercise(id: string): Promise<boolean> {
-    const response = await fetch(`${this.baseUrl}/exercises/${id}`, {
+    const response = await apiFetch(`${this.baseUrl}/exercises/${id}`, {
       method: "DELETE",
       credentials: "include",
     });
@@ -620,7 +622,7 @@ class ApiClient {
   }
 
   async deleteTrainingUnit(id: string): Promise<boolean> {
-    const response = await fetch(`${this.baseUrl}/training-units/${id}`, {
+    const response = await apiFetch(`${this.baseUrl}/training-units/${id}`, {
       method: "DELETE",
       credentials: "include",
     });
@@ -653,7 +655,7 @@ class ApiClient {
   }
 
   async deleteRotation(slot: number): Promise<boolean> {
-    const response = await fetch(`${this.baseUrl}/templates/rotation/${slot}`, {
+    const response = await apiFetch(`${this.baseUrl}/templates/rotation/${slot}`, {
       method: "DELETE",
       credentials: "include",
     });
@@ -940,7 +942,7 @@ class ApiClient {
     const form = new FormData();
     form.append("file", file);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${this.baseUrl}/meal-entries/${id}/photo-analyses`,
         { method: "POST", body: form, credentials: "include" },
       );

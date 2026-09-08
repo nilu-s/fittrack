@@ -1,7 +1,7 @@
 /* Cronicl Service Worker */
-const CACHE_NAME = 'cronicl-v13';
-const STATIC_CACHE = 'cronicl-static-v13';
-const API_CACHE = 'cronicl-api-v13';
+const CACHE_NAME = 'cronicl-v14';
+const STATIC_CACHE = 'cronicl-static-v14';
+const API_CACHE = 'cronicl-api-v14';
 
 const STATIC_ASSETS = [
   '/',
@@ -39,32 +39,10 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API calls: network-first
+  // Account-private API responses must not live in a shared URL-only cache.
+  // Explicit account-cleared IndexedDB remains the supported offline store.
   if (url.pathname.startsWith('/api')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful GET responses
-          if (request.method === 'GET' && response.ok) {
-            const clone = response.clone();
-            caches.open(API_CACHE).then((cache) => cache.put(request, clone)).catch(() => {});
-          }
-          return response;
-        })
-        .catch(() => {
-          // Fallback to cache
-          if (request.method === 'GET') {
-            return caches.match(request).then((cached) => cached || new Response('{"error":"offline"}', {
-              status: 503,
-              headers: { 'Content-Type': 'application/json' }
-            }));
-          }
-          return new Response('{"error":"offline"}', {
-            status: 503,
-            headers: { 'Content-Type': 'application/json' }
-          });
-        })
-    );
+    event.respondWith(fetch(request));
     return;
   }
 

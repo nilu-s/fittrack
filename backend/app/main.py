@@ -74,6 +74,8 @@ from app.models import Account
 import uuid
 
 _PUBLIC_API_PATHS = {
+    "/api/native/login",
+    "/api/native/exchange",
     "/api/health",
     "/api/auth/me",
     "/api/auth/google/login",
@@ -82,6 +84,7 @@ _PUBLIC_API_PATHS = {
 }
 _ALIAS_ONBOARDING_API_PATHS = {
     "/api/auth/me",
+    "/api/native/logout",
     "/api/auth/alias",
     "/api/auth/logout",
 }
@@ -91,10 +94,16 @@ _ALIAS_ONBOARDING_API_PATHS = {
 async def require_browser_account(request: Request, call_next):
     """Establish request-local account scope for every browser API request."""
     path = request.url.path
+    if path in {"/api/native/login", "/api/native/exchange"}:
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
+        return response
     if not path.startswith("/api/") or path in _PUBLIC_API_PATHS or path == "/api/scale-sync/v2":
         return await call_next(request)
     token = request.cookies.get(SESSION_COOKIE_NAME)
-    claims = _verify_session_jwt(token) if token else None
+    from app.services.native_auth import resolve_native
+    claims = await resolve_native(request) if request.headers.get("authorization") else (_verify_session_jwt(token) if token else None)
     if not claims:
         return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
     try:
@@ -135,3 +144,8 @@ app.include_router(space_invitations_router, prefix="/api")
 app.include_router(contacts_router, prefix="/api")
 app.include_router(contact_invitations_router, prefix="/api")
 app.include_router(notes_router, prefix="/api")
+
+from app.routes.native import router as native_router
+app.include_router(native_router, prefix="/api")
+from app.routes.travel import router as travel_router
+app.include_router(travel_router, prefix="/api")

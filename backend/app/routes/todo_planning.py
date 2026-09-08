@@ -136,28 +136,11 @@ async def estimate_travel(todo_id: str, body: TravelEstimateRequest, user=Depend
         todo = await session.scalar(select(Todo).where(Todo.id == todo_id, Todo.account_id == user, Todo.deleted.is_(False)))
         if todo is None:
             raise HTTPException(404, "Todo not found")
-        if not (todo.place_id and todo.due_date and todo.start_time and todo.travel_mode):
-            raise HTTPException(422, "Todo needs an exact place, date, start time and travel mode")
-        if not settings.GOOGLE_MAPS_API_KEY:
-            raise HTTPException(503, "Google Maps is not configured")
-        now = datetime.now(BERLIN_TZ)
-        arrival = datetime.combine(todo.due_date, todo.start_time, tzinfo=BERLIN_TZ) - timedelta(minutes=todo.travel_buffer_minutes)
-        travel_mode = {"drive": "DRIVE", "bicycle": "BICYCLE", "walk": "WALK", "transit": "TRANSIT"}[todo.travel_mode]
-        request = {"origin": {"location": {"latLng": {"latitude": body.origin_latitude, "longitude": body.origin_longitude}}}, "destination": {"placeId": todo.place_id}, "travelMode": travel_mode}
-        if todo.travel_mode == "drive":
-            request.update({"routingPreference": "TRAFFIC_AWARE", "departureTime": now.isoformat()})
-        headers = {"X-Goog-Api-Key": settings.GOOGLE_MAPS_API_KEY, "X-Goog-FieldMask": "routes.duration"}
-        try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                response = await client.post("https://routes.googleapis.com/directions/v2:computeRoutes", headers=headers, json=request)
-        except httpx.HTTPError as exc:
-            raise HTTPException(502, "Routenberechnung ist derzeit nicht erreichbar") from exc
-        if response.status_code != 200 or not response.json().get("routes"):
-            raise HTTPException(502, "Routenberechnung ist derzeit nicht verfügbar")
-        duration = int(str(response.json()["routes"][0]["duration"]).removesuffix("s"))
-        depart_at = arrival - timedelta(seconds=duration)
-        todo.travel_duration_seconds = duration
-        todo.travel_depart_at = depart_at
-        todo.travel_last_checked_at = now
+        from app.services.travel import estimate
+        origin = {"location": {"latLng": {"latitude": body.origin_latitude, "longitude": body.origin_longitude}}}
+        result = await estimate(todo, origin, datetime.now(BERLIN_TZ))
+        todo.travel_duration_seconds = result["duration_seconds"]
+        todo.travel_depart_at = result["depart_at"]
+        todo.travel_last_checked_at = result["checked_at"]
         await session.commit()
-        return TravelEstimateResponse(duration_seconds=duration, depart_at=depart_at, arrival_at=arrival, checked_at=now, traffic_aware=todo.travel_mode == "drive")
+        return TravelEstimateResponse(**result)

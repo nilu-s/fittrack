@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,9 +26,18 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     GOOGLE_REDIRECT_URI: str = ""
     GOOGLE_MAPS_API_KEY: str = ""
+    TRAVEL_PUSH_ENABLED: bool = False
+    TRAVEL_MAX_CHECKS_PER_TICK: int = 10
+    APNS_KEY_FILE: str = ""
+    APNS_KEY_ID: str = ""
+    APNS_TEAM_ID: str = ""
+    APNS_TOPIC: str = "app.cronicl.mobile"
+    APNS_SANDBOX: bool = True
+    FCM_PROJECT_ID: str = ""
+    FCM_CREDENTIALS_FILE: str = ""
 
 
-settings = Settings()
+settings = Settings(_env_file=None if os.environ.get("APP_IGNORE_DOTENV") == "1" else ".env")
 
 
 def validate_runtime_settings() -> None:

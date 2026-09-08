@@ -41,6 +41,8 @@ vereinheitlichen.
 
 ## Bedienungsregeln
 
+- Native Anreise nach `../specs/native-travel-companion.md` verwendet die bestehende To-do-Highlight-Fläche. Im Vorlauf zeigt sie Abfahrtszeit, Veränderung und Prüfzeit; bei fehlendem frischem Standort den tatsächlichen Startortstatus. Kein zweites Highlight. Das vorhandene Detail erhält Start/Pause/Beenden und einen Berechtigungs-Erklärtext. Ein Push öffnet nach Authentifizierung genau dieses To-do, stellt bei fehlendem Zugriff einen verständlichen Fehler dar und erweitert keine Space-Berechtigung.
+
 - Jede Hauptaktion ist sichtbar und per Tastatur, Touch und Screenreader
   erreichbar.
 - Gesten können beschleunigen, dürfen aber keine notwendige Funktion

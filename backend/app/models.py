@@ -245,6 +245,68 @@ class Todo(AccountOwned, Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class NativeLogin(Base):
+    __tablename__ = "native_logins"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    challenge: Mapped[str] = mapped_column(Text, nullable=False)
+    platform: Mapped[str] = mapped_column(Text, nullable=False)
+    account_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id", ondelete="CASCADE"))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class NativeSession(AccountOwned, Base):
+    __tablename__ = "native_sessions"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    credential_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    platform: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    push_token: Mapped[str | None] = mapped_column(Text)
+
+
+class TravelWatch(AccountOwned, Base):
+    __tablename__ = "travel_watches"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    todo_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("todos.id", ondelete="CASCADE"), nullable=False, unique=True)
+    device_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("native_sessions.id", ondelete="SET NULL"))
+    generation: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    plan_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    timezone: Mapped[str] = mapped_column(Text, nullable=False, default="Europe/Berlin")
+    lead_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
+    origin: Mapped[dict | None] = mapped_column(JSONB)
+    live_fix: Mapped[dict | None] = mapped_column(JSONB)
+    live_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    next_check_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    depart_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    arrival_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    duration_seconds: Mapped[int | None] = mapped_column(Integer)
+    error: Mapped[str | None] = mapped_column(Text)
+    notified_depart_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    departure_change_minutes: Mapped[int | None] = mapped_column(Integer)
+    departure_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class TravelNotification(AccountOwned, Base):
+    __tablename__ = "travel_notifications"
+    __table_args__ = (UniqueConstraint("watch_id", "generation", "event_key", name="uq_travel_notification_event"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    watch_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("travel_watches.id", ondelete="CASCADE"), nullable=False)
+    generation: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_key: Mapped[str] = mapped_column(Text, nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    discarded: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
 class TodoRoutine(AccountOwned, Base):
     """An account-private rule that creates one todo on matching calendar days."""
 

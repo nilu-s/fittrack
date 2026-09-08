@@ -1,6 +1,7 @@
 # Cronicl: Multi-account, shared scale and body-composition specification
 
 **Status:** approved
+**Native session extension (2026-09-08):** `native-travel-companion.md` adds proof-bound native login and revocable account sessions. All account isolation and device trust rules remain in force.
 **Owner:** Cronicl household
 **Last updated:** 2026-08-31
 

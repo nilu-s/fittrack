@@ -5,6 +5,12 @@
   import { APP_NAME, pageTitle } from '$lib/brand';
 
   let loading = true;
+  let loginError = '';
+  onMount(() => {
+    const failure = () => loginError = 'Anmeldung fehlgeschlagen. Bitte versuche es erneut.';
+    window.addEventListener('native-login-error', failure);
+    return () => window.removeEventListener('native-login-error', failure);
+  });
 
   onMount(async () => {
     const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
@@ -23,6 +29,7 @@
     <img class="brand-logo" src="/logo.svg" alt={APP_NAME} />
     <p class="eyebrow">Privat für deinen Alltag</p><h1>Willkommen zurück</h1>
     <p class="sub">Melde dich mit deinem freigegebenen Google-Konto an, um deine persönlichen Daten zu öffnen.</p>
+    {#if loginError}<p role="alert">{loginError}</p>{/if}
     {#if loading}
       <div class="spinner"></div>
     {:else}

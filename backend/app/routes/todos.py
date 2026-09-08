@@ -11,6 +11,7 @@ from sqlalchemy import and_, exists, or_, select
 
 from app.database import async_session
 from app.models import Account, SpaceMembership, Todo
+from app.services.travel import invalidate_watch
 from app.services.todo_routines import materialize_routines_for_date
 from app.routes.auth import get_current_user
 from app.schemas import TodoCreate, TodoResponse, TodoUpdate
@@ -106,6 +107,7 @@ async def create_todo(body: TodoCreate, user: str = Depends(get_current_user)):
         todo = Todo(account_id=user, **data)
         _validate_travel(todo)
         session.add(todo)
+        await invalidate_watch(session, todo)
         await session.commit()
         await session.refresh(todo)
         return await _to_response(session, todo)
@@ -128,6 +130,7 @@ async def update_todo(todo_id: uuid.UUID, body: TodoUpdate, user: str = Depends(
         await validate_project(session, todo.project_id, todo.space_id)
         await validate_assignee(session, todo.assignee_account_id, todo.space_id)
         _validate_travel(todo)
+        await invalidate_watch(session, todo)
         await session.commit()
         await session.refresh(todo)
         return await _to_response(session, todo)
@@ -140,6 +143,7 @@ async def delete_todo(todo_id: uuid.UUID, user: str = Depends(get_current_user))
         if todo.deleted:
             raise HTTPException(status_code=404, detail="Todo not found")
         todo.deleted = True
+        await invalidate_watch(session, todo)
         await session.commit()
 
 
@@ -154,6 +158,7 @@ async def mark_todo_done(todo_id: uuid.UUID, user: str = Depends(get_current_use
         else:
             todo.status = "done"
             todo.completed_at = datetime.now(BERLIN_TZ)
+        await invalidate_watch(session, todo)
         await session.commit()
         await session.refresh(todo)
         return await _to_response(session, todo)

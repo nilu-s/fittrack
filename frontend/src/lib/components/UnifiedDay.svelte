@@ -8,6 +8,10 @@
   import TrainingDetail from './TrainingDetail.svelte';
   import MealEntryEditorSheet from './MealEntryEditorSheet.svelte';
   import Icon from './Icon.svelte';
+  import TravelStatus from './TravelStatus.svelte';
+  import TravelCompanion from './TravelCompanion.svelte';
+  import { travelStates, travelLoadError, refreshTravel, pendingTravelTodo } from '$lib/travel';
+  import { isNative } from '$lib/native';
   import { api } from '$lib/api';
   import { dailyGoals } from '$lib/stores';
   import { buildTrendLine, trendSegmentPaths } from '$lib/trend-lines';
@@ -120,8 +124,8 @@
   }
 
 
-  function todoTime(todo: Todo): number {
-    const value = todo.travel_depart_at ?? (todo.due_date && (todo.start_time ?? todo.due_time)
+  function todoTime(todo: Todo, states = $travelStates): number {
+    const value = (states[todo.id ?? '']?.active ? states[todo.id ?? '']?.depart_at : null) ?? todo.travel_depart_at ?? (todo.due_date && (todo.start_time ?? todo.due_time)
       ? `${todo.due_date}T${todo.start_time ?? todo.due_time}`
       : null);
     const timestamp = value ? new Date(value).getTime() : Number.POSITIVE_INFINITY;
@@ -160,6 +164,8 @@
   let nutritionDetailsCloseButton: HTMLButtonElement | null = null;
   let detailItemTrigger: HTMLElement | null = null;
   let detailItemCloseButton: HTMLButtonElement | null = null;
+  let detailDialog: HTMLDialogElement | undefined;
+  $: if (detailDialog && detailItem && !detailDialog.open) detailDialog.showModal();
   let travelUpdateError = '';
 
   /** Only one task detail may be open in the daily list at a time. */
@@ -261,7 +267,8 @@
   }
 
   async function refreshMonitoredTravel() {
-    const monitored = todos.filter((todo) => todo.travel_monitoring_enabled && todo.place_id && todo.start_time && todo.travel_mode && todo.status === 'open' && todo.id);
+    if (isNative()) return;
+    const monitored = todos.filter((todo) => !$travelStates[todo.id ?? ''] && todo.travel_monitoring_enabled && todo.place_id && todo.start_time && todo.travel_mode && todo.status === 'open' && todo.id);
     if (!monitored.length || !navigator.geolocation) return;
     try {
       const permission = await navigator.permissions?.query({ name: 'geolocation' as PermissionName });
@@ -428,13 +435,26 @@
     setTimeout(() => trigger?.focus(), 0);
   }
 
+  let travelNow = Date.now();
+  $: if ($pendingTravelTodo && $pendingTravelTodo.date === currentDate && showDayList) {
+    const wanted = unifiedItems.find((item) => item.todoData?.id === $pendingTravelTodo?.id);
+    if (wanted) openItemDetails(wanted);
+    else travelUpdateError = 'Dieses To-do ist nicht mehr verfügbar.';
+    pendingTravelTodo.set(null);
+  }
   onMount(() => {
+    void refreshTravel();
+    const stateTimer = window.setInterval(() => { travelNow = Date.now(); if (document.visibilityState === 'visible') void refreshTravel(); }, 30000);
+    const focusRefresh = () => { travelNow = Date.now(); void refreshTravel(); };
+    window.addEventListener('focus', focusRefresh);
     void refreshMonitoredTravel();
     const travelTimer = window.setInterval(() => { if (document.visibilityState === 'visible') void refreshMonitoredTravel(); }, 5 * 60_000);
     return () => {
       deferredReorderTimers.forEach((timer) => clearTimeout(timer));
       deferredReorderTimers.clear();
       window.clearInterval(travelTimer);
+      window.clearInterval(stateTimer);
+      window.removeEventListener("focus", focusRefresh);
     };
   });
 
@@ -557,7 +577,8 @@
   $: openCount = manualItems.filter((i) => !i.done).length;
   $: recommendedTodo = [...todos]
     .filter((todo) => todo.status === 'open')
-    .sort((a, b) => todoTime(a) - todoTime(b) || b.priority - a.priority)[0] ?? null;
+    .sort((a, b) => (todoTime(a, $travelStates) - todoTime(b, $travelStates)) || b.priority - a.priority)[0] ?? null;
+  $: recommendedTravel = recommendedTodo?.id ? $travelStates[recommendedTodo.id] : undefined;
   $: recommendedTodoItem = recommendedTodo ? unifiedItems.find((item) => item.type === 'todo' && item.todoData?.id === recommendedTodo?.id) ?? null : null;
   $: recommendedTodoReadyForTravel = Boolean(recommendedTodo?.place_id && recommendedTodo?.start_time && recommendedTodo?.travel_mode);
   const NUTRIENT_GROUPS: Array<{ title: string; values: Array<{ key: keyof Nutrition; label: string; unit: string }> }> = [
@@ -707,7 +728,9 @@
     <div class="todo-highlight-copy">
       <p>NÄCHSTE AUFGABE</p>
       <h2 id="todo-highlight-title">{recommendedTodo.title}</h2>
-      {#if recommendedTodoReadyForTravel}
+      {#if recommendedTravel?.active}
+        <TravelStatus state={recommendedTravel} now={travelNow} buffer={recommendedTodo.travel_buffer_minutes ?? 10} />
+      {:else if recommendedTodoReadyForTravel}
         <span>{recommendedTodo.start_time} · {recommendedTodo.place_name}{#if recommendedTodo.travel_depart_at} · los {new Date(recommendedTodo.travel_depart_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}{/if}</span>
       {:else if recommendedTodo.start_time || recommendedTodo.due_time}
         <span>{recommendedTodo.start_time ?? recommendedTodo.due_time} · Planung ergänzen</span>
@@ -717,12 +740,13 @@
     </div>
     <div class="todo-highlight-actions">
       {#if recommendedTodoReadyForTravel}
-        <button type="button" class="highlight-secondary" onclick={() => updateTravel(recommendedTodo)}>Anreise aktualisieren</button>
+        <button type="button" class="highlight-secondary" onclick={(event) => recommendedTodoItem && openItemDetails(recommendedTodoItem, event.currentTarget)}>Anreise ansehen</button>
         <button type="button" class="highlight-primary" onclick={() => openNavigation(recommendedTodo)}>Navigation</button>
       {:else if recommendedTodoItem}
         <button type="button" class="highlight-primary" onclick={(event) => openItemDetails(recommendedTodoItem!, event.currentTarget)}>Planung öffnen</button>
       {/if}
     </div>
+    {#if $travelLoadError}<p class="todo-highlight-error" role="status">{$travelLoadError}</p>{/if}
     {#if travelUpdateError}<p class="todo-highlight-error" role="alert">{travelUpdateError}</p>{/if}
   </section>
 {/if}
@@ -843,7 +867,7 @@
 {/if}
 
 {#if detailItem}
-  <dialog class="modal-overlay compact-overlay" open aria-labelledby="detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeItemDetails(); }} oncancel={(event) => { event.preventDefault(); closeItemDetails(); }}>
+  <dialog bind:this={detailDialog} class="modal-overlay compact-overlay" aria-labelledby="detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeItemDetails(); }} oncancel={(event) => { event.preventDefault(); closeItemDetails(); }}>
     <div class="modal-card compact-detail ui-dialog">
       <header class="detail-header ui-dialog__header"><div><p class="detail-kind ui-dialog__eyebrow">{detailItem.type === 'meal' ? 'Mahlzeit' : detailItem.type === 'training' ? 'Training' : detailItem.type === 'todo' ? 'To-do' : 'Tageswert'}</p><h2 id="detail-title">{detailItem.title}</h2></div><button bind:this={detailItemCloseButton} class="detail-close ui-dialog__close" type="button" aria-label="Details schließen" onclick={closeItemDetails}>×</button></header>
       {#if detailItem.type === 'meal'}
@@ -864,6 +888,7 @@
           {#if !detailItem.todoData?.category && !detailItem.todoData?.due_time && !detailItem.todoData?.start_time && !detailItem.todoData?.place_name}<p class="detail-meta">Keine zusätzlichen Angaben.</p>{/if}
         </div>
         {#if detailItem.todoData?.place_id && detailItem.todoData?.travel_mode && detailItem.todoData?.start_time}
+          <TravelCompanion todo={detailItem.todoData} now={travelNow} />
           <div class="travel-actions"><button class="modal-secondary" onclick={() => updateTravel(detailItem!.todoData!)}>Anreise aktualisieren</button><button class="modal-primary" onclick={() => openNavigation(detailItem!.todoData!)}>Navigation</button></div>
         {/if}
         {#if travelUpdateError}<p class="detail-meta detail-error" role="alert">{travelUpdateError}</p>{/if}

@@ -1,0 +1,9 @@
+node_modules
+.svelte-kit
+build
+build-mobile
+android
+ios
+.env*
+*.jks
+*.keystore

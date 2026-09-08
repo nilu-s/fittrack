@@ -1,6 +1,7 @@
 # To-dos mit Ort, KI-Zuordnung und Anreise
 
 **Status:** approved
+**Erweiterung 2026-09-08:** `native-travel-companion.md` autorisiert als separaten Modus native Begleitung, bestätigte gespeicherte Startorte, kurzlebige native Fixes und Server-Worker. Die folgenden Browser-Einzelabfrageregeln bleiben bestehen.
 **Owner:** Cronicl household
 **Last updated:** 2026-09-04
 

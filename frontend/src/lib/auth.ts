@@ -1,3 +1,5 @@
+import { clearTravel } from "./travel";
+import { apiFetch, isNative, nativeBridge, nativeLogin } from "./native";
 import { writable } from 'svelte/store';
 import { clearAccountData } from './db';
 
@@ -7,17 +9,18 @@ export const authDisplayName = writable<string | null>(null);
 export const aliasRequired = writable<boolean>(false);
 
 const API_BASE =
-  typeof window !== 'undefined' && window.location.hostname === 'localhost'
+  !isNative() && typeof window !== 'undefined' && window.location.hostname === 'localhost'
     ? 'http://localhost:8000/api'
     : '/api';
 
 export async function checkAuth(): Promise<void> {
   try {
-    const resp = await fetch(`${API_BASE}/auth/me`, {
+    const resp = await apiFetch(`${API_BASE}/auth/me`, {
       credentials: 'include',
     });
     if (!resp.ok) {
       await clearAccountData();
+    clearTravel(true);
       window.localStorage.removeItem('app_account_id');
       isAuthenticated.set(false);
       authEmail.set(null);
@@ -30,6 +33,7 @@ export async function checkAuth(): Promise<void> {
       const previousAccountId = window.localStorage.getItem('app_account_id');
       if (previousAccountId && previousAccountId !== data.id) {
         await clearAccountData();
+        clearTravel(true);
       }
       window.localStorage.setItem('app_account_id', data.id);
       isAuthenticated.set(true);
@@ -37,6 +41,9 @@ export async function checkAuth(): Promise<void> {
       authDisplayName.set(data.display_name ?? null);
       aliasRequired.set(Boolean(data.alias_required));
     } else {
+      await clearAccountData();
+      clearTravel(true);
+      window.localStorage.removeItem("app_account_id");
       isAuthenticated.set(false);
       authEmail.set(null);
       authDisplayName.set(null);
@@ -45,6 +52,7 @@ export async function checkAuth(): Promise<void> {
   } catch {
     // Network/SSL error — assume not authenticated, show login
     await clearAccountData();
+    clearTravel(true);
     window.localStorage.removeItem('app_account_id');
     isAuthenticated.set(false);
     authEmail.set(null);
@@ -55,24 +63,26 @@ export async function checkAuth(): Promise<void> {
 
 export async function logout(): Promise<void> {
   try {
-    await fetch(`${API_BASE}/auth/logout`, {
+    await apiFetch(`${API_BASE}/${isNative() ? "native/logout" : "auth/logout"}`, {
       method: 'POST',
       credentials: 'include',
     });
   } catch {
     // ignore network errors
   }
+  if (isNative()) await nativeBridge.clearSession();
   isAuthenticated.set(false);
   authEmail.set(null);
   authDisplayName.set(null);
   aliasRequired.set(false);
   await clearAccountData();
+  clearTravel();
   window.localStorage.removeItem('app_account_id');
 }
 
 export async function disconnectGoogle(): Promise<void> {
   try {
-    await fetch(`${API_BASE}/auth/google/disconnect`, {
+    await apiFetch(`${API_BASE}/auth/google/disconnect`, {
       method: 'POST',
       credentials: 'include',
     });
@@ -82,5 +92,6 @@ export async function disconnectGoogle(): Promise<void> {
 }
 
 export function googleLogin(): void {
+  if (isNative()) { void nativeLogin().catch(() => window.dispatchEvent(new CustomEvent("native-login-error"))); return; }
   window.location.href = `${API_BASE}/auth/google/login`;
 }

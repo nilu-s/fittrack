@@ -45,9 +45,11 @@ import hashlib
 import hmac
 
 # Stateless HMAC-signed state (no in-memory storage needed — survives container restarts)
-def _create_state() -> str:
+def _create_state(native_request: str | None = None) -> str:
     """Create a self-verifying state token: random nonce + HMAC signature."""
     nonce = secrets.token_urlsafe(16)
+    if native_request:
+        nonce = f"native:{native_request}:{nonce}"
     sig = hmac.new(
         settings.APP_JWT_SECRET.encode(),
         nonce.encode(),
@@ -97,10 +99,9 @@ def _verify_session_jwt(token: str) -> dict | None:
 
 async def get_current_user(request: Request):
     """Yield the account derived from a verified browser session; never a device."""
+    from app.services.native_auth import resolve_native
     token = request.cookies.get(SESSION_COOKIE_NAME)
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    claims = _verify_session_jwt(token)
+    claims = await resolve_native(request) if request.headers.get("authorization") else (_verify_session_jwt(token) if token else None)
     if not claims:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
     import uuid
@@ -182,7 +183,19 @@ async def google_login(request: Request):
     # The redirect URI must match what's in Google Cloud Console
     redirect_uri = google_redirect_uri()
 
-    state = _create_state()
+    native_request = request.query_params.get("native_request")
+    if native_request:
+        import uuid
+        from app.models import NativeLogin
+        try:
+            login_id = uuid.UUID(native_request)
+        except ValueError:
+            raise HTTPException(400, "Invalid login request")
+        async with async_session() as session:
+            login = await session.get(NativeLogin, login_id)
+            if not login or login.consumed or login.account_id or login.expires_at <= datetime.now(timezone.utc):
+                raise HTTPException(401, "Login request expired")
+    state = _create_state(native_request)
 
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
@@ -327,6 +340,18 @@ async def google_callback(request: Request):
 
         await session.commit()
 
+    if state.startswith("native:"):
+        import uuid
+        from app.models import NativeLogin
+        from fastapi.responses import HTMLResponse
+        async with async_session() as session:
+            login = await session.scalar(select(NativeLogin).where(NativeLogin.id == uuid.UUID(state.split(":")[1])).with_for_update())
+            if not login or login.consumed or login.account_id or login.expires_at <= datetime.now(timezone.utc):
+                raise HTTPException(401, "Login request expired")
+            login.account_id = account.id
+            await session.commit()
+        return HTMLResponse('<!doctype html><html lang="de"><meta name="viewport" content="width=device-width"><title>Cronicl</title><body><h1>Anmeldung abgeschlossen</h1><p>Du kannst zu Cronicl zurückkehren.</p><a href="cronicl://auth-complete">Cronicl öffnen</a></body></html>', headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+
     # Create JWT session token and set as httpOnly cookie, then redirect to /
     session_jwt = _create_session_jwt(account)
     response = RedirectResponse(url="/onboarding/alias" if account.alias is None else "/", status_code=302)
@@ -345,10 +370,9 @@ async def google_callback(request: Request):
 @router.get("/me")
 async def auth_me(request: Request):
     """Return current auth status based on JWT session cookie."""
+    from app.services.native_auth import resolve_native
     token = request.cookies.get(SESSION_COOKIE_NAME)
-    if not token:
-        return {"authenticated": False, "email": None}
-    claims = _verify_session_jwt(token)
+    claims = await resolve_native(request) if request.headers.get("authorization") else (_verify_session_jwt(token) if token else None)
     if not claims:
         return {"authenticated": False, "email": None}
     import uuid

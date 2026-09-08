@@ -10,3 +10,12 @@ __pycache__/
 *.egg-info/
 photos/
 .DS_Store
+frontend/build-mobile/
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/android/app/google-services.json
+frontend/ios/App/App/GoogleService-Info.plist
+*.p8
+*.keystore
+*.jks
+secrets/

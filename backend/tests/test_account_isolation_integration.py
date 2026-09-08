@@ -12,7 +12,7 @@ import uuid
 import httpx
 from sqlalchemy import delete, select
 
-from app.database import async_session
+from app.database import async_session, engine
 from app.main import app
 from app.models import Account, Todo, TodoRoutine
 from app.routes.auth import SESSION_COOKIE_NAME, _create_session_jwt
@@ -26,11 +26,11 @@ class BrowserAccountIsolationIntegrationTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.account_a = Account(
             id=uuid.uuid4(), google_subject=f"integration-a-{uuid.uuid4()}",
-            email=f"a-{uuid.uuid4()}@example.test", display_name="Account A",
+            email=f"a-{uuid.uuid4()}@example.test", display_name="Account A", alias=f"a_{uuid.uuid4().hex[:10]}",
         )
         self.account_b = Account(
             id=uuid.uuid4(), google_subject=f"integration-b-{uuid.uuid4()}",
-            email=f"b-{uuid.uuid4()}@example.test", display_name="Account B",
+            email=f"b-{uuid.uuid4()}@example.test", display_name="Account B", alias=f"b_{uuid.uuid4().hex[:10]}",
         )
         async with async_session() as session:
             session.add_all([self.account_a, self.account_b])
@@ -42,6 +42,8 @@ class BrowserAccountIsolationIntegrationTests(unittest.IsolatedAsyncioTestCase):
             await session.execute(delete(Todo).where(Todo.account_id.in_([self.account_a.id, self.account_b.id])))
             await session.execute(delete(Account).where(Account.id.in_([self.account_a.id, self.account_b.id])))
             await session.commit()
+
+        await engine.dispose()
 
     def client_for(self, account: Account) -> httpx.AsyncClient:
         return httpx.AsyncClient(

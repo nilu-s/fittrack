@@ -8,10 +8,16 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "lint:design": "node scripts/check-design-system.mjs"
+    "lint:design": "node scripts/check-design-system.mjs",
+    "build:mobile": "CRONICL_MOBILE=1 vite build",
+    "native:sync": "npm run build:mobile && cap sync",
+    "native:android": "cap open android",
+    "native:ios": "cap open ios"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.1",
     "@sveltejs/adapter-node": "^5.2.0",
+    "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.8.0",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
     "svelte": "^5.1.0",
@@ -20,6 +26,13 @@
     "vite": "^5.4.0"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/geolocation": "^8.2.2",
+    "@capacitor/ios": "^8.5.1",
+    "@capacitor/push-notifications": "^8.1.2",
     "@fontsource/plus-jakarta-sans": "^5.3.0",
     "dexie": "^4.0.10",
     "playwright": "^1.62.1"

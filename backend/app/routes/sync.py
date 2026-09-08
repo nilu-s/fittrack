@@ -48,6 +48,7 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
         conflicts: list[SyncConflictItem] = []
         applied: list[dict[str, Any]] = []
         results: list[SyncOperationResult] = []
+        changed_todos: list[Todo] = []
 
         for change_index, change in enumerate(body.changes):
             model = ENTITY_MODELS.get(change.entity_type)
@@ -79,6 +80,8 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                     if not hasattr(existing, "deleted"):
                         raise HTTPException(status_code=422, detail="Entity does not support deletion")
                     existing.deleted = True
+                    if isinstance(existing, Todo):
+                        changed_todos.append(existing)
                     if hasattr(existing, "updated_at"):
                         existing.updated_at = datetime.now(BERLIN_TZ)
                     applied.append({"entity_type": change.entity_type, "entity_id": str(change.entity_id), "action": "delete"})
@@ -152,6 +155,9 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                 entity_id=change.entity_id, status="applied",
             ))
 
+            if isinstance(existing, Todo):
+                changed_todos.append(existing)
+
             # Log to sync_log
             session.add(SyncLog(
                 account_id=user,
@@ -163,6 +169,9 @@ async def sync_changes(body: SyncRequest, user: str = Depends(get_current_user))
                 synced=True,
             ))
 
+        from app.services.travel import invalidate_watch
+        for record in changed_todos:
+            await invalidate_watch(session, record)
         await session.commit()
 
         # Gather server changes since last_sync

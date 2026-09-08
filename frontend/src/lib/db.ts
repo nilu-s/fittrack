@@ -58,6 +58,10 @@ export async function clearSyncQueue() {
 
 /** Clear private offline records before switching browser accounts. */
 export async function clearAccountData() {
+  if (typeof caches !== 'undefined') {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((key) => key.startsWith('cronicl-api-')).map((key) => caches.delete(key)));
+  }
   await db.transaction(
     'rw',
     [
