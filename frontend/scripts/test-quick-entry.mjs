@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import ts from 'typescript';
+const source = readFileSync(new URL('../src/lib/quick-entry.ts', import.meta.url), 'utf8');
+const compiled = ts.transpile(source, { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 });
+const { parseQuickEntry: parse } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+assert.deepEqual(parse('Paket abholen', '2026-09-10'), { title: 'Paket abholen', date: '2026-09-10', time: null, weekdays: null });
+assert.deepEqual(parse('Morgen um 17 Uhr Paket abholen', '2026-09-10'), { title: 'Paket abholen', date: '2026-09-11', time: '17:00', weekdays: null });
+assert.equal(parse('Paket nächsten Freitag', '2026-09-10').date, '2026-09-11');
+assert.equal(parse('Paket nächsten Freitag', '2026-09-11').date, '2026-09-18');
+assert.equal(parse('Paket morgen', '2026-12-31').date, '2027-01-01');
+assert.equal(parse('Paket übermorgen', '2028-02-28').date, '2028-03-01');
+assert.deepEqual(parse('Jeden Dienstag um 19:30 Pflanzen gießen', '2026-09-10'), { title: 'Pflanzen gießen', date: '2026-09-10', time: '19:30', weekdays: [1] });
+assert.deepEqual(parse('Täglich Wasser trinken', '2026-09-10').weekdays, [0, 1, 2, 3, 4, 5, 6]);
+for (const text of ['Paket um 25:30', 'Paket morgen Freitag', 'Paket 2026-02-30', 'Jeden zweiten Dienstag Pflanzen gießen', 'Morgen']) assert.ok(parse(text, '2026-09-10').error, text);
+console.log('Quick-entry behavior: 13 cases passed.');

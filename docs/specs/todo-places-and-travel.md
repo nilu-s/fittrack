@@ -1,5 +1,7 @@
 # To-dos mit Ort, KI-Zuordnung und Anreise
 
+> Eingabe-/Assistentenregeln revidiert durch [unified-entry-and-assistant.md](unified-entry-and-assistant.md), 10.09.2026. Insbesondere gelten die bestätigten KI-Schreibvorschläge und direkte Notizanlage im ausdrücklich geöffneten Bereich. Übrige Fach- und Berechtigungsregeln bleiben verbindlich. Umsetzung und Nachweise sind noch in Arbeit.
+
 **Status:** approved
 **Erweiterung 2026-09-08:** `native-travel-companion.md` autorisiert als separaten Modus native Begleitung, bestätigte gespeicherte Startorte, kurzlebige native Fixes und Server-Worker. Die folgenden Browser-Einzelabfrageregeln bleiben bestehen.
 **Owner:** Cronicl household

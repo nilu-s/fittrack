@@ -1,18 +1,20 @@
-"""Proof-bound browser login handoff and revocable native account credentials."""
+"""Revocable v2 native credentials; the retired browser handoff always rejects."""
 from __future__ import annotations
 
 import base64
 import hashlib
-import hmac
-import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, Request
 from sqlalchemy import select
 
 from app.database import async_session
-from app.models import Account, NativeLogin, NativeSession, TravelWatch
+from app.models import Account, NativeSession, TravelWatch
+
+
+def require_native_auth() -> None:
+    raise HTTPException(503, "Native login temporarily unavailable", headers={"Cache-Control": "no-store"})
 
 
 def utcnow():
@@ -29,12 +31,13 @@ def credential_hash(token: str) -> str:
 
 async def resolve_native(request: Request):
     header = request.headers.get("authorization", "")
-    if not header.startswith("Bearer crn_") or len(header) > 256:
+    if not header.startswith("Bearer crn2_") or len(header) > 256:
         return None
     async with async_session() as session:
         device = await session.scalar(select(NativeSession).where(
             NativeSession.credential_hash == credential_hash(header[7:]),
             NativeSession.revoked.is_(False), NativeSession.expires_at > utcnow(),
+            NativeSession.protocol_version == 2, NativeSession.platform == "android",
         ))
         if device is None:
             return None
@@ -46,21 +49,7 @@ async def resolve_native(request: Request):
 
 
 async def exchange_login(login_id: uuid.UUID, verifier: str):
-    async with async_session() as session:
-        login = await session.scalar(select(NativeLogin).where(NativeLogin.id == login_id).with_for_update())
-        if not login or login.consumed or login.expires_at <= utcnow():
-            raise HTTPException(401, "Login expired or already used")
-        if not hmac.compare_digest(login.challenge, proof_challenge(verifier)):
-            raise HTTPException(401, "Invalid login proof")
-        if login.account_id is None:
-            raise HTTPException(409, "Complete Google login in the browser")
-        token = "crn_" + secrets.token_urlsafe(48)
-        device = NativeSession(account_id=login.account_id, credential_hash=credential_hash(token),
-            platform=login.platform, expires_at=utcnow() + timedelta(days=30))
-        login.consumed = True
-        session.add(device)
-        await session.commit()
-        return {"credential": token, "expires_at": device.expires_at, "device_id": device.id}
+    require_native_auth()
 
 
 async def revoke_session(device_id, account_id):

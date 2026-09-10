@@ -1,6 +1,19 @@
 <script lang="ts">
   import SettingsHeader from '$lib/components/SettingsHeader.svelte';
-  import { isAuthenticated, authEmail, disconnectGoogle } from '$lib/auth';
+  import { onMount } from 'svelte';
+  import { disconnectGoogle } from '$lib/auth';
+  import { apiFetch } from '$lib/native';
+  let connection: { connected: boolean; email: string | null } | null = null;
+  let loadError = false;
+  async function loadConnection() {
+    loadError = false;
+    try {
+      const response = await apiFetch('/api/auth/google/status', { credentials: 'include' });
+      if (!response.ok) throw new Error();
+      connection = await response.json();
+    } catch { loadError = true; }
+  }
+  onMount(() => { void loadConnection(); });
 
   async function handleDisconnect() { await disconnectGoogle(); window.location.reload(); }
 </script>
@@ -9,7 +22,10 @@
 <div class="page">
   <SettingsHeader title="Integrationen" subtitle="Verbindungen und Synchronisation" />
   <section class="section-card"><div class="section-header">Google-Konto</div><div class="body">
-    {#if $isAuthenticated}<div class="connected"><div><span>Verbunden als</span><strong>{$authEmail}</strong></div><button onclick={handleDisconnect}>Trennen</button></div>{:else}<div class="empty">Nicht verbunden</div>{/if}
+    {#if loadError}<div role="alert">Verbindung konnte nicht geprüft werden.</div><button onclick={loadConnection}>Erneut prüfen</button>
+    {:else if connection === null}<div role="status">Verbindung wird geprüft …</div>
+    {:else if connection.connected}<div class="connected"><div><span>Google-Daten verbunden als</span><strong>{connection.email}</strong></div><button onclick={handleDisconnect}>Trennen</button></div>
+    {:else}<div class="empty">Noch kein Zugriff auf Google-Daten freigegeben. Die Anmeldung bei Cronicl allein verbindet keinen Kalender. Die Freigabe kannst du derzeit über die Google-Anmeldung auf der Cronicl-Website erteilen.</div>{/if}
   </div></section>
   <section class="hint"><strong>Synchronisation</strong><p>Schritte und Schlaf können aus Google Fit übernommen werden. Sportprogramm und To-dos bleiben unabhängig von dieser Verbindung steuerbar.</p></section>
 </div>

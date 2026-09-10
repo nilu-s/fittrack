@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     VISION_PROXY_URL: str = "http://host.docker.internal:8100"
     PHOTO_DIR: str = "/app/photos"
     GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_NATIVE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     ALLOWED_GOOGLE_EMAILS: str = ""
     APP_DEVICE_KEY: str = ""

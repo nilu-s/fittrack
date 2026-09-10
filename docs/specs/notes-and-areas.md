@@ -1,5 +1,7 @@
 # Cronicl: Notizen und Bereiche
 
+> Eingabe-/Assistentenregeln revidiert durch [unified-entry-and-assistant.md](unified-entry-and-assistant.md), 10.09.2026. Insbesondere gelten die bestätigten KI-Schreibvorschläge und direkte Notizanlage im ausdrücklich geöffneten Bereich. Übrige Fach- und Berechtigungsregeln bleiben verbindlich. Umsetzung und Nachweise sind noch in Arbeit.
+
 **Status:** approved  
 **Owner:** Cronicl household  
 **Last updated:** 2026-09-04

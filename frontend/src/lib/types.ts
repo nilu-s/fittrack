@@ -580,3 +580,13 @@ export interface ShoppingMealPreview {
   plan_name?: string | null;
   items: Array<Pick<ShoppingItem, "food_id" | "title" | "category_key" | "icon_key" | "quantity" | "unit"> & { needs_review: boolean }>;
 }
+
+export interface AssistantAction {
+  key: string;
+  kind: 'todo' | 'note' | 'shopping' | 'routine' | 'food' | 'recipe' | 'meal' | 'meal_plan' | 'training_unit' | 'exercise' | 'rotation';
+  operation: 'create' | 'update';
+  target_id?: string | null;
+  label: string;
+  data: Record<string, unknown>;
+}
+export interface AssistantReply { message: string; actions: AssistantAction[] }

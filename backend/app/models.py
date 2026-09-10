@@ -253,6 +253,8 @@ class NativeLogin(Base):
     account_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id", ondelete="CASCADE"))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     consumed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    protocol_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    nonce_hash: Mapped[str | None] = mapped_column(Text)
 
 
 class NativeSession(AccountOwned, Base):
@@ -263,6 +265,7 @@ class NativeSession(AccountOwned, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     push_token: Mapped[str | None] = mapped_column(Text)
+    protocol_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 class TravelWatch(AccountOwned, Base):

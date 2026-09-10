@@ -21,6 +21,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=f"{settings.APP_NAME} API", version="1.0.0", lifespan=lifespan)
 
+
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
+
+
+@app.exception_handler(RequestValidationError)
+async def safe_login_validation(request: Request, exc: RequestValidationError):
+    if request.url.path.startswith("/api/native/google/"):
+        # Pydantic errors otherwise echo submitted ID tokens/verifiers to the caller.
+        return JSONResponse(status_code=422, content={"detail": "Invalid login request"},
+                            headers={"Cache-Control": "no-store"})
+    return await request_validation_exception_handler(request, exc)
+
 # CORS — restrict to known origins
 _CORS_ORIGINS = [
     "http://localhost:3000",
@@ -74,6 +87,8 @@ from app.models import Account
 import uuid
 
 _PUBLIC_API_PATHS = {
+    "/api/native/google/start",
+    "/api/native/google/exchange",
     "/api/native/login",
     "/api/native/exchange",
     "/api/health",
@@ -94,7 +109,7 @@ _ALIAS_ONBOARDING_API_PATHS = {
 async def require_browser_account(request: Request, call_next):
     """Establish request-local account scope for every browser API request."""
     path = request.url.path
-    if path in {"/api/native/login", "/api/native/exchange"}:
+    if path in {"/api/native/login", "/api/native/exchange", "/api/native/google/start", "/api/native/google/exchange"}:
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"

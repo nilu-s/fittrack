@@ -7,6 +7,8 @@
 
   const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
   let routines: TodoRoutine[] = [];
+  let editingId: string | null = null;
+  let editor: HTMLElement;
   let title = '';
   let dueTime = '';
   let selectedDays = [0, 1, 2, 3, 4, 5, 6];
@@ -25,13 +27,27 @@
     selectedDays = selectedDays.includes(day) ? selectedDays.filter((value) => value !== day) : [...selectedDays, day].sort();
   }
   function dayLabel(days: number[]) { return days.length === 7 ? 'Täglich' : days.map((day) => WEEKDAYS[day]).join(', '); }
+  function resetEditor() {
+    editingId = null; title = ''; dueTime = ''; selectedDays = [0, 1, 2, 3, 4, 5, 6]; priority = 2;
+  }
+  function editRoutine(routine: TodoRoutine) {
+    if (saving || !routine.id) return;
+    editingId = routine.id; title = routine.title; dueTime = routine.due_time?.slice(0, 5) ?? '';
+    selectedDays = [...routine.weekdays]; priority = routine.priority; error = '';
+    editor?.focus();
+  }
   async function addRoutine() {
+    if (saving) return;
     if (!title.trim() || !selectedDays.length) { error = 'Bitte gib einen Namen und mindestens einen Wochentag an.'; return; }
     saving = true; error = '';
-    const created = await api.createTodoRoutine({ title: title.trim(), weekdays: selectedDays, due_time: dueTime || null, priority, is_active: true });
-    saving = false;
-    if (!created) { error = 'Routine konnte nicht gespeichert werden.'; return; }
-    routines = [...routines, created]; title = ''; dueTime = ''; selectedDays = [0, 1, 2, 3, 4, 5, 6]; priority = 2;
+    try {
+      const values = { title: title.trim(), weekdays: selectedDays, due_time: dueTime || null, priority };
+      const saved = editingId ? await api.updateTodoRoutine(editingId, values) : await api.createTodoRoutine({ ...values, is_active: true });
+      if (!saved) { error = 'Routine konnte nicht gespeichert werden.'; return; }
+      routines = editingId ? routines.map((item) => item.id === saved.id ? saved : item) : [...routines, saved];
+      resetEditor();
+    } catch { error = 'Routine konnte nicht gespeichert werden.'; }
+    finally { saving = false; }
   }
   async function setActive(routine: TodoRoutine, is_active: boolean) {
     if (!routine.id) return;
@@ -52,12 +68,13 @@
   <SettingsHeader title="Wiederkehrende To-dos" subtitle="Lege fest, welche To-dos an bestimmten Tagen automatisch in deiner Tagesliste erscheinen." />
 
   <section class="surface" aria-labelledby="new-routine-title">
-    <header><div><h2 id="new-routine-title">Neue Routine</h2><p>Eine Routine erzeugt höchstens ein To-do pro passendendem Tag.</p></div></header>
+    <header><div><h2 id="new-routine-title" bind:this={editor} tabindex="-1">{editingId ? 'Routine bearbeiten' : 'Neue Routine'}</h2><p>{editingId ? 'Änderungen gelten für neu erzeugte To-dos. Bereits erzeugte To-dos bleiben erhalten.' : 'Eine Routine erzeugt höchstens ein To-do pro passendem Tag.'}</p></div></header>
     <div class="form">
       <label>Bezeichnung<input bind:value={title} placeholder="z. B. Kreatin einnehmen" maxlength="200" /></label>
       <fieldset><legend>Wiederholen an</legend><div class="days">{#each WEEKDAYS as label, day}<button type="button" class:chosen={selectedDays.includes(day)} aria-pressed={selectedDays.includes(day)} onclick={() => toggleDay(day)}>{label}</button>{/each}</div></fieldset>
       <div class="options"><label>Uhrzeit <input type="time" bind:value={dueTime} /></label><label>Priorität <select bind:value={priority}><option value={1}>Niedrig</option><option value={2}>Mittel</option><option value={3}>Hoch</option></select></label></div>
-      <button class="primary" type="button" onclick={addRoutine} disabled={saving}>{saving ? 'Speichere…' : 'Routine hinzufügen'}</button>
+      <button class="primary" type="button" onclick={addRoutine} disabled={saving}>{saving ? 'Speichere…' : editingId ? 'Änderungen speichern' : 'Routine hinzufügen'}</button>
+      {#if editingId}<button type="button" class="ui-button" onclick={resetEditor} disabled={saving}>Abbrechen</button>{/if}
     </div>
   </section>
 
@@ -66,7 +83,7 @@
     <header><div><h2 id="routine-list-title">Deine Routinen</h2><p>Deaktivierte Routinen erzeugen keine neuen To-dos.</p></div></header>
     {#if loading}<p class="empty">Lade Routinen…</p>
     {:else if !routines.length}<p class="empty">Noch keine wiederkehrenden To-dos eingerichtet.</p>
-    {:else}<div class="list">{#each routines as routine (routine.id)}<article class:inactive={!routine.is_active}><div class="icon"><Icon name="todo" size={18} /></div><div class="body"><strong>{routine.title}</strong><small>{dayLabel(routine.weekdays)}{routine.due_time ? ` · ${routine.due_time.slice(0, 5)} Uhr` : ''}</small></div><label class="switch"><span class="sr-only">{routine.title} aktiv</span><input type="checkbox" checked={routine.is_active} onchange={(event) => setActive(routine, event.currentTarget.checked)} /><span aria-hidden="true"></span></label><button class="remove" type="button" onclick={() => remove(routine)} aria-label={`${routine.title} entfernen`}><Icon name="trash" size={17} /></button></article>{/each}</div>{/if}
+    {:else}<div class="list">{#each routines as routine (routine.id)}<article class:inactive={!routine.is_active}><div class="icon"><Icon name="todo" size={18} /></div><div class="body"><strong>{routine.title}</strong><small>{dayLabel(routine.weekdays)}{routine.due_time ? ` · ${routine.due_time.slice(0, 5)} Uhr` : ''}</small></div><button type="button" class="ui-button" onclick={() => editRoutine(routine)} disabled={saving} aria-label={`${routine.title} bearbeiten`}>Bearbeiten</button><label class="switch"><span class="sr-only">{routine.title} aktiv</span><input type="checkbox" checked={routine.is_active} onchange={(event) => setActive(routine, event.currentTarget.checked)} /><span aria-hidden="true"></span></label><button class="remove" type="button" onclick={() => remove(routine)} aria-label={`${routine.title} entfernen`}><Icon name="trash" size={17} /></button></article>{/each}</div>{/if}
   </section>
 </div>
 

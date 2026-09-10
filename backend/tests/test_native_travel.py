@@ -15,10 +15,11 @@ from sqlalchemy import delete, select
 from app.config import settings
 from app.database import async_session, engine
 from app.main import app
-from app.models import Account, NativeLogin, NativeSession, Todo, TravelNotification, TravelWatch
+from app.models import Account, AccountWeightRange, NativeLogin, NativeSession, Todo, TravelNotification, TravelWatch
 from app.routes.auth import SESSION_COOKIE_NAME, _create_session_jwt
 from app.routes.travel import LocationFix, TravelSetup
-from app.services.native_auth import credential_hash, exchange_login, proof_challenge, utcnow
+from app.services.native_auth import credential_hash, proof_challenge, utcnow
+from app.services.google_native_auth import start_login, exchange_google_login
 from app.services.travel import appointment, estimate, plan_hash, usable_fix
 from app.travel_worker import deliver, next_check, process_watch
 from app.services.travel_push import send_alert, InvalidPushToken
@@ -131,6 +132,9 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
 @unittest.skipUnless(os.environ.get("APP_INTEGRATION_DATABASE") == "1", "requires disposable PostgreSQL")
 class NativeTravelIntegration(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
+        gate = patch.object(settings, "GOOGLE_NATIVE_CLIENT_ID", "synthetic-client")
+        gate.start()
+        self.addCleanup(gate.stop)
         self.ids = [uuid.uuid4(), uuid.uuid4()]
         self.accounts = [Account(id=i, google_subject=f"native-{i}", email=f"{i}@example.test", alias=f"t_{i.hex[:10]}") for i in self.ids]
         async with async_session() as session:
@@ -139,7 +143,7 @@ class NativeTravelIntegration(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self):
         async with async_session() as session:
-            for model in (TravelNotification, TravelWatch, NativeLogin, NativeSession, Todo):
+            for model in (TravelNotification, TravelWatch, NativeLogin, NativeSession, Todo, AccountWeightRange):
                 await session.execute(delete(model).where(model.account_id.in_(self.ids)))
             await session.execute(delete(Account).where(Account.id.in_(self.ids)))
             await session.commit()
@@ -153,11 +157,11 @@ class NativeTravelIntegration(unittest.IsolatedAsyncioTestCase):
 
     async def device(self, index=0):
         verifier = "a" * 64
-        async with async_session() as session:
-            login = NativeLogin(challenge=proof_challenge(verifier), platform="android", account_id=self.ids[index], expires_at=utcnow() + timedelta(minutes=5))
-            session.add(login); await session.commit()
-        result = await exchange_login(login.id, verifier)
-        return result
+        login = await start_login(proof_challenge(verifier))
+        identity = {"sub": self.accounts[index].google_subject, "email": self.accounts[index].email,
+                    "nonce": login["nonce"]}
+        with patch("app.services.google_native_auth.verify_identity", return_value=identity):
+            return await exchange_google_login(login["login_id"], verifier, "synthetic-token")
 
     async def setup_watch(self, token=None):
         target = utcnow() + timedelta(hours=2)
@@ -170,18 +174,6 @@ class NativeTravelIntegration(unittest.IsolatedAsyncioTestCase):
             watch = await client.put(f"/api/travel/{todo_id}", json={"origin_place_id": "origin"})
             assert watch.status_code == 200, watch.text
             return todo_id, watch.json()
-
-    async def test_handoff_requires_proof_and_is_single_use(self):
-        async with async_session() as session:
-            login = NativeLogin(challenge=proof_challenge("a" * 64), platform="ios", account_id=self.ids[0], expires_at=utcnow() + timedelta(minutes=5))
-            session.add(login); await session.commit()
-        with self.assertRaises(HTTPException): await exchange_login(login.id, "b" * 64)
-        result = await exchange_login(login.id, "a" * 64)
-        with self.assertRaises(HTTPException): await exchange_login(login.id, "a" * 64)
-        async with async_session() as session:
-            device = await session.get(NativeSession, result["device_id"])
-            assert device.credential_hash == credential_hash(result["credential"])
-            assert device.credential_hash != result["credential"]
 
     async def test_native_isolation_and_logout_revokes_background(self):
         a = await self.device(0); b = await self.device(1)
@@ -197,6 +189,49 @@ class NativeTravelIntegration(unittest.IsolatedAsyncioTestCase):
         async with async_session() as session:
             saved = await session.get(TravelWatch, uuid.UUID(watch["id"]))
             assert not saved.active and saved.origin is None and saved.live_fix is None
+
+    async def test_expired_handoff_and_session_are_rejected(self):
+        device = await self.device()
+        async with async_session() as session:
+            saved = await session.get(NativeSession, device["device_id"])
+            saved.expires_at = utcnow() - timedelta(seconds=1)
+            await session.commit()
+        async with self.client(token=device["credential"]) as client:
+            assert (await client.get("/api/auth/me")).json()["authenticated"] is False
+            assert (await client.get("/api/travel")).status_code == 401
+
+    async def test_outbox_retries_are_bounded_and_expired_events_never_send(self):
+        device = await self.device()
+        _, info = await self.setup_watch(device["credential"])
+        now = utcnow()
+        calls = 0
+        async def failing_sender(*args):
+            nonlocal calls
+            calls += 1
+            raise RuntimeError("synthetic provider unavailable")
+        async with async_session() as session:
+            saved = await session.get(NativeSession, device["device_id"])
+            saved.push_token = "synthetic-registration"
+            watch = await session.get(TravelWatch, uuid.UUID(info["id"]))
+            event = TravelNotification(account_id=self.ids[0], watch_id=watch.id,
+                generation=watch.generation, event_key="retry-test", kind="lead",
+                expires_at=now + timedelta(minutes=10), next_attempt_at=now)
+            session.add(event)
+            await session.flush()
+            for attempt, delay in ((1, 60), (2, 120), (3, 240)):
+                await deliver(session, event, now, failing_sender)
+                assert event.attempts == attempt
+                assert event.next_attempt_at == now + timedelta(seconds=delay)
+                assert event.discarded == (attempt == 3)
+                now = event.next_attempt_at
+            assert calls == 3 and event.sent_at is None
+            expired = TravelNotification(account_id=self.ids[0], watch_id=watch.id,
+                generation=watch.generation, event_key="expired-test", kind="leave",
+                expires_at=now - timedelta(seconds=1), next_attempt_at=now)
+            session.add(expired)
+            await session.flush()
+            await deliver(session, expired, now, failing_sender)
+            assert expired.discarded and expired.attempts == 0 and calls == 3
 
     async def test_worker_deduplicates_then_cancels_changed_todo(self):
         device = await self.device()

@@ -145,8 +145,6 @@
   let longPressTriggered = false;
   let longPressStart: { x: number; y: number } | null = null;
   let actionSheetItem: UnifiedItem | null = null;
-  let editingTodo: Todo | null = null;
-  let editTitle = ''; let editCategory = ''; let editPriority = 2; let editDueDate = ''; let editDueTime = '';
   let detailItem: UnifiedItem | null = null;
   let mealEntryEditorItem: UnifiedItem | null = null;
   let mealEntryEditorCamera = false;
@@ -171,7 +169,6 @@
   /** Only one task detail may be open in the daily list at a time. */
   function closeOpenTodoDetails() {
     actionSheetItem = null;
-    editingTodo = null;
     detailItem = null;
     mealEntryEditorItem = null;
     nutritionDetailsOpen = false;
@@ -235,26 +232,17 @@
 
   function startEdit() {
     if (!actionSheetItem?.todoData) return;
-    const t = actionSheetItem.todoData;
-    editingTodo = t;
-    editTitle = t.title; editCategory = t.category ?? ''; editPriority = t.priority; editDueDate = t.due_date ?? ''; editDueTime = t.due_time ?? '';
+    const todo = actionSheetItem.todoData;
     actionSheetItem = null;
+    dispatch('todoedit', todo);
   }
+
   function confirmDelete() {
     if (!actionSheetItem?.todoData) return;
     const todoId = String(actionSheetItem.todoData.id);
     api.deleteTodo(todoId).then(() => { todos = todos.filter((t) => String(t.id) !== todoId); }).catch(() => {});
     actionSheetItem = null;
   }
-  function saveEdit() {
-    if (!editingTodo?.id) return;
-    const id = editingTodo.id;
-    const data = { title: editTitle, category: editCategory || null, priority: editPriority, due_date: editDueDate || null, due_time: editDueTime || null };
-    api.updateTodo(id, data).then((updated) => { if (updated) { todos = todos.map((t) => t.id === id ? { ...t, ...data } : t); } }).catch(() => {});
-    editingTodo = null;
-  }
-  function cancelEdit() { editingTodo = null; }
-
   async function updateTravel(todo: Todo) {
     if (!todo.id || !navigator.geolocation) { travelUpdateError = 'Der aktuelle Standort ist auf diesem Gerät nicht verfügbar.'; return; }
     travelUpdateError = '';
@@ -931,31 +919,6 @@
   </dialog>
 {/if}
 
-{#if editingTodo}
-  <dialog class="modal-overlay" open aria-label="To-do bearbeiten" onclick={(event) => { if (event.target === event.currentTarget) cancelEdit(); }} oncancel={(event) => { event.preventDefault(); cancelEdit(); }}>
-    <div class="modal-card edit-card ui-dialog">
-      <header class="ui-dialog__header"><div><p class="ui-dialog__eyebrow">To-do</p><h2>To-do bearbeiten</h2></div><button class="detail-close ui-dialog__close" type="button" aria-label="Bearbeiten schließen" onclick={cancelEdit}>×</button></header>
-      <input class="edit-input" placeholder="Titel" bind:value={editTitle} />
-      <div class="edit-row">
-        <input class="edit-input" placeholder="Kategorie" bind:value={editCategory} />
-        <select class="edit-select" bind:value={editPriority}>
-          <option value={1}>Niedrig</option>
-          <option value={2}>Mittel</option>
-          <option value={3}>Hoch</option>
-        </select>
-      </div>
-      <div class="edit-row">
-        <input class="edit-input" type="date" bind:value={editDueDate} />
-        <input class="edit-input" type="time" bind:value={editDueTime} />
-      </div>
-      <div class="modal-actions ui-dialog__actions">
-        <button class="modal-primary" onclick={saveEdit}>Speichern</button>
-        <button class="modal-secondary" onclick={cancelEdit}>Abbrechen</button>
-      </div>
-    </div>
-  </dialog>
-{/if}
-
 <style>
   .switchable-content { min-height: max(120px, calc(100dvh - 296px)); touch-action: pan-y; }
   .todo-highlight { display:grid; gap:10px; padding:12px; border:1px solid var(--border-default); border-radius:var(--radius-surface); background:var(--surface-accent); }
@@ -1019,11 +982,6 @@
   .action-cancel { width:100%; min-height:var(--control-min); padding:8px 12px; border:1px solid var(--border-default); border-radius:var(--radius-control); background:transparent; color:var(--text-secondary); font-size:14px; font-weight:600; cursor:pointer; }
   .action-cancel:active { background:var(--surface-pressed); }
 
-  .edit-card { display: flex; flex-direction: column; gap: 10px; }
-  .edit-input { flex: 1; padding: 8px 10px; border-radius: 8px; background: var(--color-bg); border: 1px solid var(--border-default); color: var(--text-primary); font-size: 14px; }
-  .edit-input:focus { border-color: var(--status-info); }
-  .edit-select { flex: 1; padding: 8px 10px; border-radius: 8px; background: var(--color-bg); border: 1px solid var(--border-default); color: var(--text-primary); font-size: 14px; }
-  .edit-row { display: flex; gap: 8px; }
   .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
   .modal-primary { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--action-primary); color: var(--text-on-accent); border: none; font-weight: 600; cursor: pointer; font-size: 14px; }
   .modal-secondary { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--surface-raised); color: var(--text-secondary); border: 1px solid var(--border-default); font-weight: 500; cursor: pointer; font-size: 14px; }

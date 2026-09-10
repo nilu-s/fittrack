@@ -2,7 +2,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 
 interface NativeBridge {
   request(options: { path: string; method: string; headers: Record<string, string>; bodyBase64?: string }): Promise<{ status: number; body: string; contentType?: string }>;
-  exchange(options: { loginId: string; verifier: string }): Promise<void>;
+  googleLogin(): Promise<void>;
   clearSession(): Promise<void>;
   startLocation(options: { todoId: string; expiresAt: string }): Promise<void>;
   stopLocation(): Promise<void>;
@@ -32,32 +32,9 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
   return new Response(result.status === 204 ? null : result.body, { status: result.status, headers: { 'Content-Type': result.contentType ?? 'application/json' } });
 }
 
-let pendingLogin: { id: string; verifier: string } | null = null;
-
 export async function nativeLogin(): Promise<void> {
-  const bytes = crypto.getRandomValues(new Uint8Array(48));
-  const verifier = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
-  const challenge = btoa(String.fromCharCode(...digest)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  const response = await apiFetch('/api/native/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ challenge, platform: Capacitor.getPlatform() }) });
-  if (!response.ok) throw new Error('Anmeldung konnte nicht gestartet werden.');
-  const data = await response.json();
-  pendingLogin = { id: data.login_id, verifier };
-  const { Browser } = await import('@capacitor/browser');
-  await Browser.open({ url: data.login_url });
-}
-
-let finishingLogin = false;
-export async function finishNativeLogin(): Promise<boolean> {
-  if (!pendingLogin || finishingLogin) return false;
-  finishingLogin = true;
-  try {
-  await nativeBridge.exchange({ loginId: pendingLogin.id, verifier: pendingLogin.verifier });
-  pendingLogin = null;
-  const { Browser } = await import('@capacitor/browser');
-  await Browser.close().catch(() => {});
-  return true;
-  } finally { finishingLogin = false; }
+  if (Capacitor.getPlatform() !== 'android') throw new Error('Die Anmeldung auf dem iPhone ist noch nicht verfügbar. Bitte nutze die Website.');
+  await nativeBridge.googleLogin();
 }
 
 export async function registerNativePush(): Promise<boolean> {
@@ -71,22 +48,10 @@ export async function registerNativePush(): Promise<boolean> {
 }
 
 /** Called once by the authenticated shell; all listeners have matching cleanup. */
-export async function installNativeEvents(onLogin: () => Promise<void>, onTodo: (id: string, date: string) => void) {
+export async function installNativeEvents(onTodo: (id: string, date: string) => void) {
   if (!isNative()) return () => {};
-  const { App } = await import('@capacitor/app');
   const { PushNotifications } = await import('@capacitor/push-notifications');
   const handles = await Promise.all([
-    App.addListener('appUrlOpen', async ({ url }) => {
-      if (url === 'cronicl://auth-complete' || url === 'cronicl://auth-complete/') {
-        try { if (await finishNativeLogin()) await onLogin(); }
-        catch { window.dispatchEvent(new CustomEvent('native-login-error')); }
-      }
-    }),
-    App.addListener('appStateChange', async ({ isActive }) => {
-      if (isActive && pendingLogin) {
-        try { if (await finishNativeLogin()) await onLogin(); } catch { /* Browser consent may still be open. */ }
-      }
-    }),
     PushNotifications.addListener('registration', async ({ value }) => {
       try {
         const response = await apiFetch('/api/native/push', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: value }) });

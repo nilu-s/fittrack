@@ -80,7 +80,7 @@ function recipePayload(data: Partial<Recipe>): Record<string, unknown> {
   return {
     ...data,
     ingredients: data.ingredients?.map(
-      ({ nested_recipe_id, unit, ...ingredient }) => ({
+      ({ id: _id, name: _name, nested_recipe_id, unit, ...ingredient }) => ({
         ...ingredient,
         nested_recipe_id,
         unit,
@@ -413,6 +413,7 @@ class ApiClient {
   // a browser can show or mutate shared household content.
   async getSpaces(): Promise<Space[]> { return (await this.request<Space[]>('/spaces')) ?? []; }
   async createSpace(name: string): Promise<Space | null> { return this.request<Space>('/spaces', { method: 'POST', body: JSON.stringify({ name }) }); }
+  async updateSpace(spaceId: string, name: string): Promise<Space | null> { return this.request<Space>(`/spaces/${spaceId}`, { method: 'PUT', body: JSON.stringify({ name }) }); }
   async inviteToSpace(spaceId: string, contactId: string): Promise<boolean> { return Boolean(await this.request(`/spaces/${spaceId}/invitations`, { method: 'POST', body: JSON.stringify({ contact_id: contactId }) })); }
   async removeSpaceMember(spaceId: string, accountId: string): Promise<boolean> { return this.requestOk(`/spaces/${spaceId}/members/${accountId}`, { method: 'DELETE' }); }
   async getSpaceProjects(spaceId: string): Promise<SpaceProject[]> { return (await this.request<SpaceProject[]>(`/spaces/${spaceId}/projects`)) ?? []; }
@@ -436,9 +437,8 @@ class ApiClient {
     });
   }
 
-  async askAssistant(text: string, date: string): Promise<string | null> {
-    const response = await this.request<{ message: string }>("/todo-planning/assistant", { method: "POST", body: JSON.stringify({ text, date }) });
-    return response?.message ?? null;
+  async askAssistant(text: string, date: string, history: { role: 'user' | 'assistant'; content: string }[] = []): Promise<import('./types').AssistantReply | null> {
+    return this.request<import('./types').AssistantReply>("/todo-planning/assistant", { method: "POST", body: JSON.stringify({ text, date, history }) });
   }
 
   async searchTodoPlaces(query: string): Promise<PlaceSuggestion[]> {
@@ -844,7 +844,7 @@ class ApiClient {
       method: "PUT",
       body: JSON.stringify({
         ...recipePayload(rest),
-        expected_updated_at: updated_at,
+        expected_updated_at: rest.expected_updated_at ?? updated_at,
       }),
     });
   }
@@ -869,7 +869,7 @@ class ApiClient {
       method: "PUT",
       body: JSON.stringify({
         ...planPayload(rest),
-        expected_updated_at: updated_at,
+        expected_updated_at: rest.expected_updated_at ?? updated_at,
       }),
     });
   }

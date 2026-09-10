@@ -1,19 +1,18 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Literal
-from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy import select
 
-from app.config import settings
 from app.database import async_session
-from app.models import NativeLogin, NativeSession
+from app.models import NativeSession
 from app.routes.auth import get_current_user
-from app.services.native_auth import exchange_login, revoke_session, utcnow
+from app.services.native_auth import exchange_login, revoke_session, require_native_auth
+from app.services.google_native_auth import start_login, exchange_google_login
 
 router = APIRouter(prefix="/native", tags=["native"])
 
@@ -46,18 +45,45 @@ class PushRegistration(BaseModel):
     token: str | None = Field(default=None, max_length=4096)
 
 
-@router.post("/login", response_model=LoginStarted)
+class GoogleLoginStart(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    challenge: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")
+
+
+class GoogleLoginStarted(BaseModel):
+    login_id: uuid.UUID
+    nonce: str
+    client_id: str
+
+
+class GoogleLoginExchange(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    login_id: uuid.UUID
+    verifier: str = Field(min_length=43, max_length=128, pattern=r"^[A-Za-z0-9._~-]+$", repr=False)
+    id_token: SecretStr = Field(min_length=1, max_length=16384)
+
+
+@router.post("/google/start", response_model=GoogleLoginStarted,
+             responses={503: {"description": "Google app login is not configured"}})
+async def begin_google_login(body: GoogleLoginStart):
+    return await start_login(body.challenge)
+
+
+@router.post("/google/exchange", response_model=LoginCredential, responses={
+    401: {"description": "Invalid, expired or already used identity proof"},
+    403: {"description": "Google account is not allowed"},
+    503: {"description": "Google app login unavailable"},
+})
+async def complete_google_login(body: GoogleLoginExchange):
+    return await exchange_google_login(body.login_id, body.verifier, body.id_token.get_secret_value())
+
+
+@router.post("/login", response_model=LoginStarted, responses={503: {"description": "Native login temporarily unavailable"}})
 async def begin_login(body: LoginStart):
-    if not settings.GOOGLE_CLIENT_ID:
-        raise HTTPException(503, "Google login is not configured")
-    async with async_session() as session:
-        login = NativeLogin(challenge=body.challenge, platform=body.platform, expires_at=utcnow() + timedelta(minutes=5))
-        session.add(login)
-        await session.commit()
-        return {"login_id": login.id, "login_url": settings.APP_PUBLIC_ORIGIN.rstrip("/") + "/api/auth/google/login?" + urlencode({"native_request": str(login.id)})}
+    require_native_auth()
 
 
-@router.post("/exchange", response_model=LoginCredential)
+@router.post("/exchange", response_model=LoginCredential, responses={503: {"description": "Native login temporarily unavailable"}})
 async def exchange(body: LoginExchange):
     return await exchange_login(body.login_id, body.verifier)
 

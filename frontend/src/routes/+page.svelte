@@ -7,6 +7,7 @@
   import { pendingTravelTodo } from '$lib/travel';
   import { dayData, currentDate } from '$lib/stores';
   import { api } from '$lib/api';
+  import { parseQuickEntry } from '$lib/quick-entry';
   import TodoDetailsSheet from '$lib/components/TodoDetailsSheet.svelte';
   import AssistantChatSheet from '$lib/components/AssistantChatSheet.svelte';
   import ShoppingQuickPanel from '$lib/components/ShoppingQuickPanel.svelte';
@@ -112,9 +113,18 @@
     todoAdding = true;
     todoAddError = '';
     try {
-      const created = await api.createTodo({ due_date: $currentDate, title, status: 'open', priority: 2, source: 'manual' });
+      const parsed = parseQuickEntry(title, $currentDate);
+      if (parsed.error) { todoAddError = parsed.error; return; }
+      if (parsed.weekdays) {
+        const routine = await api.createTodoRoutine({ title: parsed.title, weekdays: parsed.weekdays, due_time: parsed.time, priority: 2, is_active: true });
+        if (!routine) throw new Error();
+        todoTitle = '';
+        if (data) dayData.set({ ...data, todos: await api.getTodos($currentDate) });
+        return;
+      }
+      const created = await api.createTodo({ due_date: parsed.date, title: parsed.title, due_time: parsed.time, start_time: parsed.time, is_all_day: !parsed.time, status: 'open', priority: 2, source: 'manual' });
       if (!created) throw new Error('To-do konnte nicht erstellt werden.');
-      onTodoAdd(new CustomEvent('todoadd', { detail: created }));
+      if (created.due_date === $currentDate) onTodoAdd(new CustomEvent('todoadd', { detail: created }));
       todoTitle = '';
     } catch {
       todoAddError = 'To-do konnte nicht hinzugefügt werden. Bitte versuche es erneut.';
@@ -222,6 +232,7 @@
             on:cardiotoggle={(e) => onUnifiedUpdate(new CustomEvent('update', { detail: { field: 'cardio_done', value: e.detail } }))}
             on:todotoggle={onTodoToggle}
             on:todoadd={onTodoAdd}
+            on:todoedit={(event) => todoDetails = event.detail}
             on:workspacechange={(event) => moveSpace(event.detail)}>
             <svelte:fragment slot="content">
               {#if noteBoardOpen}

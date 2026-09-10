@@ -103,10 +103,10 @@ Den bestehenden ruhigen Tagesablauf weiterentwickeln: oben höchstens eine näch
 
 Beispiel für die hervorgehobene Handlung, mit rein illustrativen Daten:
 
-> **Um 17:12 losfahren**  
-> Termin · 18:00 · bestätigter Zielort  
-> 38 Min. Fahrt + 10 Min. Puffer  
-> Wegen Verkehr 8 Min. früher · geprüft vor 1 Min.  
+> **Um 17:12 losfahren**
+> Termin · 18:00 · bestätigter Zielort
+> 38 Min. Fahrt + 10 Min. Puffer
+> Wegen Verkehr 8 Min. früher · geprüft vor 1 Min.
 > **Navigation öffnen** · Anreise ansehen
 
 „Wegen Verkehr“ nur verwenden, wenn diese Ursache belegbar ist. Bei geändertem Startort entsprechend „Abfahrt nach Standortaktualisierung angepasst“. Countdown ergänzt die absolute Uhrzeit. „Navigation öffnen“ bedeutet nicht automatisch „Fahrt begonnen“; Begleitung separat nachvollziehbar starten/stoppen.

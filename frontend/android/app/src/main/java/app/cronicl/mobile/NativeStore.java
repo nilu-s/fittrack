@@ -27,7 +27,7 @@ final class NativeStore {
     static void save(Context context, String credential) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.ENCRYPT_MODE, key());
         String encoded = Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP) + ":" + Base64.encodeToString(cipher.doFinal(credential.getBytes(StandardCharsets.UTF_8)), Base64.NO_WRAP);
-        context.getSharedPreferences(ALIAS, 0).edit().putString("credential", encoded).commit();
+        if (!context.getSharedPreferences(ALIAS, 0).edit().putString("credential", encoded).commit()) throw new java.io.IOException("Session storage unavailable");
     }
     static String read(Context context) throws Exception {
         String encoded = context.getSharedPreferences(ALIAS, 0).getString("credential", null);

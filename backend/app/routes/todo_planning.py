@@ -85,7 +85,7 @@ def _fallback_draft(body: TodoDraftRequest) -> TodoDraftResponse:
 async def _codex_draft(body: TodoDraftRequest) -> TodoDraftResponse | None:
     try:
         async with httpx.AsyncClient(timeout=20) as client:
-            response = await client.post(f"{settings.VISION_PROXY_URL}/todo-draft", json={"text": body.text, "date": body.date.isoformat()})
+            response = await client.post(f"{settings.VISION_PROXY_URL}/todo-draft", json=body.model_dump(mode="json"))
         if response.status_code != 200:
             return None
         parsed = response.json()
@@ -104,12 +104,13 @@ async def draft_todo(body: TodoDraftRequest, user=Depends(get_current_user)):
 
 @router.post("/assistant", response_model=AssistantResponse)
 async def assistant_reply(body: AssistantRequest, user=Depends(get_current_user)):
-    """General, opt-in assistant: it can advise, never mutate account data."""
+    """Prepare explicit, validated proposals without mutating account data."""
+    from app.services.assistant import proposal_contract, validate_proposals
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(f"{settings.VISION_PROXY_URL}/assistant", json={"text": body.text, "date": body.date.isoformat()})
+            response = await client.post(f"{settings.VISION_PROXY_URL}/assistant", json={**body.model_dump(mode="json"), "proposal_contract": proposal_contract()})
         if response.status_code == 200:
-            return AssistantResponse.model_validate(response.json())
+            return validate_proposals(AssistantResponse.model_validate(response.json()))
     except (httpx.HTTPError, ValueError, TypeError):
         pass
     raise HTTPException(502, "KI-Assistent ist derzeit nicht verfügbar")

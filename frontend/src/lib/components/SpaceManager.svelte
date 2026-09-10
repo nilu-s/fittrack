@@ -10,9 +10,25 @@
   const dispatch = createEventDispatcher<{ changed: void }>();
   let name = ''; let contactId = ''; let selectedId = ''; let message = '';
   let appliedInitialSpaceId = '';
+  let renameId = ''; let renameValue = ''; let renaming = false;
+  $: if (selectedId !== renameId && !renaming) { renameId = selectedId; renameValue = spaces.find((space) => space.id === selectedId)?.name ?? ''; }
   $: selected = spaces.find((space) => space.id === selectedId) ?? null;
   $: if (initialSpaceId && initialSpaceId !== appliedInitialSpaceId && spaces.some((space) => space.id === initialSpaceId)) { selectedId = initialSpaceId; appliedInitialSpaceId = initialSpaceId; }
   async function create() { const value = name.trim(); if (!value) return; const created = await api.createSpace(value); if (created) { name = ''; selectedId = created.id; dispatch('changed'); } else message = 'Bereich konnte nicht angelegt werden.'; }
+  async function rename() {
+    const id = selectedId;
+    if (renaming || !id || selected?.role !== 'owner' || !renameValue.trim()) return;
+    renaming = true; message = '';
+    try {
+      const updated = await api.updateSpace(id, renameValue.trim());
+      if (updated) {
+        spaces = spaces.map((space) => space.id === updated.id ? updated : space);
+        message = 'Bereich wurde umbenannt.';
+        dispatch('changed');
+      } else message = 'Bereich konnte nicht umbenannt werden.';
+    } catch { message = 'Bereich konnte nicht umbenannt werden.'; }
+    finally { renaming = false; }
+  }
   async function invite() { if (!selectedId || !contactId) return; if (await api.inviteToSpace(selectedId, contactId)) { contactId = ''; message = 'Workspace-Anfrage wurde gesendet.'; dispatch('changed'); } else message = 'Workspace-Anfrage konnte nicht gesendet werden.'; }
   async function remove(memberId: string) { if (!selectedId || !confirm('Mitglied wirklich aus diesem Space entfernen?')) return; if (await api.removeSpaceMember(selectedId, memberId)) { message = 'Mitglied wurde entfernt.'; dispatch('changed'); } else message = 'Mitglied konnte nicht entfernt werden.'; }
   async function accept(id: string) { if (await api.acceptSpaceInvitation(id)) dispatch('changed'); }
@@ -22,9 +38,9 @@
 <section class="spaces" aria-labelledby="spaces-title">
   <header><div><p>GEMEINSAM ORGANISIEREN</p><h2 id="spaces-title">Gemeinsame Bereiche</h2></div></header>
   {#if invitations.length}<div class="invites" aria-label="Offene Einladungen">{#each invitations as invitation (invitation.id)}<p><strong>{invitation.space_name}</strong>{#if invitation.invited_by_display_name} · von {invitation.invited_by_display_name}{/if}<span><button type="button" onclick={() => accept(invitation.id)}>Annehmen</button><button type="button" onclick={() => decline(invitation.id)}>Ablehnen</button></span></p>{/each}</div>{/if}
-  <form class="create" onsubmit={(event) => { event.preventDefault(); create(); }}><label for="space-name">Neuer Space<input id="space-name" bind:value={name} placeholder="z. B. Haushalt" required></label><button class="primary">Anlegen</button></form>
-  {#if spaces.length}<label for="space-select">Bereich auswählen<select id="space-select" bind:value={selectedId}><option value="">Auswählen</option>{#each spaces as space (space.id)}<option value={space.id}>{space.name}</option>{/each}</select></label>{/if}
-  {#if selected}<div class="details"><h3>{selected.name}</h3><p class="hint">Ein Bereich ist zugleich gemeinsame Ablage und Zugriffsgrenze für Notizen und daraus geplante To-dos.</p><ul class="members">{#each selected.members as member (member.member_id)}<li>{member.display_name ?? 'Mitglied'}{#if selected.role === 'owner' && member.role !== 'owner'}<button type="button" class="remove" onclick={() => remove(member.member_id)}>Entfernen</button>{/if}</li>{/each}</ul>{#if selected.role === 'owner'}<form onsubmit={(event) => { event.preventDefault(); invite(); }}><label for="space-invite">Kontakt einladen<select id="space-invite" bind:value={contactId} required><option value="">Kontakt auswählen</option>{#each contacts as contact (contact.id)}<option value={contact.id}>{contact.display_name}</option>{/each}</select></label><button type="submit" disabled={!contactId}>Einladen</button></form>{/if}</div>{/if}
+  <form class="create" onsubmit={(event) => { event.preventDefault(); create(); }}><label for="space-name">Neuer Bereich<input id="space-name" bind:value={name} placeholder="z. B. Haushalt" required></label><button class="primary">Anlegen</button></form>
+  {#if spaces.length}<label for="space-select">Bereich auswählen<select id="space-select" bind:value={selectedId} disabled={renaming}><option value="">Auswählen</option>{#each spaces as space (space.id)}<option value={space.id}>{space.name}</option>{/each}</select></label>{/if}
+  {#if selected}<div class="details"><h3>{selected.name}</h3><p class="hint">Ein Bereich ist zugleich gemeinsame Ablage und Zugriffsgrenze für Notizen und daraus geplante To-dos.</p><ul class="members">{#each selected.members as member (member.member_id)}<li>{member.display_name ?? 'Mitglied'}{#if selected.role === 'owner' && member.role !== 'owner'}<button type="button" class="remove" onclick={() => remove(member.member_id)}>Entfernen</button>{/if}</li>{/each}</ul>{#if selected.role === 'owner'}<form onsubmit={(event) => { event.preventDefault(); rename(); }}><label for="space-rename">Bereichsname<input id="space-rename" bind:value={renameValue} required maxlength="100" disabled={renaming}/></label><button type="submit" disabled={renaming || !renameValue.trim() || renameValue.trim() === selected.name}>{renaming ? 'Speichere…' : 'Namen speichern'}</button></form><form onsubmit={(event) => { event.preventDefault(); invite(); }}><label for="space-invite">Kontakt einladen<select id="space-invite" bind:value={contactId} required><option value="">Kontakt auswählen</option>{#each contacts as contact (contact.id)}<option value={contact.id}>{contact.display_name}</option>{/each}</select></label><button type="submit" disabled={!contactId}>Einladen</button></form>{/if}</div>{/if}
   {#if message}<p class="message" role="status">{message}</p>{/if}
 </section>
 

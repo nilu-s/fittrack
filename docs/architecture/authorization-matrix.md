@@ -3,6 +3,8 @@
 | Resource | Principal | Action | Enforcement | Test |
 | --- | --- | --- | --- | --- |
 | Account-owned records | Browser account | read/write | verified session and ORM account scope | A-versus-B regression suite |
+| Account-owned records | Android v2 session | read/write | verified Google subject, opaque versioned session, expiry/revocation and ORM account scope | native/travel A-versus-B regression suite |
+| Native Google login | Unauthenticated Android client | create/exchange | one-time nonce/verifier, Google signature/audience/issuer/expiry, verified email and server allow-list | `test_google_native_auth.py`; v1 rejection in `test_native_auth_containment.py` |
 | Offline sync record | Browser account | create/update/delete | session account applied server-side; owner fields discarded | sync contract tests |
 | Google token | Browser account | read/refresh/disconnect | `account_id` predicate | auth integration test |
 | Google Fit / Calendar import | Browser account | import | current account token and account-scoped projection | integration contract tests |

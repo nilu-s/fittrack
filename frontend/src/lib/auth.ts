@@ -91,7 +91,7 @@ export async function disconnectGoogle(): Promise<void> {
   }
 }
 
-export function googleLogin(): void {
-  if (isNative()) { void nativeLogin().catch(() => window.dispatchEvent(new CustomEvent("native-login-error"))); return; }
+export async function googleLogin(): Promise<void> {
+  if (isNative()) { await nativeLogin(); await checkAuth(); return; }
   window.location.href = `${API_BASE}/auth/google/login`;
 }

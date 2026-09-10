@@ -137,7 +137,7 @@
   onMount(() => {
     let disposed = false;
     let stopNative: (() => void) | undefined;
-    void installNativeEvents(async () => { await checkAuth(); authChecked = true; await goto($aliasRequired ? '/onboarding/alias' : '/'); }, (id, date) => {
+    void installNativeEvents((id, date) => {
       pendingTravelTodo.set({ id, date }); currentDate.set(date); void goto('/');
     }).then((stop) => { if (disposed) stop(); else stopNative = stop; });
     const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));

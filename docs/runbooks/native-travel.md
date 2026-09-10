@@ -2,6 +2,47 @@
 
 Governing: `../specs/native-travel-companion.md`. Implementierung: `../plans/2026-09-08-native-travel-implementation.md`.
 
+## Android Google-Login v2
+
+Governing: `../specs/android-google-sign-in.md`. Abnahmestand:
+`../plans/2026-09-08-android-google-login.md`.
+
+Android nutzt den nativen Credential Manager. Der bisherige Browser-Handoff v1
+bleibt permanent gesperrt; iOS zeigt derzeit den Hinweis, die Website zu nutzen.
+Die neuen Android-Sitzungen tragen Protokollversion 2. Diese Anleitung belegt
+keinen Rollout und keine tatsächliche Google-Anmeldung auf einem Gerät.
+
+### Google-Projekt konfigurieren
+
+1. Im bestehenden Google-Cloud-Projekt einen Android-OAuth-Client für
+   `app.cronicl.mobile` registrieren. SHA-1 des tatsächlich verwendeten
+   Signaturzertifikats hinterlegen: Debug und Release/Play-App-Signing können
+   unterschiedliche Zertifikate haben. `./gradlew :app:signingReport` zeigt lokale
+   Fingerabdrücke; keine privaten Signing-Schlüssel weitergeben.
+2. Eine Web-OAuth-Client-ID desselben Projekts als Server-Audience verwenden.
+   `GOOGLE_NATIVE_CLIENT_ID` explizit in der Laufzeit konfigurieren; sie kann bei
+   passendem Projekt der bestehenden `GOOGLE_CLIENT_ID` entsprechen. Die Variable
+   enthält eine öffentliche Client-ID, kein Client-Secret. Der native Code erhält
+   sie vom fest konfigurierten HTTPS-Server. Ohne Wert antwortet Login mit `503`.
+3. Bestehende `ALLOWED_GOOGLE_EMAILS` gelten auch für Android. Nur verifizierte,
+   freigegebene Google-Identitäten werden akzeptiert. Testnutzer/Consent-Status in
+   Google müssen zur tatsächlichen Verteilung passen.
+4. Vor Auslieferung Migration `b60908c002` anwenden. Sie widerruft alte native
+   Sitzungen dauerhaft, entfernt deren Push-Zuordnung und stoppt die zugehörigen
+   Überwachungen samt Standorten. Browser-Sitzungen und normale To-dos bleiben.
+5. Android neu bauen/installieren und die echten Gerätefälle unten durchführen.
+   Firebase/APNs-Einrichtung ist separat; Google-Anmeldung allein aktiviert kein Push.
+
+Native Anmeldung erteilt keinen Kalender-/Fit-Zugriff und verändert keine bestehenden
+Google-Integrationstokens. Zusätzliche Google-Datenfreigabe erfolgt bis zum eigenen
+nativen Autorisierungsablauf über die Cronicl-Website. Integrationen zeigen diesen
+Zugriff getrennt vom Anmeldestatus. Neue Konten erhalten einen zunächst inaktiven
+Gewichtszuteilungsbereich, bis dieser bewusst konfiguriert wird.
+
+`/api/native/login`, `/api/native/exchange` und native Google-Browser-Callbacks
+bleiben mit `503` gesperrt. Entfernen erst, wenn keine unterstützten v1-Clients
+mehr darauf angewiesen sind; das alte Verfahren nie wieder einschalten.
+
 ## Server
 
 API und `travel-worker` verwenden dieselbe Datenbankkonfiguration. Vor neuem Code `alembic upgrade head` aus dem neu gebauten API-Image ausführen. Der Worker läuft als eigener Compose-Service, verwendet persistente Überwachungen und eine transaktionale Outbox. Ein PostgreSQL-Advisory-Lock verhindert parallele Worker-Ticks. Fehler werden ohne Payloads protokolliert. Alle 30 Sekunden wird fällige Arbeit geprüft; pro Tick maximal `TRAVEL_MAX_CHECKS_PER_TICK` (Standard 10, effektiv 1–50) Überwachungen, mit höchstens zwei Google-Anfragen je Prüfung. Das ist eine technische Obergrenze, kein monatliches Kostenversprechen.
@@ -31,7 +72,7 @@ npm run native:android
 
 Android ab API 26: Android Studio, SDK 36 und zur Gradle-/Capacitor-Version passende JDK-Installation. `android/app/google-services.json` aus dem passenden Firebase-Projekt ist lokal erforderlich für Push und absichtlich gitignoriert. Release-Key und Signing-Konfiguration extern verwalten. Der Standortdienst startet nur aus der sichtbaren App, zeigt eine permanente Systemmeldung und besitzt einen Beenden-Button. Kein Boot-Receiver und kein versprochener automatischer Neustart nach Force-stop.
 
-iOS ab 15: macOS/Xcode und passendes Apple Developer Team wählen. Bundle-ID und APNs-Topic abgleichen. Signing & Capabilities: Push Notifications und Background Modes/Location Updates. Debug-Entitlement nutzt `development`, Release `production`. Standortrechte sind zweckgebunden beschrieben. Das eigene native Modul ist über `CroniclViewController` registriert; `SceneDelegate` muss diesen Controller verwenden. Systembrowser-Login kehrt über `cronicl://auth-complete` zurück; die URI enthält kein Sitzungstoken. Die Einlösung erfordert zusätzlich den geheimen Challenge-Verifier aus der gestarteten App.
+iOS ab 15: macOS/Xcode und passendes Apple Developer Team wählen. Bundle-ID und APNs-Topic abgleichen. Signing & Capabilities: Push Notifications und Background Modes/Location Updates. Debug-Entitlement nutzt `development`, Release `production`. Standortrechte sind zweckgebunden beschrieben. Das eigene native Modul ist über `CroniclViewController` registriert; `SceneDelegate` muss diesen Controller verwenden. Der frühere iOS-Systembrowser-Login ist gesperrt. Ein Ersatzlogin ist nicht Bestandteil der Android-Implementierung und vor iOS-Auslieferung erforderlich.
 
 Die Website kann einen festen bestätigten Startort überwachen. Aktuelle Hintergrundpositionen benötigen die native App. Pro Gerät läuft eine bewusst gestartete, zeitlich begrenzte Begleitung. Serverprüfung startet im konfigurierten Vorlauf auch ohne aktiven Standortdienst. Das Telefon wird zum Starten über die Vorlauf-Benachrichtigung zur App geführt; automatischer GPS-Start bei geschlossener App ist nicht zugesagt.
 
@@ -56,7 +97,7 @@ Noch gesondert auf physischen Geräten zu prüfen:
 | Push online/offline/verspätet, App geschlossen | Aktuelles autorisiertes To-do öffnen, keine gespeicherte alte Route als aktuellen Zustand darstellen |
 | Zwei Konten und zwei Geräte | Keine fremde Position, Sitzung, Überwachung oder Benachrichtigung sichtbar |
 
-Diese Gerätefälle wurden nicht durch einen Web-Build oder Emulator ersetzt. Lokale Umgebung bietet derzeit keine Xcode-/Android-SDK-Toolchain und keine verbundenen Telefone. Store-Verteilung ist erst nach Signing und dieser Abnahme freigabefähig.
+Diese Gerätefälle wurden nicht durch einen Web-Build oder Emulator ersetzt. Xcode und verbundene Telefone fehlen. Das Android SDK ist unter `/opt/android-sdk` installiert; Debug-APK und Instrumentierungs-APK wurden erfolgreich gebaut. Konkrete Zertifikatsfingerabdrücke und Google-Client-ID stehen im aktuellen Umsetzungsplan. Store-Verteilung ist erst nach Signing und dieser Abnahme freigabefähig.
 
 ## Deployment und Rollback
 

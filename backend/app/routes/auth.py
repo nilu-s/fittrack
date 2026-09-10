@@ -174,28 +174,19 @@ async def get_valid_access_token(session, account_id) -> str | None:
 # --- Routes ---
 
 
-@router.get("/google/login")
+@router.get("/google/login", responses={503: {"description": "Native login temporarily unavailable"}})
 async def google_login(request: Request):
     """Redirect user to Google OAuth consent screen."""
+    if request.query_params.get("native_request"):
+        from app.services.native_auth import require_native_auth
+        require_native_auth()
     if not settings.GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID not configured")
 
     # The redirect URI must match what's in Google Cloud Console
     redirect_uri = google_redirect_uri()
 
-    native_request = request.query_params.get("native_request")
-    if native_request:
-        import uuid
-        from app.models import NativeLogin
-        try:
-            login_id = uuid.UUID(native_request)
-        except ValueError:
-            raise HTTPException(400, "Invalid login request")
-        async with async_session() as session:
-            login = await session.get(NativeLogin, login_id)
-            if not login or login.consumed or login.account_id or login.expires_at <= datetime.now(timezone.utc):
-                raise HTTPException(401, "Login request expired")
-    state = _create_state(native_request)
+    state = _create_state()
 
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
@@ -211,12 +202,16 @@ async def google_login(request: Request):
     return RedirectResponse(url=auth_url)
 
 
-@google_router.get("/callback")
+@google_router.get("/callback", responses={503: {"description": "Native login temporarily unavailable"}})
 async def google_callback(request: Request):
     """Handle OAuth callback — exchange code for tokens and persist to DB."""
     code = request.query_params.get("code")
     state = request.query_params.get("state")
     error = request.query_params.get("error")
+
+    if state and state.startswith("native:"):
+        from app.services.native_auth import require_native_auth
+        require_native_auth()
 
     if error:
         return JSONResponse(
@@ -339,18 +334,6 @@ async def google_callback(request: Request):
             session.add(new_token)
 
         await session.commit()
-
-    if state.startswith("native:"):
-        import uuid
-        from app.models import NativeLogin
-        from fastapi.responses import HTMLResponse
-        async with async_session() as session:
-            login = await session.scalar(select(NativeLogin).where(NativeLogin.id == uuid.UUID(state.split(":")[1])).with_for_update())
-            if not login or login.consumed or login.account_id or login.expires_at <= datetime.now(timezone.utc):
-                raise HTTPException(401, "Login request expired")
-            login.account_id = account.id
-            await session.commit()
-        return HTMLResponse('<!doctype html><html lang="de"><meta name="viewport" content="width=device-width"><title>Cronicl</title><body><h1>Anmeldung abgeschlossen</h1><p>Du kannst zu Cronicl zurückkehren.</p><a href="cronicl://auth-complete">Cronicl öffnen</a></body></html>', headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
 
     # Create JWT session token and set as httpOnly cookie, then redirect to /
     session_jwt = _create_session_jwt(account)

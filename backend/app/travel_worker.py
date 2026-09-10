@@ -40,7 +40,7 @@ async def process_watch(session, watch, now, estimator=estimate):
     todo = await session.scalar(select(Todo).where(Todo.id == watch.todo_id, Todo.account_id == watch.account_id))
     device = await session.scalar(select(NativeSession).where(NativeSession.id == watch.device_id,
         NativeSession.account_id == watch.account_id)) if watch.device_id else None
-    if not todo or watch.expires_at <= now or plan_hash(todo) != watch.plan_hash or (watch.device_id and (not device or device.revoked or device.expires_at <= now)):
+    if not todo or watch.expires_at <= now or plan_hash(todo) != watch.plan_hash or (watch.device_id and (not device or device.protocol_version != 2 or device.platform != "android" or device.revoked or device.expires_at <= now)):
         stop_watch(watch)
         return
     if watch.live_fix and not usable_fix(watch.live_fix, now):
@@ -84,7 +84,7 @@ async def deliver(session, event, now, sender=send_alert):
         NativeSession.account_id == event.account_id)) if watch else None
     if (event.expires_at <= now or not watch or not watch.active or watch.expires_at <= now or
         event.generation != watch.generation or not todo or plan_hash(todo) != watch.plan_hash or
-        not device or device.revoked or device.expires_at <= now or not device.push_token):
+        not device or device.protocol_version != 2 or device.platform != "android" or device.revoked or device.expires_at <= now or not device.push_token):
         event.discarded = True
         return
     event.attempts += 1

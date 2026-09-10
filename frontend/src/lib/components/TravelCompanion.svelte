@@ -87,7 +87,7 @@
     <button type="button" class="ui-button" disabled={busy} onclick={() => pause(true)}>Überwachung beenden</button>
   {:else}
     <p>Der Verkehr wird rund um deine Abfahrt automatisch geprüft. Der bestätigte Startort bleibt bis zum Ende dieser Überwachung gespeichert.</p>
-    <label>Vorlauf vor Abfahrt <select bind:value={lead}><option value={30}>30 Minuten</option><option value={60}>60 Minuten</option><option value={90}>90 Minuten</option><option value={120}>120 Minuten</option></select></label>
+    <label>Vorlauf vor Abfahrt <input type="number" min="15" max="180" step="1" bind:value={lead} /></label>
     <label>Startort <select bind:value={originMode}><option value="current">Aktuellen Standort bestätigen</option><option value="place">Ort auswählen</option></select></label>
     {#if originMode === 'place'}
       <label>Startort suchen <input bind:value={query} oninput={() => { selected = null; places = []; }} placeholder="Adresse oder Ort" /></label>
@@ -95,7 +95,7 @@
       <ul>{#each places as place}<li><button type="button" class="ui-button" aria-pressed={selected?.place_id === place.place_id} onclick={() => selected = place}>{place.name} · {place.address ?? ''}</button></li>{/each}</ul>
       {#if selected}<p>Bestätigter Startort: {selected.name}</p>{/if}
     {/if}
-    <button type="button" class="ui-button" disabled={busy || (originMode === 'place' && !selected)} onclick={setup}>{busy ? 'Wird eingerichtet …' : 'Startort bestätigen und überwachen'}</button>
+    <button type="button" class="ui-button" disabled={busy || !Number.isInteger(lead) || lead < 15 || lead > 180 || (originMode === 'place' && !selected)} onclick={setup}>{busy ? 'Wird eingerichtet …' : 'Startort bestätigen und überwachen'}</button>
   {/if}
   {#if message}<p role="status">{message}</p>{/if}
   {#if error}<p role="alert">{error}</p>{/if}

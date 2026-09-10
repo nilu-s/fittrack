@@ -122,6 +122,9 @@ public class CroniclNativePlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManager
     }
     @objc func request(_ call: CAPPluginCall) {
         guard let path = call.getString("path") else { call.reject("Ungültige Anfrage."); return }
+        let decoded = path.removingPercentEncoding ?? path
+        guard !decoded.hasPrefix("/api/native/google/"), !decoded.hasPrefix("/api/native/login"),
+              !decoded.hasPrefix("/api/native/exchange") else { call.reject("Login requires the native module."); return }
         let headers = call.getObject("headers") as? [String: String] ?? [:]
         NativeHTTP.shared.send(path: path, method: call.getString("method") ?? "GET", headers: headers,
             body: call.getString("bodyBase64").flatMap { Data(base64Encoded: $0) }) { result in

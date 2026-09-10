@@ -11,6 +11,16 @@ import org.json.JSONObject;
 final class NativeApi {
     static String origin;
     static JSONObject request(Context context, String path, String method, JSONObject headers, byte[] body) throws Exception {
+        return request(context, path, method, headers, body, true);
+    }
+    static JSONObject request(Context context, String path, String method, JSONObject headers, byte[] body, boolean authenticated) throws Exception {
+        return send(context, path, method, headers, body, authenticated ? NativeStore.read(context) : null);
+    }
+    static void revokeCredential(Context context, String credential) {
+        try { send(context, "/api/native/logout", "POST", null, null, credential); }
+        catch (Exception ignored) { /* Offline credentials remain bounded by server expiry. */ }
+    }
+    private static JSONObject send(Context context, String path, String method, JSONObject headers, byte[] body, String credential) throws Exception {
         if (origin == null || !origin.startsWith("https://") || !path.startsWith("/api/") || path.contains("..") || path.contains("\\")) throw new IllegalArgumentException();
         URI base = new URI(origin);
         URI target = new URI(origin + path);
@@ -22,7 +32,6 @@ final class NativeApi {
             String name = i.next();
             if (name.equalsIgnoreCase("Content-Type") || name.equalsIgnoreCase("Accept")) connection.setRequestProperty(name, headers.getString(name));
         }
-        String credential = NativeStore.read(context);
         if (credential != null) connection.setRequestProperty("Authorization", "Bearer " + credential);
         try {
             if (body != null) { connection.setDoOutput(true); connection.getOutputStream().write(body); }

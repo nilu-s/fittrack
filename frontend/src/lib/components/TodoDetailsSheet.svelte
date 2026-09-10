@@ -16,6 +16,7 @@
   let dueTime = '';
   let travelMode: Todo['travel_mode'] = null;
   let travelMonitoring = false;
+  let travelBuffer = 10;
   let spaceId = '';
   let assigneeId = '';
   let selectedSpace: Space | null = null;
@@ -33,13 +34,14 @@
     title = todo.title; category = todo.category ?? ''; priority = todo.priority ?? 2;
     dueDate = todo.due_date ?? ''; dueTime = todo.start_time ?? todo.due_time ?? '';
     travelMode = todo.travel_mode ?? suggestedTravelMode;
+    travelBuffer = todo.travel_buffer_minutes ?? 10;
     travelMonitoring = Boolean(todo.travel_monitoring_enabled);
     spaceId = todo.space_id ?? ''; assigneeId = todo.assignee_id ?? '';
     placeQuery = todo.place_name ?? suggestedPlaceQuery;
     selectedPlace = todo.place_id && todo.place_name ? { place_id: todo.place_id, name: todo.place_name, address: todo.place_address ?? null } : null;
     places = []; placeError = '';
     error = ''; dialog.showModal();
-    void tick().then(() => dialog.querySelector<HTMLInputElement>('#todo-detail-title')?.focus());
+    void tick().then(() => dialog.querySelector<HTMLButtonElement>('.close')?.focus());
     if (!selectedPlace && placeQuery.trim().length >= 2) void findPlaces();
   }
   $: if (!todo && dialog?.open) dialog.close();
@@ -66,9 +68,10 @@
       due_date: dueDate || null, due_time: dueTime || null, start_time: dueTime || null,
       is_all_day: !dueTime, space_id: spaceId || null, project_id: null, assignee_id: assigneeId || null,
       travel_mode: spaceId ? null : travelMode,
-      place_id: selectedPlace?.place_id ?? todo.place_id ?? null,
-      place_name: selectedPlace?.name ?? todo.place_name ?? null,
-      place_address: selectedPlace?.address ?? todo.place_address ?? null,
+      travel_buffer_minutes: Number(travelBuffer),
+      place_id: selectedPlace?.place_id ?? null,
+      place_name: selectedPlace?.name ?? null,
+      place_address: selectedPlace?.address ?? null,
       travel_monitoring_enabled: !spaceId && canMonitorTravel && travelMonitoring,
     });
     saving = false;
@@ -77,7 +80,7 @@
   }
 </script>
 
-<dialog bind:this={dialog} class="todo-details" aria-labelledby="todo-details-title" oncancel={(event) => { event.preventDefault(); close(); }} onclose={() => opener?.focus()}>
+<dialog bind:this={dialog} class="todo-details ui-dialog" aria-labelledby="todo-details-title" oncancel={(event) => { event.preventDefault(); close(); }} onclose={() => opener?.focus()}>
   <form onsubmit={(event) => { event.preventDefault(); save(); }}>
     <header><div><p>TO-DO</p><h2 id="todo-details-title">Details ergänzen</h2></div><button type="button" class="close" aria-label="Details schließen" onclick={close}>×</button></header>
     <p class="hint">Dein To-do ist angelegt. Ergänze bei Bedarf die Planung.</p>
@@ -89,9 +92,10 @@
     </fieldset>
     {#if !spaceId}<fieldset><legend>Ort und Anreise</legend><div class="place-search"><label for="todo-detail-place">Ort suchen<input id="todo-detail-place" bind:value={placeQuery} placeholder="Ort oder Adresse"></label><button type="button" class="search" disabled={placeQuery.trim().length < 2 || placeLoading} onclick={findPlaces}>{placeLoading ? 'Suche…' : 'Suchen'}</button></div>
       {#if places.length}<ul class="places" aria-label="Ortsvorschläge">{#each places as place (place.place_id)}<li><button type="button" class:selected={selectedPlace?.place_id === place.place_id} aria-pressed={selectedPlace?.place_id === place.place_id} onclick={() => selectedPlace = place}><strong>{place.name}</strong>{#if place.address}<small>{place.address}</small>{/if}</button></li>{/each}</ul>{/if}
-      {#if selectedPlace}<p class="confirmed">Ort bestätigt: {selectedPlace.name}</p>{/if}
+      {#if selectedPlace}<p class="confirmed">Ort bestätigt: {selectedPlace.name}</p><button type="button" onclick={() => { selectedPlace = null; placeQuery = ''; places = []; travelMonitoring = false; }}>Ort entfernen</button>{/if}
       {#if placeError}<p class="error" role="status">{placeError}</p>{/if}
       <label for="todo-detail-travel">Anreiseart<select id="todo-detail-travel" bind:value={travelMode}><option value={undefined}>Keine Anreise</option><option value="drive">Auto</option><option value="bicycle">Fahrrad</option><option value="walk">Zu Fuß</option><option value="transit">ÖPNV</option></select></label>
+      <label for="todo-travel-buffer">Ankunftspuffer (Minuten)<input id="todo-travel-buffer" type="number" min="0" max="180" step="1" bind:value={travelBuffer} required></label>
       {#if selectedPlace && dueDate && dueTime && travelMode}
         <label class="monitor"><input type="checkbox" bind:checked={travelMonitoring}> Anreise in der geöffneten App alle fünf Minuten aktualisieren</label>
       {:else if travelMonitoring}

@@ -19,6 +19,10 @@ iPhone und Android erhalten eine Capacitor-App mit gebündelter vorhandener Svel
 
 ## Native Sitzung
 
+Android-Revision: `android-google-sign-in.md` ersetzt für Android das folgende
+Browser-Übergabeverfahren durch Credential Manager und versionierte Sitzungen.
+Der hier beschriebene v1-Login bleibt gesperrt, auch für iOS.
+
 Login erfolgt über Systembrowser und vorhandenen serverseitigen Google-OAuth-Broker. Kurzlebiger Login-Auftrag ist an einen kryptografischen Challenge/Verifier gebunden; einmalige Einlösung nach verifiziertem Google-Login. Keine Google-Tokens oder Kontowahl aus dem Client. Native opaque Sitzung nur im OS-geschützten Speicher; Server speichert ausschließlich Hash und Ablauf (30 Tage), prüft Widerruf und Account bei jedem Request. Der native Transport injiziert das Credential nur an den fest konfigurierten HTTPS-API-Origin. Browser-Cookies bleiben unabhängig. Logout widerruft die native Sitzung und beendet ihre Überwachungen, auch wenn die UI keine weiteren Requests sendet. Offline-Logout entfernt lokal Credential/Dienste; bis zum serverseitigen Widerruf spätestens Sitzungs-/Überwachungsablauf.
 
 ## Verifikation und Touchpoints

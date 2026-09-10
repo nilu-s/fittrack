@@ -431,7 +431,7 @@ class TodoBase(_Base):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
     title: str
     category: Optional[str] = None
-    priority: int = 2
+    priority: int = Field(default=2, ge=1, le=3)
     status: str = "open"
     due_date: Optional[date] = None
     due_time: Optional[time] = None
@@ -461,7 +461,7 @@ class TodoUpdate(_Base):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
     title: Optional[str] = None
     category: Optional[str] = None
-    priority: Optional[int] = None
+    priority: Optional[int] = Field(default=None, ge=1, le=3)
     status: Optional[str] = None
     due_date: Optional[date] = None
     due_time: Optional[time] = None
@@ -653,13 +653,33 @@ class TodoDraftRequest(_Base):
     date: date
 
 
+class AssistantMessage(_Base):
+    model_config = ConfigDict(extra="forbid")
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=8000)
+
+
 class AssistantRequest(_Base):
+    model_config = ConfigDict(extra="forbid")
     text: str = Field(min_length=1, max_length=2000)
     date: date
+    history: list[AssistantMessage] = Field(default_factory=list, max_length=20)
+
+
+class AssistantAction(_Base):
+    model_config = ConfigDict(extra="forbid")
+    key: str = Field(min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_-]+$")
+    kind: Literal["todo", "note", "shopping", "routine", "food", "recipe", "meal", "meal_plan", "training_unit", "exercise", "rotation"]
+    operation: Literal["create", "update"] = "create"
+    target_id: Optional[str] = Field(default=None, max_length=100)
+    label: str = Field(min_length=1, max_length=200)
+    data: dict
 
 
 class AssistantResponse(_Base):
-    message: str
+    model_config = ConfigDict(extra="forbid")
+    message: str = Field(min_length=1, max_length=8000)
+    actions: list[AssistantAction] = Field(default_factory=list, max_length=50)
 
 
 class TodoDraftResponse(_Base):

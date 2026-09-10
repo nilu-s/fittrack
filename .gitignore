@@ -4,6 +4,7 @@ build/
 dist/
 .env
 .env.local
+/docker-compose.override.yml
 esp32-scale-bridge/src/config.h
 *.pyc
 __pycache__/

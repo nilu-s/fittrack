@@ -65,4 +65,4 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   assert.deepEqual(errors, []);
   console.log('travel browser regression: PASS (one highlight, keyboard detail, stop, confirmed origin, no overflow)');
-} catch (error) { console.error(await page.locator('body').innerText()); throw error; } finally { await browser.close(); }
+} catch (error) { console.error('Page errors:', errors); console.error(await page.locator('body').innerText()); throw error; } finally { await browser.close(); }

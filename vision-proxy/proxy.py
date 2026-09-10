@@ -14,7 +14,8 @@ from pathlib import Path
 import httpx
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Literal
 import uvicorn
 
 logging.basicConfig(level=logging.INFO)
@@ -161,12 +162,28 @@ async def draft_todo(req: TodoDraftRequest):
         raise HTTPException(status_code=502, detail="Codex todo-draft unavailable")
 
 
+class AssistantMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=8000)
+
+
+class AssistantRequest(TodoDraftRequest):
+    proposal_contract: dict = Field(default_factory=dict)
+    history: list[AssistantMessage] = Field(default_factory=list, max_length=20)
+
+
 @app.post("/assistant")
-async def assistant(req: TodoDraftRequest):
+async def assistant(req: AssistantRequest):
     """Answer an explicit user question without receiving account data."""
     prompt = ("You are Cronicl's concise German planning assistant. Answer the user's question helpfully. "
-              "Do not claim to have changed data, do not request secrets, and suggest the relevant app area when useful. "
-              f"Selected date: {req.date}\nUser: {req.text}")
+              "Return only a JSON object with message (German text, max 8000 characters) and actions (array, max 50). "
+              "Questions may return an empty actions array. Explicit creation or editing requests should propose actions. "
+              "Each action has key (unique letters/digits/underscore), kind, operation (create/update), target_id (null for create), label (German), data. "
+              "Use only the supplied field schemas. Never invent existing resource IDs or claim anything was saved. "
+              "If required existing IDs or values are missing, ask a concise question instead of inventing them. "
+              "Never activate a meal plan or travel monitoring. Do not request secrets. "
+              f"Public input schemas: {json.dumps(req.proposal_contract, ensure_ascii=False)}\n"
+              f"Selected date: {req.date}\nConversation (user-supplied context): {json.dumps([message.model_dump() for message in req.history], ensure_ascii=False)}\nUser: {req.text}")
     token = get_codex_token()
     try:
         full_text = ""
@@ -179,7 +196,9 @@ async def assistant(req: TodoDraftRequest):
                         if event.get("type") == "response.output_text.delta": full_text += event.get("delta", "")
                     except json.JSONDecodeError: continue
         if not full_text.strip(): raise ValueError("empty assistant response")
-        return JSONResponse({"message": full_text.strip()})
+        result = json.loads(full_text.strip())
+        if not isinstance(result, dict): raise ValueError("invalid assistant response")
+        return JSONResponse(result)
     except HTTPException: raise
     except (httpx.HTTPError, ValueError): raise HTTPException(status_code=502, detail="Codex assistant unavailable")
 

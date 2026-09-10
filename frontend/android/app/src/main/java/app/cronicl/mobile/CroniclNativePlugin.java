@@ -17,26 +17,24 @@ import org.json.JSONObject;
 })
 public class CroniclNativePlugin extends Plugin {
     private final ExecutorService network = Executors.newSingleThreadExecutor();
+    private final GoogleLogin googleLogin = new GoogleLogin(this, network);
+    @PluginMethod public void googleLogin(PluginCall call) { googleLogin.start(call); }
+    @Override protected void handleOnDestroy() { googleLogin.cancel(); network.shutdown(); super.handleOnDestroy(); }
     @Override public void load() { NativeApi.origin = getConfig().getString("apiOrigin", "https://cronicl.invalid"); }
     @PluginMethod public void request(PluginCall call) {
         network.execute(() -> { try {
+            String path = call.getString("path", "");
+            String decoded = java.net.URI.create(path).getPath();
+            if (decoded.startsWith("/api/native/google/") || decoded.startsWith("/api/native/login") || decoded.startsWith("/api/native/exchange")) { call.reject("Login requires the native module."); return; }
             String encoded = call.getString("bodyBase64");
             JSONObject response = NativeApi.request(getContext(), call.getString("path"), call.getString("method", "GET"), call.getObject("headers"), encoded == null ? null : Base64.decode(encoded, Base64.DEFAULT));
             call.resolve(new JSObject(response.toString()));
         } catch (Exception exception) { call.reject("API-Verbindung fehlgeschlagen."); } });
     }
-    @PluginMethod public void exchange(PluginCall call) {
-        network.execute(() -> { try {
-            JSONObject body = new JSONObject().put("login_id", call.getString("loginId")).put("verifier", call.getString("verifier"));
-            JSONObject result = NativeApi.request(getContext(), "/api/native/exchange", "POST", new JSONObject().put("Content-Type", "application/json"), body.toString().getBytes(StandardCharsets.UTF_8));
-            if (result.getInt("status") != 200) { call.reject("Anmeldung noch nicht abgeschlossen oder abgelaufen."); return; }
-            NativeStore.save(getContext(), new JSONObject(result.getString("body")).getString("credential"));
-            call.resolve();
-        } catch (Exception exception) { call.reject("Anmeldung fehlgeschlagen."); } });
-    }
     @PluginMethod public void clearSession(PluginCall call) {
         getContext().stopService(new Intent(getContext(), TravelLocationService.class));
-        NativeStore.clear(getContext()); call.resolve();
+        googleLogin.cancel();
+        network.execute(() -> { NativeStore.clear(getContext()); googleLogin.clearProviderState(call); });
     }
     @PluginMethod public void startLocation(PluginCall call) {
         if (getPermissionState("location") != PermissionState.GRANTED) { requestPermissionForAlias("location", call, "locationPermission"); return; }
