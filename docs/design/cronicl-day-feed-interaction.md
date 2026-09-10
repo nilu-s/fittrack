@@ -77,3 +77,7 @@ Bereichswechsel sichtbar; private Mahlzeiten und Training erscheinen nur im
 gesammelten Tagesablauf, nie in einem einzelnen Space. Das private
 Notiz-Board bleibt beim Bereichswechsel unverändert sichtbar; nur die
 Einkaufsliste lädt ihren aktiven Space-Kontext nach.
+
+## Direkte To-do-Bearbeitung (Nutzerkorrektur 10.09.2026)
+
+Antippen der To-do-Zeile sowie Enter/Leertaste öffnen unmittelbar den vollständigen Editor. Das Häkchen ändert ausschließlich den Erledigungsstatus. Der Detailindikator und langes Drücken öffnen weiterhin die lesende Detail-/Anreiseansicht; deren Bearbeiten-Aktion öffnet direkt denselben Editor ohne dazwischengeschaltetes Aktionsmenü. Der Editor startet auf Schließen ohne ungefragte Tastatur und gibt den Fokus zurück. Nachweis: `frontend/scripts/test-todo-direct-edit-ui.mjs`.

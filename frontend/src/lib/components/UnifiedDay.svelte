@@ -278,11 +278,16 @@
 
   function handleTap(item: UnifiedItem, e: MouseEvent) {
     if (longPressTriggered) { longPressTriggered = false; return; }
-    if (item.type === 'training' || item.type === 'meal' || item.type === 'todo') return;
+    if (item.type === 'todo' && item.todoData) {
+      (e.currentTarget as HTMLElement)?.focus();
+      dispatch('todoedit', item.todoData);
+      return;
+    }
+    if (item.type === 'training' || item.type === 'meal') return;
   }
 
   function handleItemKey(item: UnifiedItem, e: KeyboardEvent) {
-    if (e.key === 'Enter') { e.preventDefault(); openItemDetails(item, e.currentTarget as HTMLElement); return; }
+    if (e.key === 'Enter') { e.preventDefault(); if (item.type === 'todo') handleTap(item, e as unknown as MouseEvent); else openItemDetails(item, e.currentTarget as HTMLElement); return; }
     if (e.key !== ' ') return;
     e.preventDefault();
     handleTap(item, e as unknown as MouseEvent);
@@ -880,7 +885,7 @@
           <div class="travel-actions"><button class="modal-secondary" onclick={() => updateTravel(detailItem!.todoData!)}>Anreise aktualisieren</button><button class="modal-primary" onclick={() => openNavigation(detailItem!.todoData!)}>Navigation</button></div>
         {/if}
         {#if travelUpdateError}<p class="detail-meta detail-error" role="alert">{travelUpdateError}</p>{/if}
-        <button class="modal-secondary" onclick={() => { actionSheetItem = detailItem; closeItemDetails(); }}>Bearbeiten</button>
+        <button class="modal-secondary" onclick={() => { const todo = detailItem?.todoData; closeItemDetails(); if (todo) dispatch('todoedit', todo); }}>Bearbeiten</button>
       {:else if detailItem.type === 'training'}
         <TrainingDetail training_type={trainingSuggestion?.training_type ?? entry?.training_type ?? 'Training'} date={currentDate} oncomplete={handleTrainingComplete} onclose={closeItemDetails} showClose={false} />
       {:else if detailItem.id === 'metric-weight'}
