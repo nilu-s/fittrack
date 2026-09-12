@@ -65,9 +65,10 @@
 
   type UnifiedItem = { id: string; type: 'metric' | 'meal' | 'training' | 'cardio' | 'todo'; icon: string; title: string; done: boolean; sortKey: string; metricField?: string; metricValue?: string | number | null; metricUnit?: string; metricEditable?: boolean; metricCheckable?: boolean; metricDoneField?: string; hasProgress?: boolean; progressCurrent?: number; progressTarget?: number; kcal?: number | null; protein?: number | null; fiber?: number | null; sugar?: number | null; mealTime?: string | null; entryData?: MealEntry; todoData?: Todo; travelLabel?: string | null; sleepQuality?: number; sleepDetails?: { deep: number; rem: number; light: number; awake: number; efficiency: number }; stepsConfirmed?: boolean; biometric?: boolean; weightSource?: string | null; weightDetails?: { bmi: number | null }; weightEstimate?: { value: number; beforeDate: string; afterDate: string }; };
 
-  $: unifiedItems = buildUnifiedItems(entry, mealEntries, todos, trainingSuggestion);
+  // Keep the delay reactive so its expiry triggers the existing FLIP animation.
+  $: unifiedItems = buildUnifiedItems(entry, mealEntries, todos, trainingSuggestion, deferredReorderIds);
 
-  function buildUnifiedItems(entry: DayEntry | null, mealList: MealEntry[], todoList: Todo[], suggestion: TrainingSuggestion | null): UnifiedItem[] {
+  function buildUnifiedItems(entry: DayEntry | null, mealList: MealEntry[], todoList: Todo[], suggestion: TrainingSuggestion | null, deferredIds: ReadonlySet<string>): UnifiedItem[] {
     const items: UnifiedItem[] = [];
     if (!entry) return items;
     // Weight: biometric — automated from ESP32 scale, but manually editable too
@@ -95,8 +96,8 @@
     // Alles, was abgehakt ist, wird im Tagesfluss ans Ende verschoben.
     // Innerhalb der offenen bzw. erledigten Gruppe bleibt die Tagesreihenfolge erhalten.
     return items.sort((a, b) => {
-      const completionOrder = Number(a.done && !deferredReorderIds.has(a.id))
-        - Number(b.done && !deferredReorderIds.has(b.id));
+      const completionOrder = Number(a.done && !deferredIds.has(a.id))
+        - Number(b.done && !deferredIds.has(b.id));
       return completionOrder || a.sortKey.localeCompare(b.sortKey);
     });
   }
