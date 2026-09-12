@@ -10,10 +10,11 @@ from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app.database import async_session
-from app.models import Food, ShoppingItem, ShoppingList, ShoppingMealImport, SpaceMembership
+from app.models import Food, ShoppingIconPreference, ShoppingItem, ShoppingList, ShoppingMealImport, SpaceMembership
 from app.routes.auth import get_current_user
 from app.schemas import ShoppingItemCreate, ShoppingItemResponse, ShoppingItemUpdate, ShoppingListResponse, ShoppingMealImportCommand, ShoppingMealPreviewItem, ShoppingMealPreviewResponse
-from app.services.shopping_aggregation import classify_article, planned_meal_requirements
+from app.services.shopping_aggregation import planned_meal_requirements
+from app.services.shopping_icons import canonical_icon_key, category_for_icon, classify_article, normalize_article_title
 from app.services.spaces import member_space
 
 router = APIRouter(prefix="/shopping", tags=["shopping"])
@@ -57,6 +58,32 @@ def _item_response(row: ShoppingItem) -> ShoppingItemResponse:
     return ShoppingItemResponse.model_validate(row)
 
 
+async def _icon_for_title(session, account_id: uuid.UUID, title: str) -> tuple[str, str]:
+    preference = await session.scalar(select(ShoppingIconPreference).where(
+        ShoppingIconPreference.account_id == account_id,
+        ShoppingIconPreference.normalized_title == normalize_article_title(title),
+    ))
+    return (preference.category_key, preference.icon_key) if preference else classify_article(title)
+
+
+async def _remember_icon_choice(session, account_id: uuid.UUID, title: str, category_key: str, icon_key: str) -> None:
+    normalized_title = normalize_article_title(title)
+    if not normalized_title:
+        return
+    preference = await session.scalar(select(ShoppingIconPreference).where(
+        ShoppingIconPreference.account_id == account_id,
+        ShoppingIconPreference.normalized_title == normalized_title,
+    ))
+    if preference is None:
+        session.add(ShoppingIconPreference(
+            account_id=account_id, normalized_title=normalized_title,
+            category_key=category_key, icon_key=icon_key,
+        ))
+    else:
+        preference.category_key = category_key
+        preference.icon_key = icon_key
+
+
 @router.get("", response_model=ShoppingListResponse)
 async def get_shopping_list(space_id: uuid.UUID | None = Query(default=None), account_id: uuid.UUID = Depends(get_current_user)):
     async with async_session() as session:
@@ -74,9 +101,14 @@ async def create_item(body: ShoppingItemCreate, space_id: uuid.UUID | None = Que
         shopping_list = await _active_list(session, account_id, space_id)
         food = await _owned(session, Food, body.food_id, account_id) if body.food_id else None
         title = body.title.strip()
-        category, _ = classify_article(title)
-        category = body.category_key or category
-        icon = "initials" if category == "other" else category
+        category, icon = await _icon_for_title(session, account_id, title)
+        if body.icon_key is not None:
+            icon = canonical_icon_key(body.icon_key)
+            category = category_for_icon(icon)
+            await _remember_icon_choice(session, account_id, title, category, icon)
+        elif body.category_key is not None:
+            category = body.category_key
+            icon = "initials" if category == "other" else canonical_icon_key(category)
         row = ShoppingItem(account_id=account_id, shopping_list_id=shopping_list.id, food_id=food.id if food else None,
             title=title, category_key=category, icon_key=icon,
             quantity=body.quantity, unit=body.unit, note=body.note, source="manual")
@@ -92,16 +124,14 @@ async def update_item(item_id: uuid.UUID, body: ShoppingItemUpdate, account_id: 
             if key == "icon_key":
                 continue
             setattr(row, key, value)
-        if body.title is not None and body.category_key is None and body.icon_key is None:
-            row.category_key, row.icon_key = classify_article(row.title)
+        if body.icon_key is not None:
+            row.icon_key = canonical_icon_key(body.icon_key)
+            row.category_key = category_for_icon(row.icon_key)
+            await _remember_icon_choice(session, account_id, row.title, row.category_key, row.icon_key)
+        elif body.title is not None and body.category_key is None:
+            row.category_key, row.icon_key = await _icon_for_title(session, account_id, row.title)
         elif body.category_key is not None and body.icon_key is None:
-            # Icons follow the chosen category. Items outside the known catalogue
-            # deliberately fall back to their title initials in the UI.
-            row.icon_key = "initials" if row.category_key == "other" else row.category_key
-        elif body.icon_key is not None:
-            # Kept as an accepted no-op for older API clients. Icon selection is
-            # no longer a user-controlled behaviour.
-            row.icon_key = "initials" if row.category_key == "other" else row.category_key
+            row.icon_key = "initials" if row.category_key == "other" else canonical_icon_key(row.category_key)
         if row.status == "done" and row.completed_at is None:
             row.completed_at = datetime.now(timezone.utc)
         elif row.status == "open":

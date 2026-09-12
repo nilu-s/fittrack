@@ -11,25 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Food, MealPlan, MealPlanItem, Recipe, RecipeIngredient
-
-
-_CATEGORY_RULES = {
-    "produce": ("apfel", "banan", "beere", "brokk", "gemüse", "gurke", "karott", "kartoff", "paprika", "salat", "tomat", "zwiebel", "zitrone"),
-    "dairy": ("butter", "joghurt", "käse", "milch", "quark", "sahne", "skyr"),
-    "bakery": ("brot", "bröt", "mehl", "toast"),
-    "frozen": ("tiefkühl", "tk-"),
-    "beverage": ("kaffee", "saft", "tee", "wasser"),
-    "household": ("müll", "papier", "reiniger", "spül", "wasch"),
-    "pantry": ("hafer", "nudel", "reis", "öl", "salz", "zucker", "gewürz", "bohne", "lins", "passat"),
-}
-
-
-def classify_article(title: str) -> tuple[str, str]:
-    value = title.casefold()
-    for category, words in _CATEGORY_RULES.items():
-        if any(word in value for word in words):
-            return category, category
-    return "other", "initials"
+from app.services.shopping_icons import classify_article
 
 
 async def _owned(session: AsyncSession, model, resource_id: uuid.UUID, account_id: uuid.UUID):

@@ -36,6 +36,16 @@
   --data-nutrition-protein: #326d69;
   --data-nutrition-carbs: #74657e;
   --data-nutrition-fat: #8c5a4e;
+  /* Stable category roles for the illustrated shopping catalogue. */
+  --data-shopping-produce: #5c8a4c;
+  --data-shopping-dairy: #5b7ea8;
+  --data-shopping-bakery: #b0703e;
+  --data-shopping-pantry: #9a6544;
+  --data-shopping-frozen: #557f9a;
+  --data-shopping-beverage: #467b83;
+  --data-shopping-household: #786b92;
+  --data-shopping-other: #68736a;
+  --icon-outline: #263126;
 
   --space-1: 6px;
   --space-2: 10px;

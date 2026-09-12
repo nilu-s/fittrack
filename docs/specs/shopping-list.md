@@ -1,6 +1,6 @@
 # Cronicl: Einkaufsliste und Mahlzeitenbedarf
 
-**Status:** approved (revised 2026-09-12: derived item icons)
+**Status:** approved (revised 2026-09-12: illustrated article icon engine)
 **Owner:** Cronicl household  
 **Last updated:** 2026-09-12
 
@@ -13,10 +13,11 @@ Arbeitsbereich, kein Tages-To-do und keine automatische Änderung des
 Mahlzeitenplans. Sie kann Zutaten aus dem aktiven Plan für einen explizit
 gewählten Horizont von 1 bis 14 Tagen übernehmen.
 
-Vorratsverwaltung, Barcode-Scanning, externe Kataloge und
-Produktfotos sind nicht Teil dieses Releases. Erkannte Kategorien verwenden
-lokale, skizzierte SVG-Icons; Artikel ohne Zuordnung zeigen eine lokale
-Initialen-Kachel statt eines generischen Symbols.
+Vorratsverwaltung, Barcode-Scanning, externe Kataloge und Produktfotos sind
+nicht Teil dieses Releases. Der lokale Katalog verwendet eigene, farbige
+SVG-Illustrationen mit klarer Kontur; er übernimmt keine Icon-Dateien,
+Produktbilder oder geschützte UI-Elemente anderer Einkaufs-Apps. Artikel ohne
+Zuordnung zeigen eine lokale Initialen-Kachel statt eines generischen Symbols.
 
 ## Daten- und Übernahmeregeln
 
@@ -34,13 +35,18 @@ Initialen-Kachel statt eines generischen Symbols.
 * Offene gleiche Lebensmittelposten werden addiert. Bereits erledigte Artikel
   bleiben historische Kaufnotizen und werden nie verändert. Manuelle Artikel
   bleiben manuell; eine Übernahme kann ihren Ursprung zu `mixed` ergänzen.
-* Die Zuordnung Kategorie/Icon ist ein lokaler, deterministischer Katalog.
-  Nutzer können Kategorie und Menge bearbeiten, aber kein Icon auswählen:
-  Das Icon wird aus der Kategorie abgeleitet. Für `Sonstiges` sind die ersten
-  ein oder zwei Titelinitialen der verbindliche Fallback.
-* Das bisherige optionale API-Feld `icon_key` wird für ältere Clients noch
-  akzeptiert, aber serverseitig ignoriert. Es wird entfernt, sobald kein
-  unterstützter Client es mehr sendet; Browserclients senden es bereits nicht.
+* Die Zuordnung Kategorie/Icon ist ein lokaler, deterministischer
+  Artikelkatalog. Er ordnet bekannte Begriffe einem spezifischen Motiv wie
+  `milk`, `pasta` oder `toilet-paper` zu, nicht nur einer groben Kategorie.
+  Für `Sonstiges` sind die ersten ein oder zwei Titelinitialen der verbindliche
+  Fallback.
+* Eine sichtbare Illustrationauswahl darf die automatische Zuordnung
+  überschreiben. Die Wahl wird mit dem Eintrag gespeichert und als private,
+  konto-scoped Korrektur für denselben normalisierten Artikelnamen gelernt.
+  Eine Space-Liste gewährt dadurch keinen Zugriff auf die Präferenzen anderer
+  Mitglieder. `icon_key` akzeptiert ausschließlich bekannte lokale Schlüssel;
+  die früheren Kategorie-Schlüssel bleiben nur als kompatible Eingabe erhalten
+  und werden sofort auf ein konkretes Motiv normalisiert.
 
 ## UX-Vertrag
 
@@ -66,4 +72,6 @@ Initialen-Kachel statt eines generischen Symbols.
 | Keine Owner-Felder im Browservertrag, neue Routes sichtbar | `backend/tests/test_shopping_contract.py`, `docs/contracts/openapi.json` |
 | Footer, Suche und Verwaltung sind tastatur- und touchbedienbar | `frontend` check/build und Accessibility-Review |
 | Unzugeordnete Artikel zeigen Titelinitialen, nicht ein generisches Icon | `frontend/scripts/test-shopping-tiles-ui.mjs` |
+| Katalog, Fallback und zulässige Icon-Schlüssel sind deterministisch | `backend/tests/test_shopping_contract.py` |
+| Illustrationsauswahl ist touch- und tastaturbedienbar | `frontend/scripts/test-shopping-icon-engine-ui.mjs`, `npm run check` |
 | Bestehende To-do- und Mahlzeitenflüsse bleiben erhalten | Backend- und Frontend-Gesamtgates |

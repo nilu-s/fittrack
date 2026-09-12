@@ -524,6 +524,23 @@ class ShoppingItem(AccountOwned, Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
+class ShoppingIconPreference(AccountOwned, Base):
+    """An account's explicit correction for an article title.
+
+    It is account-owned rather than space-owned, so a shared list cannot be
+    used to discover another member's shopping habits.
+    """
+    __tablename__ = "shopping_icon_preferences"
+    __table_args__ = (UniqueConstraint("account_id", "normalized_title", name="uq_shopping_icon_preferences_account_title"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    normalized_title: Mapped[str] = mapped_column(Text, nullable=False)
+    category_key: Mapped[str] = mapped_column(Text, nullable=False)
+    icon_key: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
 class ShoppingMealImport(AccountOwned, Base):
     """Records a confirmed plan period so repeated imports remain idempotent."""
     __tablename__ = "shopping_meal_imports"

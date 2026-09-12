@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import ShoppingArticleIcon from './ShoppingArticleIcon.svelte';
   import type { ShoppingItem } from '$lib/types';
   export let items: ShoppingItem[] = [];
   export let busy = false;
@@ -18,7 +19,6 @@
     }
   }
   function quantity(item: ShoppingItem) { return item.quantity == null ? '' : `${Number(item.quantity.toFixed(3))} ${item.unit ?? ''}`.trim(); }
-  const categoryIcons = new Set(['produce', 'dairy', 'bakery', 'pantry', 'frozen', 'beverage', 'household']);
   function initials(title: string) {
     return title.trim().split(/[\s-]+/).filter(Boolean).slice(0, 2).map((word) => word.slice(0, 1)).join('').toLocaleUpperCase('de') || '?';
   }
@@ -31,11 +31,11 @@
       <h3 id={`shopping-category-${key}`}>{key === 'open' ? 'Noch einkaufen' : 'Zuletzt verwendet'} · {group.length}</h3>
       <ul>
         {#each group as item (item.id)}
-          <li class:done={item.status === 'done'}>
+          <li class:done={item.status === 'done'} class={`category-${item.category_key}`}>
             <button onfocus={() => focusedId = item.id} data-shopping-id={item.id} class="tile" type="button" role="checkbox" aria-checked={item.status === 'done'} onclick={() => dispatch('toggle', item)} disabled={busy} aria-label={item.status === 'done' ? `${item.title} erneut öffnen` : `${item.title} erledigen`}>
               <span class="state"><Icon name={item.status === 'done' ? 'check' : 'plus'} size={14} /></span>
-              {#if categoryIcons.has(item.icon_key)}
-                <Icon name={item.icon_key} size={36} />
+              {#if item.icon_key !== 'initials'}
+                <ShoppingArticleIcon iconKey={item.icon_key} size={48} />
               {:else}
                 <span class="initials" aria-hidden="true">{initials(item.title)}</span>
               {/if}
@@ -61,18 +61,19 @@
   section { min-width:0; }
   h3 { margin:0 0 var(--space-2); color:var(--text-secondary); font-size:13px; font-weight:750; }
   ul { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:var(--space-2); margin:0; padding:0; list-style:none; }
-  li { position:relative; min-width:0; aspect-ratio:1; overflow:hidden; border-radius:var(--radius-control); background:var(--status-danger); color:var(--text-on-accent); }
-  li.done { background:var(--status-success); }
+  li { position:relative; min-width:0; aspect-ratio:1; overflow:hidden; border:1px solid color-mix(in srgb,var(--tile-color) 48%,var(--border-default)); border-radius:var(--radius-control); background:color-mix(in srgb,var(--tile-color) 18%,var(--surface-raised)); color:var(--text-primary); --tile-color:var(--data-shopping-other); }
+  .category-produce { --tile-color:var(--data-shopping-produce); }.category-dairy { --tile-color:var(--data-shopping-dairy); }.category-bakery { --tile-color:var(--data-shopping-bakery); }.category-pantry { --tile-color:var(--data-shopping-pantry); }.category-frozen { --tile-color:var(--data-shopping-frozen); }.category-beverage { --tile-color:var(--data-shopping-beverage); }.category-household { --tile-color:var(--data-shopping-household); }
+  li.done { background:color-mix(in srgb,var(--tile-color) 9%,var(--surface-default)); opacity:.66; }
   .tile { position:absolute; inset:0 0 var(--control-min); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; width:100%; padding:8px; color:inherit; text-align:center; }
-  .state { position:absolute; top:7px; right:7px; }
-  .initials { display:grid; place-items:center; width:36px; height:36px; border-radius:50%; background:color-mix(in srgb,var(--text-on-accent) 20%,transparent); font-size:13px; font-weight:800; letter-spacing:.04em; line-height:1; }
+  .state { position:absolute; top:7px; right:7px; color:var(--tile-color); }
+  .initials { display:grid; place-items:center; width:42px; height:42px; border:2px solid var(--icon-outline); border-radius:50%; background:color-mix(in srgb,var(--tile-color) 48%,var(--surface-raised)); color:var(--icon-outline); font-size:13px; font-weight:800; letter-spacing:.04em; line-height:1; }
   strong { display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; max-width:100%; overflow-wrap:anywhere; font-size:14px; line-height:1.2; }
   small { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
   .source { font-size:9px; }
   .remove { position:absolute; bottom:0; left:0; display:grid; place-items:center; min-width:var(--control-min); min-height:var(--control-min); color:inherit; }
   .remove:last-child { left:auto; right:0; }
-  button:active { background:color-mix(in srgb,var(--text-on-accent) 18%,transparent); }
-  button:focus-visible { outline:2px solid var(--text-on-accent); outline-offset:-4px; }
+  button:active { background:color-mix(in srgb,var(--tile-color) 24%,transparent); }
+  button:focus-visible { outline:2px solid var(--status-info); outline-offset:-4px; }
   button:disabled { opacity:.6; cursor:wait; }
   .empty { margin:0; padding:var(--space-4); color:var(--text-secondary); text-align:center; font-size:13px; }
 </style>
