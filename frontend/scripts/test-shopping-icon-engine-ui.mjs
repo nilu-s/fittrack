@@ -20,8 +20,8 @@ try {
   await page.getByRole('checkbox', {name:'Hafermilch erledigen'}).waitFor();
   assert.equal(await page.locator('.article-icon--dairy').count(), 1);
   await page.getByRole('button', {name:'Hafermilch bearbeiten'}).click();
-  await page.getByRole('button', {name:'Pasta auswählen'}).click();
-  assert.equal(await page.getByRole('button', {name:'Pasta auswählen'}).getAttribute('aria-pressed'), 'true');
+  await page.getByRole('button', {name:'Pasta auswählen', exact:true}).click();
+  assert.equal(await page.getByRole('button', {name:'Pasta auswählen', exact:true}).getAttribute('aria-pressed'), 'true');
   await page.getByRole('button', {name:'Speichern'}).click();
   await page.waitForSelector('.article-icon--pantry');
   console.log('Shopping icon engine: illustrated tile, keyboard-native picker and persisted choice PASS');

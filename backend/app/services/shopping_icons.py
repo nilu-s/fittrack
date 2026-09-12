@@ -11,14 +11,14 @@ import unicodedata
 
 
 ICON_CATEGORIES: dict[str, str] = {
-    "apple": "produce", "banana": "produce", "carrot": "produce", "tomato": "produce",
-    "salad": "produce", "potato": "produce", "lemon": "produce",
-    "milk": "dairy", "cheese": "dairy", "yogurt": "dairy", "egg": "dairy",
+    "apple": "produce", "orange": "produce", "strawberry": "produce", "banana": "produce", "carrot": "produce", "tomato": "produce",
+    "salad": "produce", "potato": "produce", "lemon": "produce", "mushroom": "produce",
+    "milk": "dairy", "cheese": "dairy", "yogurt": "dairy", "egg": "dairy", "meat": "dairy", "chicken": "dairy", "fish": "dairy",
     "bread": "bakery", "croissant": "bakery",
     "pasta": "pantry", "rice": "pantry", "coffee": "beverage", "water": "beverage",
-    "juice": "beverage", "oil": "pantry", "canned": "pantry", "spices": "pantry",
+    "juice": "beverage", "tea": "beverage", "soda": "beverage", "beer": "beverage", "wine": "beverage", "oil": "pantry", "canned": "pantry", "spices": "pantry", "cereal": "pantry", "chocolate": "pantry", "chips": "pantry", "cookies": "pantry",
     "icecream": "frozen", "cleaner": "household", "toilet-paper": "household",
-    "laundry": "household", "pet": "household", "shopping": "other",
+    "laundry": "household", "soap": "household", "toothpaste": "household", "shampoo": "household", "paper-towels": "household", "batteries": "household", "flowers": "household", "pet": "household",
 }
 
 _LEGACY_CATEGORY_ICONS = {
@@ -30,6 +30,12 @@ _LEGACY_CATEGORY_ICONS = {
 # explainable; no remote product catalog or generated image is involved.
 _RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("toilet-paper", ("toilettenpapier", "klopapier")),
+    ("paper-towels", ("kuchenrolle", "kuchenpapier")),
+    ("toothpaste", ("zahnpasta", "zahnburste")),
+    ("shampoo", ("shampoo", "conditioner")),
+    ("soap", ("seife", "duschgel")),
+    ("batteries", ("batterie", "akku")),
+    ("flowers", ("blumen", "pflanze")),
     ("laundry", ("waschmittel", "wasche", "waschpulver")),
     ("cleaner", ("reiniger", "spulmittel", "spulmasch", "mullbeutel")),
     ("icecream", ("eiscreme", "speiseeis", "tiefkuhl", "tk ")),
@@ -38,15 +44,28 @@ _RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("cheese", ("kase", "mozzarella", "parmesan", "feta")),
     ("yogurt", ("joghurt", "skyr", "quark")),
     ("milk", ("milch", "sahne", "butter")),
+    ("chicken", ("hahnchen", "huhn", "geflugel")),
+    ("fish", ("fisch", "lachs", "thunfisch")),
+    ("meat", ("fleisch", "hack", "steak")),
     ("egg", ("ei", "eier")),
     ("pasta", ("nudel", "spaghetti", "penne", "pasta", "lasagne")),
     ("rice", ("reis", "couscous", "quinoa")),
     ("coffee", ("kaffee", "espresso", "cappuccino")),
     ("water", ("wasser", "sprudel")),
     ("juice", ("saft", "smoothie", "limonade")),
+    ("tea", ("tee",)),
+    ("soda", ("cola", "brause", "limo")),
+    ("beer", ("bier",)),
+    ("wine", ("wein", "sekt")),
     ("oil", ("ol", "essig")),
     ("canned", ("bohne", "linse", "passata", "tomatenmark", "konserve", "hafer")),
     ("spices", ("salz", "zucker", "gewurz", "pfeffer", "mehl")),
+    ("cereal", ("musli", "cerealien", "cornflakes")),
+    ("chocolate", ("schokolade", "sussigkeit", "praline")),
+    ("chips", ("chips", "snack", "nusse")),
+    ("cookies", ("keks",)),
+    ("strawberry", ("erdbeere", "himbeere")),
+    ("orange", ("orange", "mandarine", "grapefruit")),
     ("apple", ("apfel", "birne", "pfirsich", "kirsche", "beere", "traube")),
     ("banana", ("banane",)),
     ("carrot", ("karotte", "mohre", "paprika", "brokkoli", "gurke", "zwiebel")),
@@ -54,6 +73,7 @@ _RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("salad", ("salat", "spinat", "kohl", "gemuse")),
     ("potato", ("kartoffel",)),
     ("lemon", ("zitrone", "limette")),
+    ("mushroom", ("pilz", "champignon")),
     ("pet", ("katzen", "hunde", "tierfutter")),
 )
 

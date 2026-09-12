@@ -14,8 +14,9 @@ Mahlzeitenplans. Sie kann Zutaten aus dem aktiven Plan für einen explizit
 gewählten Horizont von 1 bis 14 Tagen übernehmen.
 
 Vorratsverwaltung, Barcode-Scanning, externe Kataloge und Produktfotos sind
-nicht Teil dieses Releases. Der lokale Katalog verwendet eigene, farbige
-SVG-Illustrationen mit klarer Kontur; er übernimmt keine Icon-Dateien,
+nicht Teil dieses Releases. Der versionsierte globale Cronicl-Katalog verwendet
+lokal gebündelte, schlichte weiße SVG-Piktogramme auf Kategorieflächen; er
+übernimmt keine Icon-Dateien,
 Produktbilder oder geschützte UI-Elemente anderer Einkaufs-Apps. Artikel ohne
 Zuordnung zeigen eine lokale Initialen-Kachel statt eines generischen Symbols.
 
@@ -35,9 +36,11 @@ Zuordnung zeigen eine lokale Initialen-Kachel statt eines generischen Symbols.
 * Offene gleiche Lebensmittelposten werden addiert. Bereits erledigte Artikel
   bleiben historische Kaufnotizen und werden nie verändert. Manuelle Artikel
   bleiben manuell; eine Übernahme kann ihren Ursprung zu `mixed` ergänzen.
-* Die Zuordnung Kategorie/Icon ist ein lokaler, deterministischer
-  Artikelkatalog. Er ordnet bekannte Begriffe einem spezifischen Motiv wie
-  `milk`, `pasta` oder `toilet-paper` zu, nicht nur einer groben Kategorie.
+* Die Zuordnung Kategorie/Icon ist ein globaler, versionierter und lokal
+  ausgelieferter, deterministischer Artikelkatalog. Er ordnet bekannte Begriffe
+  einem spezifischen Motiv wie `milk`, `pasta`, `toothpaste` oder `fish` zu,
+  nicht nur einer groben Kategorie. Ein nicht verfügbarer Schlüssel darf nie
+  als generische Einkaufstüte erscheinen.
   Für `Sonstiges` sind die ersten ein oder zwei Titelinitialen der verbindliche
   Fallback.
 * Eine sichtbare Illustrationauswahl darf die automatische Zuordnung

@@ -6,7 +6,7 @@
   import type { ShoppingItem } from '$lib/types';
   export let item: ShoppingItem | null = null;
   const dispatch = createEventDispatcher<{ close: void; save: { id: string; data: Partial<ShoppingItem> } }>();
-  let dialog: HTMLDialogElement; let title = ''; let quantity = ''; let unit = ''; let note = ''; let iconKey = 'shopping'; let iconChanged = false; let opener: HTMLElement | null = null;
+  let dialog: HTMLDialogElement; let title = ''; let quantity = ''; let unit = ''; let note = ''; let iconKey = ''; let iconChanged = false; let opener: HTMLElement | null = null;
   $: if (item && dialog && !dialog.open) { opener = document.activeElement instanceof HTMLElement ? document.activeElement : null; title = item.title; quantity = item.quantity == null ? '' : String(item.quantity); unit = item.unit ?? ''; note = item.note ?? ''; iconKey = item.icon_key; iconChanged = false; dialog.showModal(); tick().then(() => dialog.querySelector<HTMLButtonElement>('header button')?.focus()); }
   $: if (!item && dialog?.open) dialog.close();
   function close() { dispatch('close'); }
