@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { modal } from '$lib/modal';
   import { createEventDispatcher, onMount, tick } from 'svelte';
   import { flip } from 'svelte/animate';
   import { cubicOut } from 'svelte/easing';
@@ -148,6 +149,7 @@
   let detailItem: UnifiedItem | null = null;
   let mealEntryEditorItem: UnifiedItem | null = null;
   let mealEntryEditorCamera = false;
+  let mealEntryEditorTrigger: HTMLElement | null = null;
   let metricTrendItem: UnifiedItem | null = null;
   let metricTrend: TrendPoint[] = [];
   let metricTrendRange = 7;
@@ -175,12 +177,13 @@
   }
 
   function openMealEntryEditor(item: UnifiedItem, openCamera = false) {
+    mealEntryEditorTrigger = detailItemTrigger;
     closeOpenTodoDetails();
     mealEntryEditorCamera = openCamera;
     mealEntryEditorItem = item;
   }
 
-  function closeMealEntryEditor() { mealEntryEditorItem = null; mealEntryEditorCamera = false; }
+  function closeMealEntryEditor() { mealEntryEditorItem = null; mealEntryEditorCamera = false; void tick().then(() => mealEntryEditorTrigger?.focus()); }
 
   function applyMealEntryUpdate(updated: any) {
     const nutrition = updated?.nutrition ?? {};
@@ -283,10 +286,11 @@
       dispatch('todoedit', item.todoData);
       return;
     }
-    if (item.type === 'training' || item.type === 'meal') return;
+    if (item.type === 'training' || item.type === 'meal') openItemDetails(item, e.currentTarget as HTMLElement);
   }
 
   function handleItemKey(item: UnifiedItem, e: KeyboardEvent) {
+    if (e.target !== e.currentTarget) return;
     if (e.key === 'Enter') { e.preventDefault(); if (item.type === 'todo') handleTap(item, e as unknown as MouseEvent); else openItemDetails(item, e.currentTarget as HTMLElement); return; }
     if (e.key !== ' ') return;
     e.preventDefault();
@@ -458,7 +462,7 @@
     metricTrendRange = 7;
     metricTrendError = '';
     metricTrendLoading = true;
-    metricTrendTrigger = trigger ?? null;
+    metricTrendTrigger = trigger?.closest('dialog') ? detailItemTrigger ?? trigger : trigger ?? null;
     await tick();
     metricTrendCloseButton?.focus();
     try {
@@ -762,7 +766,7 @@
       onpointerleave={handlePressEnd}
       onpointercancel={handlePressEnd}
       onkeydown={(e) => handleItemKey(item, e)}
-      role="button" tabindex="0" aria-label={`${item.title}. Lange drücken oder Eingabetaste für Details.`}>
+      role="button" tabindex="0" aria-label={`${item.title}. ${item.type === 'todo' ? 'Bearbeiten' : 'Öffnen'}.`}>
       <button class="item-check" class:done={item.done} onclick={(e) => handleCheck(item, e)} aria-label={item.done ? `${item.title} als offen markieren` : `${item.title} erledigen`}>
         {#if item.done}<Icon name="check" size={14} />{/if}
       </button>
@@ -796,7 +800,7 @@
 <MealEntryEditorSheet meal={mealEntryEditorItem ? getMealFromItem(mealEntryEditorItem) ?? null : null} open={Boolean(mealEntryEditorItem)} autoOpenCamera={mealEntryEditorCamera} on:close={closeMealEntryEditor} on:saved={(event) => { applyMealEntryUpdate(event.detail.entry); closeMealEntryEditor(); }} />
 
 {#if nutritionDetailsOpen}
-  <dialog class="modal-overlay trend-overlay" open aria-labelledby="nutrition-detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeNutritionDetails(); }} oncancel={(event) => { event.preventDefault(); closeNutritionDetails(); }}>
+  <dialog use:modal class="modal-overlay trend-overlay" aria-labelledby="nutrition-detail-title" onclick={(event) => { if (event.target === event.currentTarget) closeNutritionDetails(); }} oncancel={(event) => { event.preventDefault(); closeNutritionDetails(); }}>
     <section class="modal-card trend-detail ui-dialog">
       <header class="detail-header ui-dialog__header"><div><p class="detail-kind ui-dialog__eyebrow">Tagesübersicht</p><h2 id="nutrition-detail-title">Nährstoffe</h2></div><button bind:this={nutritionDetailsCloseButton} class="detail-close ui-dialog__close" type="button" aria-label="Nährwertdetails schließen" onclick={closeNutritionDetails}>×</button></header>
       <p class="nutrition-intro">Summen aus den verzehrten Mahlzeiten dieses Tages. „≥“ bedeutet: Ein Teil der Zutaten hat noch keine Referenzwerte.</p>
@@ -816,7 +820,7 @@
 
 {#if metricTrendItem}
   {@const chart = metricChart(metricTrend, metricTrendRange, metricTrendItem)}
-  <dialog class="modal-overlay trend-overlay" open aria-labelledby="metric-trend-title" onclick={(event) => { if (event.target === event.currentTarget) closeMetricTrend(); }} oncancel={(event) => { event.preventDefault(); closeMetricTrend(); }}>
+  <dialog use:modal class="modal-overlay trend-overlay" aria-labelledby="metric-trend-title" onclick={(event) => { if (event.target === event.currentTarget) closeMetricTrend(); }} oncancel={(event) => { event.preventDefault(); closeMetricTrend(); }}>
     <section class="modal-card trend-detail ui-dialog">
       <header class="detail-header ui-dialog__header">
         <div><p class="detail-kind ui-dialog__eyebrow">Verlauf · {trendRangeLabel(metricTrendRange)}</p><h2 id="metric-trend-title">{metricTrendItem.title}</h2></div>
@@ -871,7 +875,7 @@
           {#if detailMeal?.nutrition?.carbs_g != null}<PillBadge value={Math.round(Number(detailMeal.nutrition.carbs_g))} unit="g KH" color="var(--data-nutrition-carbs)" />{/if}
           {#if detailMeal?.nutrition?.fat_g != null}<PillBadge value={Math.round(Number(detailMeal.nutrition.fat_g))} unit="g Fett" color="var(--data-nutrition-fat)" />{/if}
         </div>
-        <div class="modal-actions ui-dialog__actions"><button class="modal-secondary" onclick={() => { mealEntryEditorItem = detailItem; closeItemDetails(); }}>Mahlzeit anpassen</button><button class="modal-primary" onclick={() => { mealEntryEditorCamera = true; mealEntryEditorItem = detailItem; closeItemDetails(); }}>Mahlzeit fotografieren</button></div>
+        <div class="modal-actions ui-dialog__actions"><button class="modal-secondary" onclick={() => detailItem && openMealEntryEditor(detailItem)}>Mahlzeit anpassen</button><button class="modal-primary" onclick={() => detailItem && openMealEntryEditor(detailItem, true)}>Mahlzeit fotografieren</button></div>
       {:else if detailItem.type === 'todo'}
         <div class="detail-section ui-dialog__section">
           {#if detailItem.todoData?.category}<p class="detail-meta">Kategorie: {detailItem.todoData.category}</p>{/if}
@@ -908,7 +912,7 @@
 {/if}
 
 {#if actionSheetItem}
-  <dialog class="action-overlay" open aria-label="To-do-Aktionen" onclick={(event) => { if (event.target === event.currentTarget) actionSheetItem = null; }} oncancel={(event) => { event.preventDefault(); actionSheetItem = null; }}>
+  <dialog use:modal class="action-overlay" aria-label="To-do-Aktionen" onclick={(event) => { if (event.target === event.currentTarget) actionSheetItem = null; }} oncancel={(event) => { event.preventDefault(); actionSheetItem = null; }}>
     <div class="action-sheet ui-dialog">
       <header class="action-header ui-dialog__header"><div><p class="ui-dialog__eyebrow">To-do</p><h2>{actionSheetItem.title}</h2></div><button class="detail-close ui-dialog__close" type="button" aria-label="Aktionen schließen" onclick={() => (actionSheetItem = null)}>×</button></header>
       <button class="action-btn" onclick={startEdit}>
@@ -959,7 +963,7 @@
   .item-travel { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-tertiary); font-size:11px; }
   .daylist-empty { margin:0; padding:22px 14px; color:var(--text-tertiary); font-size:13px; text-align:center; }
   .item-prog { flex: 0 0 70px; }
-  .longpress-indicator { display:grid; place-items:center; flex:0 0 26px; width:26px; min-height:26px; padding:0; border:0; border-radius:50%; background:transparent; color:var(--text-tertiary); cursor:pointer; }
+  .longpress-indicator { display:grid; place-items:center; flex:0 0 var(--control-min); width:var(--control-min); min-height:var(--control-min); padding:0; border:0; border-radius:50%; background:transparent; color:var(--text-tertiary); cursor:pointer; }
   .longpress-indicator span { position:relative; display:block; width:17px; height:17px; border:1.5px solid currentColor; border-radius:50%; }
   .longpress-indicator span::after { content:''; position:absolute; inset:3px; border:1.5px solid currentColor; border-radius:50%; }
   .longpress-indicator:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; color:var(--text-primary); }
@@ -995,7 +999,7 @@
   .detail-header h2,.detail-header p { margin:0; }
   .detail-header h2 { font-size:17px; line-height:1.3; }
   .detail-kind,.detail-meta,.detail-empty { color:var(--text-secondary); font-size:13px; line-height:1.45; }
-  .detail-close { width:32px; min-height:32px; border:1px solid var(--border-default); border-radius:50%; background:var(--surface-raised); color:var(--text-primary); font-size:20px; line-height:1; }
+  .detail-close { width:var(--control-min); min-height:var(--control-min); border:1px solid var(--border-default); border-radius:50%; background:var(--surface-raised); color:var(--text-primary); font-size:20px; line-height:1; }
   .detail-section { display:grid; gap:8px; color:var(--text-primary); font-size:14px; line-height:1.45; }
   .detail-field { display:grid; gap:5px; color:var(--text-secondary); font-size:12px; }
   .trend-detail { width:min(100%, 560px); max-height:min(76dvh, 620px); overflow:auto; border-radius:var(--radius-modal); }

@@ -5,7 +5,7 @@
   export let item: ShoppingItem | null = null;
   const dispatch = createEventDispatcher<{ close: void; save: { id: string; data: Partial<ShoppingItem> } }>();
   let dialog: HTMLDialogElement; let title = ''; let quantity = ''; let unit = ''; let note = ''; let category = 'other'; let icon = 'shopping'; let opener: HTMLElement | null = null;
-  $: if (item && dialog && !dialog.open) { opener = document.activeElement instanceof HTMLElement ? document.activeElement : null; title = item.title; quantity = item.quantity == null ? '' : String(item.quantity); unit = item.unit ?? ''; note = item.note ?? ''; category = item.category_key; icon = item.icon_key; dialog.showModal(); tick().then(() => dialog.querySelector<HTMLInputElement>('#shopping-edit-title')?.focus()); }
+  $: if (item && dialog && !dialog.open) { opener = document.activeElement instanceof HTMLElement ? document.activeElement : null; title = item.title; quantity = item.quantity == null ? '' : String(item.quantity); unit = item.unit ?? ''; note = item.note ?? ''; category = item.category_key; icon = item.icon_key; dialog.showModal(); tick().then(() => dialog.querySelector<HTMLButtonElement>('header button')?.focus()); }
   $: if (!item && dialog?.open) dialog.close();
   function close() { dispatch('close'); }
   function save() { if (!item || !title.trim()) return; const parsed = quantity.trim() ? Number(quantity) : null; if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) return; dispatch('save', { id: item.id, data: { title: title.trim(), quantity: parsed, unit: unit.trim() || null, note: note.trim() || null, category_key: category, icon_key: icon } }); close(); }

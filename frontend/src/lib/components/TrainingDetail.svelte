@@ -47,7 +47,7 @@
   {#if loading}<div class="td-loading"><div class="spinner"></div><span>Lädt…</span></div>
   {:else if exercises.length === 0 && cardioMinutes == null}<div class="td-empty">Keine Übungen für {training_type}.</div>
   {:else if exercises.length === 0}
-    <div class="cardio-card"><div class="ex-name">{training_type}</div><p>Geplant: <strong>{cardioMinutes} Minuten</strong></p><label for="cardio-minutes">Tatsächliche Dauer (Minuten)</label><input id="cardio-minutes" type="number" min="0" bind:value={cardioMinutes} /></div>{#if error}<div class="td-error">{error}</div>{/if}<button class="td-complete" onclick={completeTraining}><Icon name="check" size={16} /> Cardio abschliessen</button>
+    <div class="cardio-card"><div class="ex-name">{training_type}</div><p>Geplant: <strong>{cardioMinutes} Minuten</strong></p><label for="cardio-minutes">Tatsächliche Dauer (Minuten)</label><input id="cardio-minutes" type="number" min="0" bind:value={cardioMinutes} /></div>{#if error}<div class="td-error" role="alert">{error}</div>{/if}<button class="td-complete" onclick={completeTraining}><Icon name="check" size={16} /> Cardio abschliessen</button>
   {:else}
     {@const ex = exercises[currentIndex]}
     {@const sets = setsByExercise[ex.exercise_name] ?? []}
@@ -71,7 +71,7 @@
       <div class="rest-timer"><span>Pause {restSeconds ? formatRest() : 'bereit'}</span><button onclick={() => startRest(60)}>1 min</button><button onclick={() => startRest(120)}>2 min</button><button onclick={() => startRest(180)}>3 min</button></div>
       {#if ex.is_topset}<div class="top-hint">★ Top-Set</div>{/if}
     </div>
-    {#if error}<div class="td-error">{error}</div>{/if}
+    {#if error}<div class="td-error" role="alert">{error}</div>{/if}
     <button class="td-complete" onclick={completeTraining}><Icon name="check" size={16} /> Training abschliessen</button>
   {/if}
 </div>
@@ -85,7 +85,7 @@
   .td-loading, .td-empty { padding: 20px 0; text-align: center; color: var(--text-tertiary); font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid var(--surface-default); border-top-color: var(--text-secondary); animation: spin 0.8s linear infinite; }
   .carousel { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .car-btn { width: 32px; height: 32px; border-radius: 6px; background: var(--surface-default); border: 1px solid var(--border-default); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .car-btn { width: var(--control-min); height: var(--control-min); border-radius: 6px; background: var(--surface-default); border: 1px solid var(--border-default); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .car-btn:active { background: var(--surface-pressed); }
   .car-mid { display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .car-count { font-size: 13px; color: var(--text-secondary); }
@@ -111,7 +111,7 @@
   .set-remove { height: 32px; border: 0; border-radius: 6px; background: transparent; color: var(--status-danger); cursor: pointer; font-size: 18px; }
   .set-remove:disabled { color: var(--text-tertiary); cursor: not-allowed; }
   .set-add { margin-top: 3px; border: 1px dashed var(--border-default); background: transparent; color: var(--text-secondary); border-radius: 6px; padding: 7px; width: 100%; cursor: pointer; font-size: 12px; }
-  .rest-timer { display: flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--text-secondary); font-size: 12px; }
+  .rest-timer { flex-wrap:wrap;display: flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--text-secondary); font-size: 12px; }
   .rest-timer span { margin-right: auto; font-variant-numeric: tabular-nums; }
   .rest-timer button { border: 1px solid var(--border-default); border-radius: 5px; background: var(--surface-raised); color: var(--text-secondary); padding: 5px 7px; cursor: pointer; }
   .top-hint { margin-top: 4px; font-size: 11px; color: var(--status-warning); }
@@ -119,4 +119,11 @@
   .td-complete { width: 100%; padding: 10px 14px; border-radius: 8px; background: var(--action-primary); color: var(--text-on-accent); border: none; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.15s; }
   .td-complete:active { opacity: 0.8; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  .set-row input, .set-row select, .set-remove, .set-add, .rest-timer button { min-height:var(--control-min); }
+  @media(max-width:380px) {
+    .td { padding:8px; }
+    .ex-card { padding:8px; }
+    .set-hdr, .set-row { grid-template-columns:18px 38px repeat(3,minmax(0,1fr)) 38px; gap:4px; }
+  }
 </style>

@@ -46,3 +46,9 @@ the trigger. Bottom action sheets remain bottom-aligned by contract.
 ## Verification
 
 Run `npm run lint:design` after UI changes. It asserts the token contract, global imports, main-shell primitive usage and the no-gradient Settings rule. Follow it with `npm run check` and `npm run build`.
+
+The full UI screenshot audit is `frontend/scripts/test-ui-audit.mjs` (from the
+repository root, with `ENTRY_TEST_URL` pointing to a local preview). It covers
+320px, 390px and 1440px layouts, native modality, opening/return focus, Escape,
+keyboard containment, short-screen action reachability and recovery states.
+Evidence: `docs/evidence/2026-09-12-ui-audit/README.md`.

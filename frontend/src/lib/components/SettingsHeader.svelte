@@ -11,7 +11,7 @@
 </div>
 
 <style>
-  .settings-header { padding: 8px 0; }
+  .settings-header { padding: 8px 52px 8px 0; }
   h1 { font-size: 18px; font-weight: 650; }
   p { margin-top: 2px; color: var(--text-tertiary); font-size: 12px; }
 </style>

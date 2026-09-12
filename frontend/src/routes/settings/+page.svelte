@@ -36,7 +36,7 @@
 
 <style>
   .page { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-4); }
-  .intro { display:grid; gap:4px; padding:0 var(--space-1) var(--space-3); }
+  .intro { display:grid; gap:4px; padding:0 52px var(--space-3) var(--space-1); }
   .intro h1 { font-size:25px; letter-spacing:-.035em; }
   .intro p:not(.eyebrow) { color:var(--text-secondary); font-size:13px; }
   .eyebrow { color:var(--status-success); font-size:11px; font-weight:750; letter-spacing:.07em; text-transform:uppercase; }

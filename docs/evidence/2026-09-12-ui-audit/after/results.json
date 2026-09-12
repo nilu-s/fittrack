@@ -1,0 +1,1644 @@
+[
+  {
+    "size": "small",
+    "name": "day",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "week",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "shopping",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "contacts",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "settings",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "settings-profile",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "settings-scale",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "settings-meals",
+    "overflow": false,
+    "overflowElements": [
+      {
+        "tag": "BUTTON",
+        "cls": "svelte-1xmwdbz",
+        "right": 334
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "svelte-1xmwdbz",
+        "right": 388
+      }
+    ],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "settings-sport",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "settings-todos",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "settings-spaces",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "settings-data",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "settings-integrations",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "settings-goals",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "login",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "onboarding-alias",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "calendar",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "date-picker-title",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "assistant",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "assistant-title",
+        "modal": true,
+        "focus": true,
+        "width": 284,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "sport-planner",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "Rotation bearbeiten",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "sport-units",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "sport-create",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "Trainingseinheit erstellen",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "sport-units",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "sport-unit",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "Ganzkörper bearbeiten",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "meal-plan",
+    "overflow": false,
+    "overflowElements": [
+      {
+        "tag": "BUTTON",
+        "cls": "svelte-1xmwdbz",
+        "right": 334
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "svelte-1xmwdbz",
+        "right": 388
+      }
+    ],
+    "dialogs": [
+      {
+        "name": "slot-dialog-title",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "account-menu",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "todo-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "todo-details-title",
+        "modal": true,
+        "focus": true,
+        "width": 284,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "todo-detail",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "training-detail",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "meal-detail",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "meal-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "meal-editor-title",
+        "modal": true,
+        "focus": true,
+        "width": 284,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "steps-trend",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "metric-trend-title",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "sleep-trend",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "metric-trend-title",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "nutrition",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "nutrition-detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "weight-detail",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "weight-trend",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "metric-trend-title",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "notes",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "note-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "note-details-title",
+        "modal": true,
+        "focus": true,
+        "width": 284,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "note-planning",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "shopping-panel",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "shopping-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "shopping-editor-title",
+        "modal": true,
+        "focus": true,
+        "width": 284,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "shopping-import",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "shopping-import-title",
+        "modal": true,
+        "focus": true,
+        "width": 284,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "meal-manage",
+    "overflow": false,
+    "overflowElements": [
+      {
+        "tag": "BUTTON",
+        "cls": "svelte-1xmwdbz",
+        "right": 383
+      }
+    ],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "recipe-editor",
+    "overflow": false,
+    "overflowElements": [
+      {
+        "tag": "BUTTON",
+        "cls": "svelte-1xmwdbz",
+        "right": 383
+      }
+    ],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "space-manager",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "small",
+    "name": "sport-progression",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "Ganzkörper bearbeiten",
+        "modal": true,
+        "focus": true,
+        "width": 320,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "day",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "week",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "shopping",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "contacts",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "settings",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "settings-profile",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "settings-scale",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "settings-meals",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "settings-sport",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "settings-todos",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "settings-spaces",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "settings-data",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "settings-integrations",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "settings-goals",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "login",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "onboarding-alias",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "calendar",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "date-picker-title",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "assistant",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "assistant-title",
+        "modal": true,
+        "focus": true,
+        "width": 354,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "sport-planner",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "Rotation bearbeiten",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "sport-units",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "sport-create",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "Trainingseinheit erstellen",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "sport-units",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "sport-unit",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "Ganzkörper bearbeiten",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "meal-plan",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "slot-dialog-title",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "account-menu",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "todo-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "todo-details-title",
+        "modal": true,
+        "focus": true,
+        "width": 354,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "todo-detail",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "training-detail",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "meal-detail",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "meal-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "meal-editor-title",
+        "modal": true,
+        "focus": true,
+        "width": 354,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "steps-trend",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "metric-trend-title",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "sleep-trend",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "metric-trend-title",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "nutrition",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "nutrition-detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "weight-detail",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "weight-trend",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "metric-trend-title",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "notes",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "note-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "note-details-title",
+        "modal": true,
+        "focus": true,
+        "width": 354,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "note-planning",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "shopping-panel",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "shopping-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "shopping-editor-title",
+        "modal": true,
+        "focus": true,
+        "width": 354,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "shopping-import",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "shopping-import-title",
+        "modal": true,
+        "focus": true,
+        "width": 354,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "meal-manage",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "recipe-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "week-error",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "week-recovered",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "assistant-error",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "assistant-title",
+        "modal": true,
+        "focus": true,
+        "width": 354,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "shopping-import-error",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "shopping-import-title",
+        "modal": true,
+        "focus": true,
+        "width": 354,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "space-manager",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "mobile",
+    "name": "sport-progression",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "Ganzkörper bearbeiten",
+        "modal": true,
+        "focus": true,
+        "width": 390,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "day",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "week",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "shopping",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "contacts",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "settings",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "settings-profile",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "settings-scale",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "settings-meals",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "settings-sport",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "settings-todos",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "settings-spaces",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "settings-data",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "settings-integrations",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "settings-goals",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "login",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "onboarding-alias",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "calendar",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "date-picker-title",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "assistant",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "assistant-title",
+        "modal": true,
+        "focus": true,
+        "width": 520,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "sport-planner",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "Rotation bearbeiten",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "sport-units",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "sport-create",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "Trainingseinheit erstellen",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "sport-units",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "sport-unit",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "Ganzkörper bearbeiten",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "meal-plan",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "slot-dialog-title",
+        "modal": true,
+        "focus": true,
+        "width": 480,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "account-menu",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "todo-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "todo-details-title",
+        "modal": true,
+        "focus": true,
+        "width": 480,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "todo-detail",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "training-detail",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "meal-detail",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "meal-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "meal-editor-title",
+        "modal": true,
+        "focus": true,
+        "width": 520,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "steps-trend",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "metric-trend-title",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "sleep-trend",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "metric-trend-title",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "nutrition",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "nutrition-detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "weight-detail",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "detail-title",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "weight-trend",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "metric-trend-title",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "notes",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "note-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "note-details-title",
+        "modal": true,
+        "focus": true,
+        "width": 480,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "note-planning",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "shopping-panel",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "shopping-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "shopping-editor-title",
+        "modal": true,
+        "focus": true,
+        "width": 460,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "shopping-import",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "shopping-import-title",
+        "modal": true,
+        "focus": true,
+        "width": 460,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "meal-manage",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "recipe-editor",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "space-manager",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [],
+    "errors": []
+  },
+  {
+    "size": "desktop",
+    "name": "sport-progression",
+    "overflow": false,
+    "overflowElements": [],
+    "dialogs": [
+      {
+        "name": "Ganzkörper bearbeiten",
+        "modal": true,
+        "focus": true,
+        "width": 1440,
+        "overflow": false
+      }
+    ],
+    "errors": []
+  }
+]

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { modal } from '$lib/modal';
   import { onMount } from 'svelte';
   import SettingsHeader from '$lib/components/SettingsHeader.svelte';
   import Icon from '$lib/components/Icon.svelte';
@@ -31,6 +32,13 @@
   let isNewPlanner = false;
   let activeView: 'week' | 'units' = 'week';
   let showUnitCreator = false;
+  function navigateTabs(event: KeyboardEvent) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    activeView = event.key === 'Home' ? 'week' : event.key === 'End' ? 'units' : activeView === 'week' ? 'units' : 'week';
+    const tabs = (event.currentTarget as HTMLElement).parentElement;
+    tabs?.querySelector<HTMLButtonElement>(`#sport-tab-${activeView}`)?.focus();
+  }
 
   function makeDraft(entry: TrainingRotation): RotationDraft { return { training_type: entry.training_type, weekday: entry.weekday == null ? '' : String(entry.weekday), frequency_weeks: String(entry.frequency_weeks ?? 1), week_offset: String(entry.week_offset ?? 0), start_date: entry.start_date ?? '' }; }
   function isCardioUnit(unit: TrainingUnit): boolean {
@@ -192,11 +200,11 @@
   </section>
 
   <div class="view-tabs" role="tablist" aria-label="Sportprogramm Bereiche">
-    <button class:active={activeView === 'week'} role="tab" aria-selected={activeView === 'week'} onclick={() => (activeView = 'week')}><Icon name="calendar" size={17} /><span>Wochenplan</span></button>
-    <button class:active={activeView === 'units'} role="tab" aria-selected={activeView === 'units'} onclick={() => (activeView = 'units')}><Icon name="training" size={17} /><span>Einheiten</span><small>{units.filter((unit) => unit.is_active !== false).length}</small></button>
+    <button class:active={activeView === 'week'} id="sport-tab-week" role="tab" aria-controls="sport-panel" tabindex={activeView === 'week' ? 0 : -1} onkeydown={navigateTabs} aria-selected={activeView === 'week'} onclick={() => (activeView = 'week')}><Icon name="calendar" size={17} /><span>Wochenplan</span></button>
+    <button class:active={activeView === 'units'} id="sport-tab-units" role="tab" aria-controls="sport-panel" tabindex={activeView === 'units' ? 0 : -1} onkeydown={navigateTabs} aria-selected={activeView === 'units'} onclick={() => (activeView = 'units')}><Icon name="training" size={17} /><span>Einheiten</span><small>{units.filter((unit) => unit.is_active !== false).length}</small></button>
   </div>
 
-  <section class="program-shell">
+  <div class="program-shell" id="sport-panel" role="tabpanel" tabindex="0" aria-labelledby={`sport-tab-${activeView}`}>
     {#if activeView === 'week'}
       <div class="workspace-head"><div><span class="eyebrow">Rhythmus</span><h2>Deine Trainingswoche</h2><p>Tippe auf einen Termin zum Anpassen oder plane direkt eine Einheit ein.</p></div></div>
       <div class="week-grid">
@@ -234,12 +242,12 @@
         </div>
       {/if}
     {/if}
-  </section>
+  </div>
 
   {#if selectedUnitName}
     {#each units.filter((item) => item.is_active !== false && item.name === selectedUnitName) as unit (unit.id)}
-      <div class="unit-workspace-overlay" role="presentation">
-        <div class="unit-workspace" role="dialog" aria-modal="true" aria-label={`${unit.name} bearbeiten`}>
+      <dialog use:modal class="unit-workspace-overlay" aria-label={`${unit.name} bearbeiten`} oncancel={(event) => { event.preventDefault(); closeUnit(); }}>
+        <div class="unit-workspace">
           <header class="unit-workspace-header">
             <button class="back-button" onclick={closeUnit} aria-label="Zurück zu Einheiten">‹</button>
             <div class="workspace-title"><span class="unit-icon" class:cardio={isCardioUnit(unit)}><Icon name={isCardioUnit(unit) ? 'cardio' : 'training'} size={18} /></span><div><strong>{unit.name}</strong><small>{isCardioUnit(unit) ? 'Cardio-Einheit' : `${exercises[unit.name]?.length ?? 0} Übungen · ${plannedDays(unit.name)}`}</small></div></div>
@@ -282,25 +290,25 @@
             <button class="archive-button" onclick={() => archiveUnit(unit)}>Einheit archivieren</button>
           </div>
         </div>
-      </div>
+      </dialog>
     {/each}
   {/if}
 
   {#if showUnitCreator}
-    <div class="planner-overlay" role="presentation" onclick={(event) => event.target === event.currentTarget && (showUnitCreator = false)}>
-      <div class="planner-modal" role="dialog" aria-modal="true" aria-label="Trainingseinheit erstellen">
+    <dialog use:modal class="planner-overlay" aria-label="Trainingseinheit erstellen" oncancel={(event) => { event.preventDefault(); showUnitCreator = false; }} onclick={(event) => event.target === event.currentTarget && (showUnitCreator = false)}>
+      <div class="planner-modal">
         <div class="modal-top"><div><span class="eyebrow">Neue Vorlage</span><strong>Trainingseinheit erstellen</strong><small>Du kannst Inhalte und Planung danach direkt ergänzen.</small></div><button class="close" onclick={() => (showUnitCreator = false)} aria-label="Schließen">×</button></div>
         <label>Name<input aria-label="Name der neuen Trainingseinheit" placeholder="z. B. Push A" bind:value={newUnitName} onkeydown={(event) => event.key === 'Enter' && addUnit()} /></label>
         <label>Typ<select bind:value={newUnitType} aria-label="Typ der neuen Trainingseinheit"><option value="gym">Gym</option><option value="cardio">Cardio</option></select></label>
         {#if newUnitType === 'cardio'}<label>Ziel-Dauer<input type="number" min="0" aria-label="Cardio-Ziel in Minuten" placeholder="z. B. 30" bind:value={newUnitCardioMinutes} /><small class="field-help">Kann am Trainingstag überschritten werden.</small></label>{/if}
         <div class="modal-actions"><button class="secondary" onclick={() => (showUnitCreator = false)}>Abbrechen</button><button class="primary" onclick={addUnit}>Einheit erstellen</button></div>
       </div>
-    </div>
+    </dialog>
   {/if}
 
   {#if selectedSlot && modalDraft}
-    <div class="planner-overlay" role="presentation" onclick={(event) => event.target === event.currentTarget && closePlanner()}>
-      <div class="planner-modal" role="dialog" aria-modal="true" aria-label="Rotation bearbeiten">
+    <dialog use:modal class="planner-overlay" aria-label="Rotation bearbeiten" oncancel={(event) => { event.preventDefault(); closePlanner(); }} onclick={(event) => event.target === event.currentTarget && closePlanner()}>
+      <div class="planner-modal">
         <div class="modal-top"><div><span class="eyebrow">Wochenplan</span><strong>{selectedSlot.training_type}</strong><small>Termin und Wiederholung anpassen</small></div><button class="close" onclick={closePlanner} aria-label="Planung schließen">×</button></div>
         <label>Trainingseinheit<select bind:value={modalDraft.training_type}>{#each units.filter((unit) => unit.is_active !== false) as unit}<option value={unit.name}>{unit.name}</option>{/each}</select></label>
         <button class="linked-unit" onclick={openUnitFromPlanner}><span><small>Trainingsinhalt</small><strong>{modalDraft.training_type} bearbeiten</strong></span><span>›</span></button>
@@ -309,12 +317,14 @@
         <div class="two-fields"><label>Alle<input type="number" min="1" max="52" bind:value={modalDraft.frequency_weeks} /><small class="field-help">Wochen</small></label><label>Startversatz<input type="number" min="0" max="51" bind:value={modalDraft.week_offset} /><small class="field-help">Wochen</small></label></div>
         <div class="modal-actions split"><button class="secondary danger" onclick={removePlanner}>{isNewPlanner ? 'Verwerfen' : 'Termin entfernen'}</button><span></span><button class="secondary" onclick={closePlanner}>Abbrechen</button><button class="primary" onclick={savePlanner} disabled={saving === selectedSlot.slot}>{saving === selectedSlot.slot ? 'Speichern…' : 'Speichern'}</button></div>
       </div>
-    </div>
+    </dialog>
   {/if}
 
   {#if error}<div class="error">{error}</div>{/if}
 </div>
 <style>
+  .unit-workspace-overlay, .planner-overlay { margin:0; width:100%; height:100%; max-width:none; max-height:none; border:0; color:var(--text-primary); }
+  .unit-workspace-overlay::backdrop, .planner-overlay::backdrop { background:transparent; }
   :global(body:has(.unit-workspace-overlay)), :global(body:has(.planner-overlay)) { overflow: hidden; }
   .page { display: flex; flex-direction: column; gap: 12px; padding-bottom: 24px; }
   .sport-hero { display: flex; justify-content: space-between; gap: var(--space-4); min-height: 96px; padding: var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-default); }

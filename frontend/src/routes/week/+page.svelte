@@ -16,22 +16,30 @@
   function goBack() { if (typeof window !== 'undefined') window.history.back(); }
   function localDateString(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
 
-  onMount(async () => {
+  let loading = true;
+  let error = '';
+  async function load() {
+    loading = true; error = '';
+
     try {
       trendEndDate = localDateString(new Date());
       weekStats = await api.getStatsWeek(trendEndDate, 7);
+      if (!weekStats) { error = 'Der Rückblick konnte nicht geladen werden. Bitte versuche es erneut.'; return; }
       const [wt, kt, st] = await Promise.all([api.getStatsTrend('weight', 365), api.getStatsTrend('kcal', 365), api.getStatsTrend('steps', 365)]);
       weightData = wt?.points ?? [];
       kcalData = kt?.points ?? [];
       stepsData = st?.points ?? [];
-    } catch {}
-  });
+    } catch { error = 'Der Rückblick konnte nicht geladen werden. Bitte versuche es erneut.'; }
+    finally { loading = false; }
+  }
+  onMount(load);
 </script>
 
 <svelte:head><title>Cronicl - Woche</title></svelte:head>
 
 <div class="page">
   <div class="hdr"><button class="back" onclick={goBack} aria-label="Zurück"><Icon name="chevron-left" size={20} /></button><div><p class="eyebrow">Rückblick</p><h1>Letzte 7 Tage</h1></div></div>
+  {#if error}<div class="ui-dialog__section"><p role="alert">{error}</p><button class="ui-button ui-button--secondary" onclick={load}>Erneut versuchen</button></div>{/if}
   {#if weekStats}
     <section class="section-card"><div class="section-header"><span>Gewicht</span><span class="avg">{weekStats.avg_weight ? Number(weekStats.avg_weight).toFixed(1) : '—'} kg Ø</span></div><div class="body"><div class="chart">{#if weightData.some((point) => point.value != null)}<Sparkline points={weightData} endDate={trendEndDate} height={90} width={300} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
     <section class="section-card"><div class="section-header"><span>Kalorien</span><span class="avg">{weekStats.avg_kcal ? Math.round(Number(weekStats.avg_kcal)) : '—'} kcal Ø</span></div><div class="body"><div class="chart">{#if kcalData.some((point) => point.value != null)}<Sparkline points={kcalData} endDate={trendEndDate} height={90} width={300} />{:else}<div class="no-data">Keine Daten</div>{/if}</div></div></section>
@@ -65,14 +73,16 @@
       <div class="stat-r"><span class="stat-l">To-Dos erledigt</span><span class="stat-v">{weekStats.todo_done}<span class="stat-m">/{weekStats.todo_total}</span></span></div>
       {#if weekStats.todo_completion}<div class="comp"><ProgressBar current={Math.round(Number(weekStats.todo_completion))} target={100} label="Erledigungsrate" color="var(--status-success)" /></div>{/if}
     </div></section>
-  {:else}
-    <div class="loading"><div class="spinner"></div></div>
+  {:else if loading}
+    <div class="loading" role="status" aria-label="Rückblick wird geladen"><div class="spinner"></div></div>
+  {:else if !error}
+    <p class="ui-empty">Noch keine Daten für diesen Zeitraum.</p>
   {/if}
 </div>
 
 <style>
   .page { display: flex; flex-direction: column; gap: var(--space-3); padding-top:var(--space-2); }
-  .hdr { display: flex; align-items: center; gap: var(--space-2); padding:8px 0 var(--space-2); }
+  .hdr { display: flex; align-items: center; gap: var(--space-2); padding:8px 48px var(--space-2) 0; }
   .back { width:var(--control-min); height:var(--control-min); border-radius:var(--radius-control); background:var(--surface-default); border:1px solid var(--border-subtle); color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; }
   .back:active { background:var(--surface-raised); }
   .eyebrow { color:var(--status-success); font-size:11px; font-weight:750; letter-spacing:.07em; text-transform:uppercase; }

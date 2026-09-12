@@ -83,11 +83,11 @@
 </section>
 
 <style>
-  .workspace-focus { overflow:hidden; height:30px; padding:0; touch-action:pan-y; }
-  .wheel { display:grid; grid-template-columns:minmax(0,1fr) minmax(88px,1.15fr) minmax(0,1fr); align-items:center; gap:8px; height:30px; }
+  .workspace-focus { overflow:hidden; height:var(--control-min); padding:0; touch-action:pan-y; }
+  .wheel { display:grid; grid-template-columns:minmax(0,1fr) minmax(88px,1.15fr) minmax(0,1fr); align-items:center; gap:8px; height:var(--control-min); }
   .current { display:grid; place-items:center; align-self:stretch; padding:0 10px 2px; border:0; border-bottom:2px solid var(--action-primary); background:transparent; color:var(--text-primary); font:inherit; font-size:13px; font-weight:750; cursor:pointer; }
   .current span,.neighbor span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .neighbor { display:flex; align-items:center; min-width:0; padding:4px 2px; border:0; background:transparent; color:var(--text-tertiary); font:inherit; font-size:11px; cursor:pointer; opacity:.72; }
+  .neighbor { display:flex; align-items:center; min-width:0; padding:4px 2px;min-height:var(--control-min); border:0; background:transparent; color:var(--text-tertiary); font:inherit; font-size:11px; cursor:pointer; opacity:1; }
   .previous { justify-content:flex-end; text-align:right; } .next { justify-content:flex-start; text-align:left; }
   .neighbor:focus-visible,.current:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; border-radius:var(--radius-control); }
   .neighbor:disabled { visibility:hidden; }

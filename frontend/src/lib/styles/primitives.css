@@ -3,6 +3,7 @@
 @keyframes ui-slide-down { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 600px; } }
 
 .ui-surface, .card, .section-card {
+  min-width: 0;
   background: var(--surface-default);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
@@ -90,3 +91,22 @@ dialog:not([open]) { display: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }
 }
+
+/* Keep every native editor usable on short viewports and prevent scroll chaining. */
+html:has(dialog:modal), body:has(dialog:modal) { overflow: hidden; }
+dialog { overscroll-behavior: contain; }
+dialog::backdrop { background: var(--overlay-backdrop); }
+dialog.modal-overlay::backdrop, dialog.action-overlay::backdrop { background: transparent; }
+dialog:not(.modal-overlay):not(.action-overlay):not(.calendar-overlay):not(.planner-overlay):not(.unit-workspace-overlay) {
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ui-dialog__header > div { min-width: 0; overflow-wrap: anywhere; }
+.ui-dialog__actions { flex-wrap: wrap; }
+.ui-dialog__actions > button { min-width: 0; }
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }

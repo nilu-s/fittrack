@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, tick } from 'svelte';
   import Icon from './Icon.svelte';
   import { api } from '$lib/api';
   import type { Food, MealEntry, MealPhotoAnalysis, Recipe } from '$lib/types';
@@ -26,7 +26,7 @@
   let autoCameraEntryId = '';
 
   $: if (dialog) {
-    if (open && !dialog.open) dialog.showModal();
+    if (open && !dialog.open) { dialog.showModal(); void tick().then(() => dialog.querySelector<HTMLButtonElement>('.close')?.focus()); }
     if (!open && dialog.open) dialog.close();
   }
   $: if (open && meal?.id && loadedEntryId !== meal.id) void load();

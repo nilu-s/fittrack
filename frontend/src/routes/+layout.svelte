@@ -162,7 +162,7 @@
 
   afterUpdate(() => { if (!authChecked) return; const p = $page?.url?.pathname ?? ''; if (!$isAuthenticated && p !== '/login') return void goto('/login'); if ($isAuthenticated && $aliasRequired && p !== '/onboarding/alias') return void goto('/onboarding/alias'); if ($isAuthenticated && !$aliasRequired && p === '/onboarding/alias') return void goto('/'); });
 
-  function onTouchStart(e: TouchEvent) { if (isRefreshing) return; if (window.scrollY <= 0) { touchStartY = e.touches[0].clientY; isPulling = true; } else { isPulling = false; } }
+  function onTouchStart(e: TouchEvent) { if (document.querySelector('dialog:modal')) { isPulling = false; return; } if (isRefreshing) return; if (window.scrollY <= 0) { touchStartY = e.touches[0].clientY; isPulling = true; } else { isPulling = false; } }
   function onTouchMove(e: TouchEvent) { if (!isPulling || isRefreshing) return; const delta = e.touches[0].clientY - touchStartY; if (delta > 0 && window.scrollY <= 0) { pullDistance = Math.min(delta * 0.5, pullThreshold * 1.5); if (pullDistance > 5) e.preventDefault(); } }
   async function onTouchEnd() { if (!isPulling || isRefreshing) return; isPulling = false; if (pullDistance >= pullThreshold) { isRefreshing = true; pullDistance = pullThreshold; await loadDayData($currentDate, true); if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30); isRefreshing = false; } pullDistance = 0; }
 </script>

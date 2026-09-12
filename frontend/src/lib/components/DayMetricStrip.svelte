@@ -52,7 +52,7 @@
 
 <style>
   .metric-strip { display:flex; align-items:center; justify-content:space-between; gap:var(--space-1); min-height:22px; padding:0 var(--space-1); color:var(--text-secondary); }
-  .metric { display:flex; align-items:center; min-width:0; gap:3px; padding:2px; border:0; border-radius:var(--radius-control); background:transparent; color:inherit; font:inherit; font-size:10px; font-weight:700; line-height:1; white-space:nowrap; cursor:pointer; }
+  .metric { min-height:var(--control-min);display:flex; align-items:center; min-width:0; gap:3px; padding:2px; border:0; border-radius:var(--radius-control); background:transparent; color:inherit; font:inherit; font-size:10px; font-weight:700; line-height:1; white-space:nowrap; cursor:pointer; }
   .metric :global(svg) { flex:0 0 auto; color:var(--text-tertiary); }
   .metric:active { background:var(--surface-pressed); }
   .metric:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; }
