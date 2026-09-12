@@ -15,7 +15,7 @@ from app.config import settings
 
 
 ICON_CATEGORIES: dict[str, str] = {
-    "apple": "produce", "orange": "produce", "strawberry": "produce", "banana": "produce", "carrot": "produce", "tomato": "produce",
+    "apple": "produce", "orange": "produce", "strawberry": "produce", "banana": "produce", "avocado": "produce", "carrot": "produce", "pepper": "produce", "cucumber": "produce", "onion": "produce", "tomato": "produce",
     "salad": "produce", "potato": "produce", "lemon": "produce", "mushroom": "produce",
     "milk": "dairy", "cheese": "dairy", "yogurt": "dairy", "egg": "dairy", "meat": "dairy", "chicken": "dairy", "fish": "dairy",
     "bread": "bakery", "croissant": "bakery",
@@ -29,6 +29,11 @@ _LEGACY_CATEGORY_ICONS = {
     "produce": "carrot", "dairy": "milk", "bakery": "bread", "pantry": "canned",
     "frozen": "icecream", "beverage": "water", "household": "cleaner",
 }
+
+# These keys predate the article-level catalogue.  They are safe to improve
+# during the one-off data upgrade, unless an account explicitly selected an
+# icon for the same title.
+LEGACY_GENERIC_ICON_KEYS = frozenset({"shopping", "produce", "dairy", "bakery", "pantry", "frozen", "beverage", "household", "initials"})
 
 # Most specific words come first.  The matching is intentionally local and
 # explainable; no remote product catalog or generated image is involved.
@@ -72,7 +77,11 @@ _RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("orange", ("orange", "mandarine", "grapefruit")),
     ("apple", ("apfel", "birne", "pfirsich", "kirsche", "beere", "traube")),
     ("banana", ("banane",)),
-    ("carrot", ("karotte", "mohre", "paprika", "brokkoli", "gurke", "zwiebel")),
+    ("avocado", ("avocado",)),
+    ("pepper", ("paprika",)),
+    ("cucumber", ("gurke", "zucchini")),
+    ("onion", ("zwiebel", "knoblauch")),
+    ("carrot", ("karotte", "mohre", "brokkoli")),
     ("tomato", ("tomate",)),
     ("salad", ("salat", "spinat", "kohl", "gemuse")),
     ("potato", ("kartoffel",)),

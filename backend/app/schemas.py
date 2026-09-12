@@ -1069,7 +1069,7 @@ class ShoppingItemCreate(_Base):
     title: str = Field(min_length=1, max_length=200)
     food_id: Optional[uuid.UUID] = None
     category_key: Optional[Literal["produce", "dairy", "bakery", "pantry", "frozen", "beverage", "household", "other"]] = None
-    icon_key: Optional[Literal["apple", "orange", "strawberry", "banana", "carrot", "tomato", "salad", "potato", "lemon", "mushroom", "milk", "cheese", "yogurt", "egg", "meat", "chicken", "fish", "bread", "croissant", "pasta", "rice", "oil", "canned", "spices", "cereal", "chocolate", "chips", "cookies", "coffee", "water", "juice", "tea", "soda", "beer", "wine", "icecream", "cleaner", "toilet-paper", "laundry", "soap", "toothpaste", "shampoo", "paper-towels", "batteries", "flowers", "pet", "produce", "dairy", "bakery", "pantry", "frozen", "beverage", "household"]] = None
+    icon_key: Optional[Literal["apple", "orange", "strawberry", "banana", "avocado", "carrot", "pepper", "cucumber", "onion", "tomato", "salad", "potato", "lemon", "mushroom", "milk", "cheese", "yogurt", "egg", "meat", "chicken", "fish", "bread", "croissant", "pasta", "rice", "oil", "canned", "spices", "cereal", "chocolate", "chips", "cookies", "coffee", "water", "juice", "tea", "soda", "beer", "wine", "icecream", "cleaner", "toilet-paper", "laundry", "soap", "toothpaste", "shampoo", "paper-towels", "batteries", "flowers", "pet", "produce", "dairy", "bakery", "pantry", "frozen", "beverage", "household"]] = None
     quantity: Optional[Decimal] = Field(default=None, gt=0, max_digits=12, decimal_places=3)
     unit: Optional[str] = Field(default=None, max_length=24)
     note: Optional[str] = Field(default=None, max_length=500)
@@ -1079,7 +1079,7 @@ class ShoppingItemUpdate(_Base):
     model_config = ConfigDict(extra="forbid")
     title: Optional[str] = Field(default=None, min_length=1, max_length=200)
     category_key: Optional[Literal["produce", "dairy", "bakery", "pantry", "frozen", "beverage", "household", "other"]] = None
-    icon_key: Optional[Literal["apple", "orange", "strawberry", "banana", "carrot", "tomato", "salad", "potato", "lemon", "mushroom", "milk", "cheese", "yogurt", "egg", "meat", "chicken", "fish", "bread", "croissant", "pasta", "rice", "oil", "canned", "spices", "cereal", "chocolate", "chips", "cookies", "coffee", "water", "juice", "tea", "soda", "beer", "wine", "icecream", "cleaner", "toilet-paper", "laundry", "soap", "toothpaste", "shampoo", "paper-towels", "batteries", "flowers", "pet", "produce", "dairy", "bakery", "pantry", "frozen", "beverage", "household"]] = None
+    icon_key: Optional[Literal["apple", "orange", "strawberry", "banana", "avocado", "carrot", "pepper", "cucumber", "onion", "tomato", "salad", "potato", "lemon", "mushroom", "milk", "cheese", "yogurt", "egg", "meat", "chicken", "fish", "bread", "croissant", "pasta", "rice", "oil", "canned", "spices", "cereal", "chocolate", "chips", "cookies", "coffee", "water", "juice", "tea", "soda", "beer", "wine", "icecream", "cleaner", "toilet-paper", "laundry", "soap", "toothpaste", "shampoo", "paper-towels", "batteries", "flowers", "pet", "produce", "dairy", "bakery", "pantry", "frozen", "beverage", "household"]] = None
     quantity: Optional[Decimal] = Field(default=None, gt=0, max_digits=12, decimal_places=3)
     unit: Optional[str] = Field(default=None, max_length=24)
     note: Optional[str] = Field(default=None, max_length=500)

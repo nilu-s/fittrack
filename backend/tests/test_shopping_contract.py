@@ -64,7 +64,10 @@ class ShoppingContractTests(unittest.IsolatedAsyncioTestCase):
             ShoppingMealImportCommand(from_date=date(2026, 9, 3), to_date=date(2026, 9, 2))
 
     def test_deterministic_local_article_icon_catalogue(self):
-        self.assertEqual(classify_article("Paprika"), ("produce", "carrot"))
+        self.assertEqual(classify_article("Karotte"), ("produce", "carrot"))
+        self.assertEqual(classify_article("Rote Paprika"), ("produce", "pepper"))
+        self.assertEqual(classify_article("Salatgurke"), ("produce", "cucumber"))
+        self.assertEqual(classify_article("Knoblauch"), ("produce", "onion"))
         self.assertEqual(classify_article("Haferflocken"), ("pantry", "canned"))
         self.assertEqual(classify_article("Bio-Hafermilch"), ("dairy", "milk"))
         self.assertEqual(classify_article("Klopapier"), ("household", "toilet-paper"))

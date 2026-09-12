@@ -14,7 +14,11 @@
   {:else if icon.key === 'orange'}<circle class="main" cx="32" cy="35" r="18"/><path class="leaf" d="M31 17c1-7 7-11 13-9-2 6-6 9-13 9Z"/><path class="detail" d="M22 35h20m-10-10v20"/>
   {:else if icon.key === 'strawberry'}<path class="main" d="M18 25c8-5 20-5 28 0 0 15-6 27-14 27S18 40 18 25Z"/><path class="leaf" d="m32 25-8-9 8 3 8-3Z"/><path class="detail" d="m25 33 1 1m12-1 1 1m-8 8 1 1"/>
   {:else if icon.key === 'banana'}<path class="main" d="M15 16c5 20 16 29 34 29-5 8-14 11-23 7C15 47 10 35 11 22Z"/><path class="detail" d="M15 16c-2-3 1-7 5-5M49 45c4 0 6 4 2 6"/>
+  {:else if icon.key === 'avocado'}<path class="main" d="M32 11c13 8 19 19 16 30-2 9-8 14-16 14s-14-5-16-14c-3-11 3-22 16-30Z"/><circle class="accent" cx="32" cy="38" r="7"/>
   {:else if icon.key === 'carrot'}<path class="main" d="M20 21c12 2 20 10 23 19-5 9-17 13-27 11-3-10-1-22 4-30Z"/><path class="leaf" d="M23 22 18 11m9 10 4-12m1 14 10-7"/><path class="detail" d="m23 34 14 5m-17 3 10 4"/>
+  {:else if icon.key === 'pepper'}<path class="main" d="M25 20c-2-7 2-12 8-12 4 0 7 3 7 7-3-1-5 0-6 3 10-1 15 7 13 18-2 12-8 18-15 18S17 48 17 36c0-10 3-17 8-18Z"/><path class="detail" d="M32 18c0 5 2 8 6 10"/>
+  {:else if icon.key === 'cucumber'}<path class="main" d="M17 45c0-15 10-27 24-27 5 0 8 3 8 8 0 15-10 28-24 28-5 0-8-3-8-9Z"/><path class="detail" d="m25 39 1 1m8-10 1 1m2 12 1 1"/>
+  {:else if icon.key === 'onion'}<path class="main" d="M32 17c11 8 16 17 14 27-1 8-6 12-14 12s-13-4-14-12c-2-10 3-19 14-27Z"/><path class="leaf" d="M32 17V8m0 9-7-6m7 6 7-6"/><path class="detail" d="M32 24v25"/>
   {:else if icon.key === 'tomato'}<path class="main" d="M13 36c0-13 8-22 19-22s19 9 19 22-8 19-19 19-19-6-19-19Z"/><path class="leaf" d="m32 17-9-7 3 9-8 3 10 1 4 7 3-7 10-1-8-3 3-9Z"/><path class="detail" d="M24 32c-3 4-3 8-1 11"/>
   {:else if icon.key === 'salad'}<path class="main" d="M14 50c1-20 10-33 18-33 8 0 17 13 18 33Z"/><path class="leaf" d="M32 49V14m0 21L18 24m14 11 14-11"/>
   {:else if icon.key === 'potato'}<path class="main" d="M14 37c0-12 7-21 18-21 12 0 19 8 19 19 0 12-9 19-20 19-10 0-17-6-17-17Z"/><circle class="detail-fill" cx="25" cy="30" r="2"/><circle class="detail-fill" cx="39" cy="40" r="2"/>
@@ -61,6 +65,6 @@
 
 <style>
   .article-icon { display:block; overflow:visible; color:var(--text-on-accent); }
-  .main,.accent,.detail,.leaf { fill:none; stroke:currentColor; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round; }
-  .detail { stroke-width:3; }.detail-fill { fill:currentColor; }
+  .main,.accent,.detail,.leaf { fill:none; stroke:currentColor; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .detail { stroke-width:3.25; }.detail-fill { fill:currentColor; }
 </style>
