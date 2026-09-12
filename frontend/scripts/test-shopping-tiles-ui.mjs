@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 const browser = await chromium.launch({args:['--no-sandbox']});
 try {
   const page = await browser.newPage({serviceWorkers:'block'}); page.setDefaultTimeout(8000); page.on('pageerror', console.error);
-  let item = {id:'tile-1',title:'Äpfel',icon_key:'apple',category_key:'produce',quantity:2,unit:'kg',status:'open',source:'manual'};
+  let item = {id:'tile-1',title:'Äpfel',icon_key:'initials',category_key:'other',quantity:2,unit:'kg',status:'open',source:'manual'};
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname;
     let body = [];
@@ -20,6 +20,7 @@ try {
     const box=await page.locator('.shopping-list li').boundingBox();
     assert.ok(Math.abs(box.width-box.height)<1);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    assert.equal(await page.locator('.shopping-list .initials').textContent(),'Ä');
     await tile.focus(); await page.keyboard.press('Space');
     await page.getByRole('checkbox',{checked:true}).waitFor(); console.log('toggled');
     await page.waitForFunction(()=>document.activeElement?.getAttribute('role')==='checkbox');
@@ -27,5 +28,5 @@ try {
     await page.getByRole('checkbox',{checked:false}).waitFor();
     assert.equal(await page.getByRole('button',{name:'Äpfel bearbeiten'}).count(),1);
   }
-  console.log('Shopping tiles: square, responsive, keyboard toggle and return focus PASS');
+  console.log('Shopping tiles: initials fallback, square, responsive, keyboard toggle and return focus PASS');
 } finally {await browser.close();}

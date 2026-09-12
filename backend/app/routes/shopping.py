@@ -74,9 +74,11 @@ async def create_item(body: ShoppingItemCreate, space_id: uuid.UUID | None = Que
         shopping_list = await _active_list(session, account_id, space_id)
         food = await _owned(session, Food, body.food_id, account_id) if body.food_id else None
         title = body.title.strip()
-        category, icon = classify_article(title)
+        category, _ = classify_article(title)
+        category = body.category_key or category
+        icon = "initials" if category == "other" else category
         row = ShoppingItem(account_id=account_id, shopping_list_id=shopping_list.id, food_id=food.id if food else None,
-            title=title, category_key=body.category_key or category, icon_key=body.icon_key or icon,
+            title=title, category_key=category, icon_key=icon,
             quantity=body.quantity, unit=body.unit, note=body.note, source="manual")
         session.add(row); await session.commit(); await session.refresh(row)
         return _item_response(row)
@@ -87,9 +89,19 @@ async def update_item(item_id: uuid.UUID, body: ShoppingItemUpdate, account_id: 
     async with async_session() as session:
         row = await _accessible_item(session, item_id, account_id)
         for key, value in body.model_dump(exclude_unset=True).items():
+            if key == "icon_key":
+                continue
             setattr(row, key, value)
         if body.title is not None and body.category_key is None and body.icon_key is None:
             row.category_key, row.icon_key = classify_article(row.title)
+        elif body.category_key is not None and body.icon_key is None:
+            # Icons follow the chosen category. Items outside the known catalogue
+            # deliberately fall back to their title initials in the UI.
+            row.icon_key = "initials" if row.category_key == "other" else row.category_key
+        elif body.icon_key is not None:
+            # Kept as an accepted no-op for older API clients. Icon selection is
+            # no longer a user-controlled behaviour.
+            row.icon_key = "initials" if row.category_key == "other" else row.category_key
         if row.status == "done" and row.completed_at is None:
             row.completed_at = datetime.now(timezone.utc)
         elif row.status == "open":

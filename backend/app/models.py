@@ -512,7 +512,7 @@ class ShoppingItem(AccountOwned, Base):
     food_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("foods.id"))
     title: Mapped[str] = mapped_column(Text, nullable=False)
     category_key: Mapped[str] = mapped_column(Text, nullable=False, default="other")
-    icon_key: Mapped[str] = mapped_column(Text, nullable=False, default="shopping")
+    icon_key: Mapped[str] = mapped_column(Text, nullable=False, default="initials")
     quantity: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
     unit: Mapped[str | None] = mapped_column(Text)
     note: Mapped[str | None] = mapped_column(Text)

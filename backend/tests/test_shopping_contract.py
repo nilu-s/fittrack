@@ -56,7 +56,7 @@ class ShoppingContractTests(unittest.IsolatedAsyncioTestCase):
     def test_deterministic_local_category_and_sketch_icon(self):
         self.assertEqual(classify_article("Paprika"), ("produce", "produce"))
         self.assertEqual(classify_article("Haferflocken"), ("pantry", "pantry"))
-        self.assertEqual(classify_article("Irgendein Artikel"), ("other", "shopping"))
+        self.assertEqual(classify_article("Irgendein Artikel"), ("other", "initials"))
 
     async def test_owned_lookup_has_explicit_account_predicate(self):
         session = _Session()

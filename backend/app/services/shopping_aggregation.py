@@ -29,7 +29,7 @@ def classify_article(title: str) -> tuple[str, str]:
     for category, words in _CATEGORY_RULES.items():
         if any(word in value for word in words):
             return category, category
-    return "other", "shopping"
+    return "other", "initials"
 
 
 async def _owned(session: AsyncSession, model, resource_id: uuid.UUID, account_id: uuid.UUID):
