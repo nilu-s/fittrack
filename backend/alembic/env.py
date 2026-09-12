@@ -40,6 +40,7 @@ from app.models import (  # noqa: F401 — ensure all models are imported
     ShoppingList,
     ShoppingItem,
     ShoppingIconPreference,
+    ShoppingCatalogEntry,
     ShoppingMealImport,
     SyncLog,
     Todo,

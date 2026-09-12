@@ -7,14 +7,15 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, exists, func, or_, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 
 from app.database import async_session
-from app.models import Food, ShoppingIconPreference, ShoppingItem, ShoppingList, ShoppingMealImport, SpaceMembership
+from app.models import Food, ShoppingCatalogEntry, ShoppingIconPreference, ShoppingItem, ShoppingList, ShoppingMealImport, SpaceMembership
 from app.routes.auth import get_current_user
 from app.schemas import ShoppingItemCreate, ShoppingItemResponse, ShoppingItemUpdate, ShoppingListResponse, ShoppingMealImportCommand, ShoppingMealPreviewItem, ShoppingMealPreviewResponse
 from app.services.shopping_aggregation import planned_meal_requirements
-from app.services.shopping_icons import canonical_icon_key, category_for_icon, classify_article, normalize_article_title
+from app.services.shopping_icons import canonical_icon_key, catalog_term_fingerprint, category_for_icon, classify_article, normalize_article_title
 from app.services.spaces import member_space
 
 router = APIRouter(prefix="/shopping", tags=["shopping"])
@@ -59,11 +60,29 @@ def _item_response(row: ShoppingItem) -> ShoppingItemResponse:
 
 
 async def _icon_for_title(session, account_id: uuid.UUID, title: str) -> tuple[str, str]:
+    normalized_title = normalize_article_title(title)
+    fingerprint = catalog_term_fingerprint(title)
     preference = await session.scalar(select(ShoppingIconPreference).where(
         ShoppingIconPreference.account_id == account_id,
-        ShoppingIconPreference.normalized_title == normalize_article_title(title),
+        ShoppingIconPreference.normalized_title == normalized_title,
     ))
-    return (preference.category_key, preference.icon_key) if preference else classify_article(title)
+    if preference:
+        return preference.category_key, preference.icon_key
+    catalog_entry = await session.scalar(select(ShoppingCatalogEntry).where(
+        ShoppingCatalogEntry.term_fingerprint == fingerprint,
+    ))
+    if catalog_entry:
+        return catalog_entry.category_key, catalog_entry.icon_key
+    category_key, icon_key = classify_article(title)
+    # The server grows the shared catalogue only with normalized terms and
+    # bundled icon keys.  Unknown terms have no generated artwork yet, so the
+    # privacy-preserving Initials fallback remains the visible result.
+    if normalized_title:
+        await session.execute(insert(ShoppingCatalogEntry).values(
+            term_fingerprint=fingerprint, category_key=category_key,
+            icon_key=icon_key, status="approved" if icon_key != "initials" else "pending_icon",
+        ).on_conflict_do_nothing(index_elements=["term_fingerprint"]))
+    return category_key, icon_key
 
 
 async def _remember_icon_choice(session, account_id: uuid.UUID, title: str, category_key: str, icon_key: str) -> None:
@@ -82,6 +101,19 @@ async def _remember_icon_choice(session, account_id: uuid.UUID, title: str, cate
     else:
         preference.category_key = category_key
         preference.icon_key = icon_key
+
+
+async def _publish_catalog_icon_choice(session, title: str, category_key: str, icon_key: str) -> None:
+    """Make an explicit choice reusable without retaining the product name."""
+    if not normalize_article_title(title):
+        return
+    await session.execute(insert(ShoppingCatalogEntry).values(
+        term_fingerprint=catalog_term_fingerprint(title), category_key=category_key,
+        icon_key=icon_key, status="approved",
+    ).on_conflict_do_update(
+        index_elements=["term_fingerprint"],
+        set_={"category_key": category_key, "icon_key": icon_key, "status": "approved"},
+    ))
 
 
 @router.get("", response_model=ShoppingListResponse)
@@ -106,6 +138,7 @@ async def create_item(body: ShoppingItemCreate, space_id: uuid.UUID | None = Que
             icon = canonical_icon_key(body.icon_key)
             category = category_for_icon(icon)
             await _remember_icon_choice(session, account_id, title, category, icon)
+            await _publish_catalog_icon_choice(session, title, category, icon)
         elif body.category_key is not None:
             category = body.category_key
             icon = "initials" if category == "other" else canonical_icon_key(category)
@@ -128,6 +161,7 @@ async def update_item(item_id: uuid.UUID, body: ShoppingItemUpdate, account_id: 
             row.icon_key = canonical_icon_key(body.icon_key)
             row.category_key = category_for_icon(row.icon_key)
             await _remember_icon_choice(session, account_id, row.title, row.category_key, row.icon_key)
+            await _publish_catalog_icon_choice(session, row.title, row.category_key, row.icon_key)
         elif body.title is not None and body.category_key is None:
             row.category_key, row.icon_key = await _icon_for_title(session, account_id, row.title)
         elif body.category_key is not None and body.icon_key is None:

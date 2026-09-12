@@ -541,6 +541,22 @@ class ShoppingIconPreference(AccountOwned, Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
+class ShoppingCatalogEntry(Base):
+    """A vetted, non-account-owned term-to-icon mapping shared by all accounts."""
+    __tablename__ = "shopping_catalog_entries"
+    __table_args__ = (UniqueConstraint("term_fingerprint", name="uq_shopping_catalog_entries_term_fingerprint"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    term_fingerprint: Mapped[str] = mapped_column(Text, nullable=False)
+    category_key: Mapped[str] = mapped_column(Text, nullable=False, default="other")
+    icon_key: Mapped[str] = mapped_column(Text, nullable=False, default="initials")
+    # ``pending_icon`` entries deliberately retain initials until a bundled,
+    # reviewed SVG exists.  They are never rendered as an arbitrary upload.
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="approved")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
 class ShoppingMealImport(AccountOwned, Base):
     """Records a confirmed plan period so repeated imports remain idempotent."""
     __tablename__ = "shopping_meal_imports"

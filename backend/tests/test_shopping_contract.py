@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import unittest
 import uuid
+from types import SimpleNamespace
 from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
@@ -12,10 +13,10 @@ from pydantic import ValidationError
 
 from app.main import app
 from app.models import ShoppingItem
-from app.routes.shopping import _icon_for_title, _owned
+from app.routes.shopping import _icon_for_title, _owned, _publish_catalog_icon_choice
 from app.schemas import ShoppingItemCreate, ShoppingMealImportCommand
 from app.services.shopping_aggregation import classify_article
-from app.services.shopping_icons import category_for_icon, normalize_article_title
+from app.services.shopping_icons import catalog_term_fingerprint, category_for_icon, normalize_article_title
 
 
 class _Scalars:
@@ -31,6 +32,13 @@ class _Session:
     async def execute(self, statement): self.statements.append(statement); return _Result()
     async def scalar(self, statement): self.statements.append(statement); return None
     def add(self, row): self.added.append(row)
+
+
+class _CatalogSession(_Session):
+    def __init__(self): super().__init__(); self.calls = 0
+    async def scalar(self, statement):
+        self.statements.append(statement); self.calls += 1
+        return None if self.calls == 1 else SimpleNamespace(category_key="dairy", icon_key="milk")
 
 
 class ShoppingContractTests(unittest.IsolatedAsyncioTestCase):
@@ -65,6 +73,7 @@ class ShoppingContractTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(classify_article("Schokolade"), ("pantry", "chocolate"))
         self.assertEqual(classify_article("Irgendein Artikel"), ("other", "initials"))
         self.assertEqual(normalize_article_title("  Äpfel – bio "), "apfel bio")
+        self.assertEqual(catalog_term_fingerprint("Äpfel"), catalog_term_fingerprint("äpfel"))
         self.assertEqual(category_for_icon("pasta"), "pantry")
 
     def test_icon_choice_is_a_supported_public_value(self):
@@ -84,6 +93,22 @@ class ShoppingContractTests(unittest.IsolatedAsyncioTestCase):
         session = _Session()
         self.assertEqual(await _icon_for_title(session, uuid.uuid4(), "Hafermilch"), ("dairy", "milk"))
         self.assertIn("shopping_icon_preferences.account_id", str(session.statements[0]))
+
+    async def test_unknown_term_creates_a_shared_pending_catalog_entry(self):
+        session = _Session()
+        self.assertEqual(await _icon_for_title(session, uuid.uuid4(), "Eigene Spezialmischung"), ("other", "initials"))
+        self.assertIn("shopping_catalog_entries", str(session.statements[-1]))
+
+    async def test_explicit_choice_promotes_the_global_catalog_entry(self):
+        session = _Session()
+        await _publish_catalog_icon_choice(session, "Haferdrink", "dairy", "milk")
+        self.assertIn("ON CONFLICT", str(session.statements[-1]))
+
+    async def test_global_catalog_reuses_an_icon_without_cross_account_preference_access(self):
+        session = _CatalogSession()
+        self.assertEqual(await _icon_for_title(session, uuid.uuid4(), "Haferdrink"), ("dairy", "milk"))
+        self.assertIn("shopping_icon_preferences.account_id", str(session.statements[0]))
+        self.assertIn("shopping_catalog_entries.term_fingerprint", str(session.statements[1]))
 
 
 if __name__ == "__main__":

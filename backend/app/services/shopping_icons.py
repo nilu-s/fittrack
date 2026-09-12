@@ -8,6 +8,10 @@ from __future__ import annotations
 
 import re
 import unicodedata
+import hashlib
+import hmac
+
+from app.config import settings
 
 
 ICON_CATEGORIES: dict[str, str] = {
@@ -82,6 +86,11 @@ def normalize_article_title(title: str) -> str:
     value = unicodedata.normalize("NFKD", title.casefold())
     value = "".join(char for char in value if not unicodedata.combining(char))
     return re.sub(r"[^a-z0-9]+", " ", value).strip()
+
+
+def catalog_term_fingerprint(title: str) -> str:
+    """Stable server-only match key; raw private product titles never enter the global catalogue."""
+    return hmac.new(settings.APP_JWT_SECRET.encode(), normalize_article_title(title).encode(), hashlib.sha256).hexdigest()
 
 
 def classify_article(title: str) -> tuple[str, str]:

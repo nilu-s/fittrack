@@ -37,17 +37,25 @@ Zuordnung zeigen eine lokale Initialen-Kachel statt eines generischen Symbols.
   bleiben historische Kaufnotizen und werden nie verändert. Manuelle Artikel
   bleiben manuell; eine Übernahme kann ihren Ursprung zu `mixed` ergänzen.
 * Die Zuordnung Kategorie/Icon ist ein globaler, versionierter und lokal
-  ausgelieferter, deterministischer Artikelkatalog. Er ordnet bekannte Begriffe
+  ausgelieferter, deterministischer Artikelkatalog. Ein unbekannter,
+  normalisierter Artikel erzeugt über einen serverseitigen HMAC-Fingerprint
+  einen globalen Katalogeintrag; der Rohbegriff wird dort nicht gespeichert.
+  Nur ein
+  geprüftes, lokal gebündeltes SVG kann daraus ein sichtbares Symbol machen.
+  Bis dahin bleibt der Artikel bei Initialen. Er ordnet bekannte Begriffe
   einem spezifischen Motiv wie `milk`, `pasta`, `toothpaste` oder `fish` zu,
   nicht nur einer groben Kategorie. Ein nicht verfügbarer Schlüssel darf nie
   als generische Einkaufstüte erscheinen.
   Für `Sonstiges` sind die ersten ein oder zwei Titelinitialen der verbindliche
   Fallback.
 * Eine sichtbare Illustrationauswahl darf die automatische Zuordnung
-  überschreiben. Die Wahl wird mit dem Eintrag gespeichert und als private,
-  konto-scoped Korrektur für denselben normalisierten Artikelnamen gelernt.
-  Eine Space-Liste gewährt dadurch keinen Zugriff auf die Präferenzen anderer
-  Mitglieder. `icon_key` akzeptiert ausschließlich bekannte lokale Schlüssel;
+  überschreiben. Die Wahl wird mit dem Eintrag gespeichert, als private,
+  konto-scoped Korrektur gelernt und als HMAC-basierte globale
+  Produkt-zu-Icon-Zuordnung freigegeben. Andere Konten erhalten so bei
+  identischem Begriff dasselbe geprüfte Symbol; sie können weder den
+  Ausgangsbegriff noch die Wahl eines anderen Kontos abrufen. Eine Space-Liste
+  gewährt dadurch keinen Zugriff auf die Präferenzen anderer Mitglieder.
+  `icon_key` akzeptiert ausschließlich bekannte lokale Schlüssel;
   die früheren Kategorie-Schlüssel bleiben nur als kompatible Eingabe erhalten
   und werden sofort auf ein konkretes Motiv normalisiert.
 
