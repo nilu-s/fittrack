@@ -4,7 +4,7 @@
   import type { ShoppingItem } from '$lib/types';
 
   export let item: ShoppingItem | null = null;
-  const dispatch = createEventDispatcher<{ close: void; save: { id: string; data: Partial<ShoppingItem> } }>();
+  const dispatch = createEventDispatcher<{ close: void; save: { id: string; data: Partial<ShoppingItem> }; remove: ShoppingItem }>();
   let dialog: HTMLDialogElement;
   let title = '';
   let quantity = '';
@@ -31,6 +31,7 @@
     dispatch('save', { id: item.id, data: { title: title.trim(), quantity: parsed, unit: unit.trim() || null, note: note.trim() || null } });
     close();
   }
+  function remove() { if (item) { dispatch('remove', item); close(); } }
 </script>
 
 <dialog bind:this={dialog} class="editor" aria-labelledby="shopping-editor-title" oncancel={(event) => { event.preventDefault(); close(); }} onclose={() => opener?.focus()}>
@@ -40,7 +41,7 @@
       <label>Artikel<input id="shopping-edit-title" bind:value={title} required/></label>
       <div class="two"><label>Menge<input type="number" min="0.001" step="0.001" bind:value={quantity}/></label><label>Einheit<input placeholder="z. B. g oder Stück" bind:value={unit}/></label></div>
       <label>Notiz<input bind:value={note}/></label>
-      <footer><button type="button" onclick={close}>Abbrechen</button><button class="primary" type="submit">Speichern</button></footer>
+      <footer><button type="button" class="danger" onclick={remove}>Entfernen</button><span></span><button type="button" onclick={close}>Abbrechen</button><button class="primary" type="submit">Speichern</button></footer>
     </form>
   {/if}
 </dialog>
@@ -57,6 +58,8 @@
   .two { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-2); }
   header button, footer button { min-height:var(--control-min); padding:8px 12px; border:1px solid var(--border-default); border-radius:var(--radius-control); background:var(--surface-raised); color:var(--text-primary); }
   footer { display:flex; justify-content:flex-end; gap:var(--space-2); }
+  footer span { flex:1; }
+  footer .danger { color:var(--status-danger); }
   footer .primary { background:var(--action-primary); border-color:var(--action-primary); color:var(--text-on-accent); font-weight:700; }
   @media(max-width:420px) { .editor { width:100%; margin:auto 0 0; border-radius:var(--radius-modal) var(--radius-modal) 0 0; } .two { grid-template-columns:1fr; } }
 </style>

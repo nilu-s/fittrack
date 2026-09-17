@@ -58,6 +58,13 @@ vor dessen Antwort zeigt die Kachel Titelinitialen statt eines generischen Symbo
 * Suche schlägt eigene offene und erledigte Artikel sowie den lokalen Katalog
   vor, akzeptiert aber immer freien Text. Checkbox, Detailbearbeitung,
   Schließen und Mahlzeitenübernahme sind sichtbare, native Controls.
+* Die Einkaufskacheln stehen auf allen Breiten in drei gleich breiten Spalten.
+  Ein Tap auf die vollständige Kachel erledigt den Artikel und verschiebt ihn
+  nach „Zuletzt verwendet“; ein erneuter Tap holt ihn zurück. Es gibt keine
+  Aktionsbuttons auf der Kachel. Langes Drücken, das Kontextmenü sowie
+  `Shift+F10` öffnen den Editor; dort bleibt „Entfernen“ als sichtbarer,
+  nativer Control erreichbar. Enter und Leertaste führen die Statusaktion aus.
+  Piktogramme und Titelinitialen sind weiß auf der Kategoriefläche.
 * Das Öffnen fokussiert die Artikelsuche nicht und öffnet keine Bildschirmtastatur.
   Escape und ein sichtbarer Schließen-Button schließen den Bereich.
 
@@ -68,7 +75,7 @@ vor dessen Antwort zeigt die Kachel Titelinitialen statt eines generischen Symbo
 | Account A kann keine Daten von B lesen oder ändern | `backend/tests/test_shopping_contract.py` |
 | Mengen- und Portionsaggregation ist deterministisch | `backend/tests/test_shopping_contract.py` |
 | Keine Owner-Felder im Browservertrag, neue Routes sichtbar | `backend/tests/test_shopping_contract.py`, `docs/contracts/openapi.json` |
-| Footer, Suche und Verwaltung sind tastatur- und touchbedienbar | `frontend` check/build und Accessibility-Review |
+| Footer, Suche und Verwaltung sind tastatur- und touchbedienbar | `frontend` check/build, `frontend/scripts/test-shopping-tiles-ui.mjs` und Accessibility-Review |
 | Unzugeordnete Artikel zeigen Titelinitialen, nicht ein generisches Icon | `frontend/scripts/test-shopping-tiles-ui.mjs` |
 | Proxy, Cache und Pictogramicl-Platzhalter schützen Kontodaten | `backend/tests/test_pictogramicl.py` |
 | Vor der Piktogramm-Antwort zeigen Kacheln Initialen; keine browserseitige visuelle Übersteuerung existiert | `frontend/scripts/test-shopping-tiles-ui.mjs`, `frontend/scripts/test-shopping-icon-engine-ui.mjs`, `npm run check` |

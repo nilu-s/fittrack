@@ -22,7 +22,8 @@ try {
   await page.goto(process.env.SHOPPING_TEST_URL ?? 'http://127.0.0.1:4182/shopping');
   await page.getByRole('checkbox', {name:'Hafermilch erledigen'}).waitFor();
   await page.waitForSelector('.article-icon[data-icon-key="milk"]');
-  await page.getByRole('button', {name:'Hafermilch bearbeiten'}).click();
+  assert.equal(await page.locator('.article-icon').evaluate((element) => getComputedStyle(element).filter), 'brightness(0) invert(1)');
+  await page.getByRole('checkbox', {name:/Hafermilch erledigen/}).click({button:'right'});
   assert.equal(await page.getByRole('group', {name:'Illustration'}).count(), 0);
   await page.locator('#shopping-edit-title').fill('Haferdrink');
   await page.getByRole('button', {name:'Speichern'}).click();

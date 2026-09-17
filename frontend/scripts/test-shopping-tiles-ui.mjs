@@ -20,13 +20,22 @@ try {
     const box=await page.locator('.shopping-list li').boundingBox();
     assert.ok(Math.abs(box.width-box.height)<1);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    assert.equal((await page.locator('.shopping-list ul').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length)),3);
     assert.equal(await page.locator('.shopping-list .initials').textContent(),'Ä');
+    assert.equal(await page.locator('.shopping-list li button').count(),1);
     await tile.focus(); await page.keyboard.press('Space');
     await page.getByRole('checkbox',{checked:true}).waitFor(); console.log('toggled');
     await page.waitForFunction(()=>document.activeElement?.getAttribute('role')==='checkbox');
     await page.keyboard.press('Space');
     await page.getByRole('checkbox',{checked:false}).waitFor();
-    assert.equal(await page.getByRole('button',{name:'Äpfel bearbeiten'}).count(),1);
+    await page.keyboard.press('Shift+F10');
+    await page.getByRole('heading',{name:'Einkauf bearbeiten'}).waitFor();
+    await page.keyboard.press('Escape');
+    const tileBox = await tile.boundingBox();
+    await page.mouse.move(tileBox.x + tileBox.width / 2, tileBox.y + tileBox.height / 2);
+    await page.mouse.down(); await page.waitForTimeout(650); await page.mouse.up();
+    await page.getByRole('heading',{name:'Einkauf bearbeiten'}).waitFor();
+    await page.keyboard.press('Escape');
   }
-  console.log('Shopping tiles: initials fallback, square, responsive, keyboard toggle and return focus PASS');
+  console.log('Shopping tiles: three columns, initials fallback, no tile actions, responsive keyboard toggle and details PASS');
 } finally {await browser.close();}

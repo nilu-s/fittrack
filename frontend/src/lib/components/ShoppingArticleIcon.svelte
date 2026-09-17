@@ -56,6 +56,6 @@
 {/if}
 
 <style>
-  .article-icon { display:block; width:var(--size, 44px); height:var(--size, 44px); color:var(--text-on-accent); }
+  .article-icon { display:block; width:var(--size, 44px); height:var(--size, 44px); color:var(--text-on-accent); filter:brightness(0) invert(1); }
   .initials { display:grid; place-items:center; width:var(--size); height:var(--size); color:var(--text-on-accent); font-size:calc(var(--size) * .42); font-weight:800; line-height:1; }
 </style>
