@@ -84,8 +84,14 @@
       return data;
     } catch (e) {
       console.warn('Failed to load day data:', e);
-      const ce = await db.dayEntries.where('date').equals(date).first();
-      const ct = await db.todos.where('date').equals(date).toArray();
+      let ce: DayEntry | undefined;
+      let ct: Todo[] = [];
+      try {
+        ce = await db.dayEntries.where('date').equals(date).first();
+        ct = await db.todos.where('due_date').equals(date).toArray();
+      } catch (cacheError) {
+        console.warn('Failed to load offline day cache:', cacheError);
+      }
       // Meal entries are revision-aware and online-first; never revive a
       // removed legacy IndexedDB meal record during an offline fallback.
       return { dayEntry: ce ?? { date }, mealEntries: [], todos: ct ?? [], trainingSuggestion: null, nextTraining: null, weekStats: null };

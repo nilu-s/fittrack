@@ -14,11 +14,12 @@
   export let noteAddError = '';
   export let shoppingAddError = '';
   export let shoppingOpen = false;
+  export let shoppingSearchActive = false;
   export let noteBoardOpen = false;
   export let shoppingCount = 0;
   export let noteCount = 0;
   export let noteTargetName = '';
-  const dispatch = createEventDispatcher<{ todoadd: string; noteadd: string; shoppingadd: string; aiplan: string; shoppingopen: void; noteboardopen: void }>();
+  const dispatch = createEventDispatcher<{ todoadd: string; noteadd: string; shoppingadd: string; aiplan: string; shoppingopen: void; noteboardopen: void; shoppingsearchstart: void; shoppingsearchend: void }>();
   const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
   const daysFull = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
   const dateDoubleTapDelay = 360;
@@ -73,6 +74,13 @@
     else if (entryMode === 'note') dispatch('noteadd', noteTitle);
     else dispatch('todoadd', todoTitle);
   }
+  function startShoppingSearch() { if (entryMode === 'shopping') dispatch('shoppingsearchstart'); }
+  function finishShoppingSearch(event: KeyboardEvent) {
+    if (entryMode !== 'shopping' || !shoppingSearchActive || event.key !== 'Escape') return;
+    event.preventDefault();
+    (event.currentTarget as HTMLInputElement).blur();
+    dispatch('shoppingsearchend');
+  }
   function startFooterSwipe(event: TouchEvent) {
     const target = event.target as HTMLElement | null;
     if (calendarOpen || target?.closest('input, textarea, select, [contenteditable="true"]')) return;
@@ -101,24 +109,24 @@
 
 
 
-<footer class="day-footer" aria-label="Tagesaktionen">
+<footer class="day-footer" class:shoppingSearchActive aria-label="Tagesaktionen">
   <form class="todo-add" onsubmit={(event) => { event.preventDefault(); submitEntry(); }}>
     <label class="sr-only" for="footer-entry-title">{entryLabel}</label>
-    <input id="footer-entry-title" placeholder={entryPlaceholder} value={entryTitle} oninput={updateEntry} disabled={entryAdding} aria-describedby={entryError ? 'footer-entry-error' : undefined} />
+    <input id="footer-entry-title" placeholder={entryPlaceholder} value={entryTitle} onfocus={startShoppingSearch} onkeydown={finishShoppingSearch} oninput={updateEntry} disabled={entryAdding} aria-describedby={entryError ? 'footer-entry-error' : undefined} />
     <button type="submit" disabled={!entryTitle.trim() || entryAdding} aria-label={submitLabel} title={submitLabel}><Icon name="plus" size={16} /></button>
     {#if entryMode === 'todo'}<button class="todo-ai" type="button" disabled={todoAdding} aria-label="KI-Assistent öffnen" title="Mit KI besprechen" onclick={() => dispatch('aiplan', todoTitle)}>✦</button>{/if}
   </form>
   {#if entryError}<p id="footer-entry-error" class="todo-add-error" role="status">{entryError}</p>{/if}
-  <nav class="dnav" aria-label="Tagesnavigation; horizontal wischen, um den Tag zu wechseln" ontouchstart={startFooterSwipe} ontouchend={finishFooterSwipe}>
+  {#if !shoppingSearchActive}<nav class="dnav" aria-label="Tagesnavigation; horizontal wischen, um den Tag zu wechseln" ontouchstart={startFooterSwipe} ontouchend={finishFooterSwipe}>
     <button type="button" class="footer-icon day-arrow" aria-label="Vorheriger Tag" title="Vorheriger Tag" onclick={() => changeDateFromButton(-1)}><Icon name="chevron-left" size={20} /></button>
     <button type="button" class="footer-icon" class:open={noteBoardOpen} aria-controls="note-board" aria-expanded={noteBoardOpen} aria-label="Notiz-Board öffnen" title="Notizen" onclick={openNoteBoard}><Icon name="edit" size={18} />{#if noteCount}<span class="count">{noteCount}</span>{/if}</button>
     <button bind:this={calendarButton} type="button" class="dnav-mid" onclick={openDatePicker} ondblclick={onDateDoubleTap} aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label="Kalender öffnen; doppeltippen für heute"><span class="dnav-date">{dow}, {dateLabel}</span><span class="dnav-today">{isToday ? 'Heute' : 'Datum wählen'}</span></button>
     <button type="button" class="footer-icon" class:open={shoppingOpen} aria-controls="shopping-quick-panel" aria-expanded={shoppingOpen} aria-label="Einkaufsliste öffnen" title="Einkauf" onclick={openShopping}><Icon name="shopping" size={18} />{#if shoppingCount}<span class="count">{shoppingCount}</span>{/if}</button>
     <button type="button" class="footer-icon day-arrow" aria-label="Nächster Tag" title="Nächster Tag" onclick={() => changeDateFromButton(1)}><Icon name="chevron-right" size={20} /></button>
-  </nav>
-  <div class="footer-status">
+  </nav>{/if}
+  {#if !shoppingSearchActive}<div class="footer-status">
     <slot />
-  </div>
+  </div>{/if}
 </footer>
 
 {#if calendarOpen}
@@ -144,4 +152,6 @@
   .day-footer { max-width:var(--shell-max); margin-inline:auto; background:var(--surface-navigation); border-top:1px solid var(--border-default); box-shadow:none; }
   .todo-add input,.todo-add .todo-ai,.dnav { background:var(--surface-default); }
   .footer-status { margin:0 -10px; padding:2px 10px; background:var(--surface-navigation); }
+  .day-footer.shoppingSearchActive { gap:0; padding-top:4px; }
+  .shoppingSearchActive .todo-add { min-height:44px; }
 </style>
