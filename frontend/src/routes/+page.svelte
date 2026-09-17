@@ -187,6 +187,7 @@
   async function addShoppingTitle(value: string) {
     const title = value.trim();
     if (shoppingAdding || !title) return;
+    const closeSearchAfterAdd = shoppingSearchActive;
     shoppingAdding = true;
     shoppingAddError = '';
     try {
@@ -194,6 +195,11 @@
       if (!item) throw new Error('Einkaufsartikel konnte nicht erstellt werden.');
       shopping = shopping ? { ...shopping, items: [...shopping.items, item] } : await api.getShoppingList(activeSpaceId ?? undefined);
       shoppingTitle = '';
+      if (closeSearchAfterAdd) {
+        shoppingSearchActive = false;
+        document.querySelector<HTMLInputElement>('#footer-entry-title')?.blur();
+        return;
+      }
       await tick();
       document.querySelector<HTMLInputElement>('#footer-entry-title')?.focus();
     } catch {
@@ -247,7 +253,7 @@
               {#if noteBoardOpen}
                 <NoteBoard open notes={generalTodos} {spaces} date={$currentDate} loading={generalTodosLoading} inline on:close={() => { noteBoardOpen = false; noteAreaId = null; }} on:changed={onNoteChanged} on:areachange={(event) => noteAreaId = event.detail} />
               {:else if shoppingOpen}
-                <ShoppingQuickPanel open {shopping} loading={shoppingLoading} query={shoppingTitle} inline allowMealImport={!activeSpaceId} searchActive={shoppingSearchActive} on:close={() => { shoppingOpen = false; shoppingSearchActive = false; }} on:choose={(event) => void addShoppingTitle(event.detail)} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
+                {#if !shoppingSearchActive}<ShoppingQuickPanel open {shopping} loading={shoppingLoading} query={shoppingTitle} inline allowMealImport={!activeSpaceId} on:close={() => { shoppingOpen = false; shoppingSearchActive = false; }} on:choose={(event) => void addShoppingTitle(event.detail)} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />{/if}
               {/if}
             </svelte:fragment>
           </UnifiedDay>
@@ -257,6 +263,9 @@
       <div class="loading" role="status" aria-live="polite"><div class="spinner"></div><span class="sr-only">Tagesdaten werden geladen</span></div>
     {/if}
   </main>
+  {#if shoppingOpen && shoppingSearchActive}
+    <ShoppingQuickPanel open {shopping} loading={shoppingLoading} query={shoppingTitle} inline searchActive allowMealImport={!activeSpaceId} on:close={() => { shoppingSearchActive = false; document.querySelector<HTMLInputElement>('#footer-entry-title')?.blur(); }} on:choose={(event) => void addShoppingTitle(event.detail)} />
+  {/if}
   <DateNav bind:todoTitle bind:noteTitle bind:shoppingTitle {todoAdding} {noteAdding} {shoppingAdding} {todoAddError} {noteAddError} {shoppingAddError} {shoppingOpen} {shoppingSearchActive} {noteBoardOpen} noteTargetName={spaces.find((space) => space.id === noteAreaId)?.name ?? ''} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} noteCount={generalTodos.filter((note) => !note.space_id && note.status === 'active').length} on:todoadd={addFooterTodo} on:noteadd={addNote} on:shoppingadd={addShopping} on:shoppingopen={openShoppingFromFooter} on:shoppingsearchstart={startShoppingSearch} on:shoppingsearchend={endShoppingSearch} on:noteboardopen={openNoteBoard} on:aiplan={() => assistantOpen = true}>
     {#if data && renderedDate === $currentDate}
       <DayMetricStrip entry={data.dayEntry} mealEntries={data.mealEntries} on:open={(event) => unifiedDay?.openFooterMetricDetails(event.detail.metric, event.detail.trigger)} />

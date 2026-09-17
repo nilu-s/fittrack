@@ -56,8 +56,16 @@ vor dessen Antwort zeigt die Kachel Titelinitialen statt eines generischen Symbo
 * Im geöffneten Bereich wird die Tages-To-do-Eingabe eindeutig durch die
   Artikelsuche ersetzt. Beide Eingabewerte bleiben getrennt erhalten.
 * Suche schlägt eigene offene und erledigte Artikel sowie den lokalen Katalog
-  vor, akzeptiert aber immer freien Text. Checkbox, Detailbearbeitung,
-  Schließen und Mahlzeitenübernahme sind sichtbare, native Controls.
+  vor, akzeptiert aber immer freien Text. Sobald das Suchfeld den Fokus
+  erhält, liegt ein Bottom-Sheet über den unteren 80 % der sichtbaren
+  Bildschirmhöhe; die oberen 20 % der Einkaufsliste bleiben gedimmt sichtbar
+  und sind nicht bedienbar. Das Sheet ist aus animierten Inhaltscontainern
+  ausgelagert, berücksichtigt den mobilen Visual Viewport einschließlich der
+  Tastatur, zeigt die Treffer als scrollbare Kacheln und lässt das Footer-
+  Eingabefeld sichtbar. Ein Tipp auf den gedimmten Bereich, Escape oder ein
+  Zug am mittigen Griff nach unten schließt nur die Suche. Nach einer
+  erfolgreichen Auswahl schließt sie ebenfalls. Checkbox, Detailbearbeitung
+  und Mahlzeitenübernahme sind sichtbare, native Controls.
 * Die Einkaufskacheln stehen auf allen Breiten in drei gleich breiten Spalten.
   Ein Tap auf die vollständige Kachel erledigt den Artikel und verschiebt ihn
   nach „Zuletzt verwendet“; ein erneuter Tap holt ihn zurück. Es gibt keine
