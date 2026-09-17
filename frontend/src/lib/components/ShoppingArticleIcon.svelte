@@ -11,6 +11,14 @@
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let objectUrl = '';
 
+  $: initials = (label ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => Array.from(word)[0]?.toLocaleUpperCase())
+    .join('') || '_';
+
   async function load() {
     if (!pictogramUrl) return;
     try {
@@ -28,10 +36,11 @@
     }
   }
 
-  $: if (pictogramUrl && pictogramUrl !== observedUrl) {
+  $: if (pictogramUrl !== observedUrl) {
     observedUrl = pictogramUrl;
     if (retryTimer) clearTimeout(retryTimer);
-    void load();
+    source = '';
+    if (pictogramUrl) void load();
   }
 
   onDestroy(() => {
@@ -42,8 +51,11 @@
 
 {#if source}
   <img class="article-icon" src={source} width={size} height={size} alt={label ?? ''} data-icon-key={iconKey} />
+{:else}
+  <span class="initials" aria-hidden="true" style={`--size:${size}px`}>{initials}</span>
 {/if}
 
 <style>
   .article-icon { display:block; width:var(--size, 44px); height:var(--size, 44px); color:var(--text-on-accent); }
+  .initials { display:grid; place-items:center; width:var(--size); height:var(--size); color:var(--text-on-accent); font-size:calc(var(--size) * .42); font-weight:800; line-height:1; }
 </style>

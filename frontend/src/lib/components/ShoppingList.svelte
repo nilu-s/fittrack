@@ -31,7 +31,7 @@
           <li class:done={item.status === 'done'} class={`category-${item.category_key}`}>
             <button onfocus={() => focusedId = item.id} data-shopping-id={item.id} class="tile" type="button" role="checkbox" aria-checked={item.status === 'done'} onclick={() => dispatch('toggle', item)} disabled={busy} aria-label={item.status === 'done' ? `${item.title} erneut öffnen` : `${item.title} erledigen`}>
               <span class="state"><Icon name={item.status === 'done' ? 'check' : 'plus'} size={14} /></span>
-              <ShoppingArticleIcon pictogramUrl={item.pictogram_url} size={48} />
+              <ShoppingArticleIcon pictogramUrl={item.pictogram_url} iconKey={item.icon_key} label={item.title} size={48} />
               <strong>{item.title}</strong>
               {#if quantity(item) || item.note}<small>{[quantity(item), item.note].filter(Boolean).join(' · ')}</small>{/if}
               {#if item.source !== 'manual'}<span class="source">Aus dem Plan</span>{/if}

@@ -1,8 +1,8 @@
 # Cronicl: Einkaufsliste und Mahlzeitenbedarf
 
-**Status:** approved (revised 2026-09-12: illustrated article icon engine)
+**Status:** approved (revised 2026-09-17: Pictogramicl delivery)
 **Owner:** Cronicl household  
-**Last updated:** 2026-09-12
+**Last updated:** 2026-09-17
 
 ## Ziel und Grenzen
 
@@ -14,11 +14,10 @@ Mahlzeitenplans. Sie kann Zutaten aus dem aktiven Plan für einen explizit
 gewählten Horizont von 1 bis 14 Tagen übernehmen.
 
 Vorratsverwaltung, Barcode-Scanning, externe Kataloge und Produktfotos sind
-nicht Teil dieses Releases. Der versionsierte globale Cronicl-Katalog verwendet
-lokal gebündelte, schlichte weiße SVG-Piktogramme auf Kategorieflächen; er
-übernimmt keine Icon-Dateien,
-Produktbilder oder geschützte UI-Elemente anderer Einkaufs-Apps. Artikel ohne
-Zuordnung zeigen eine lokale Initialen-Kachel statt eines generischen Symbols.
+nicht Teil dieses Releases. Cronicl übernimmt keine Icon-Dateien,
+Produktbilder oder geschützte UI-Elemente anderer Einkaufs-Apps. Piktogramme
+werden ausschließlich über den account-geschützten Pictogramicl-Proxy bezogen;
+vor dessen Antwort zeigt die Kachel Titelinitialen statt eines generischen Symbols.
 
 ## Daten- und Übernahmeregeln
 
@@ -36,28 +35,16 @@ Zuordnung zeigen eine lokale Initialen-Kachel statt eines generischen Symbols.
 * Offene gleiche Lebensmittelposten werden addiert. Bereits erledigte Artikel
   bleiben historische Kaufnotizen und werden nie verändert. Manuelle Artikel
   bleiben manuell; eine Übernahme kann ihren Ursprung zu `mixed` ergänzen.
-* Die Zuordnung Kategorie/Icon ist ein globaler, versionierter und lokal
-  ausgelieferter, deterministischer Artikelkatalog. Ein unbekannter,
-  normalisierter Artikel erzeugt über einen serverseitigen HMAC-Fingerprint
-  einen globalen Katalogeintrag; der Rohbegriff wird dort nicht gespeichert.
-  Nur ein
-  geprüftes, lokal gebündeltes SVG kann daraus ein sichtbares Symbol machen.
-  Bis dahin bleibt der Artikel bei Initialen. Er ordnet bekannte Begriffe
-  einem spezifischen Motiv wie `milk`, `pasta`, `toothpaste` oder `fish` zu,
-  nicht nur einer groben Kategorie. Ein nicht verfügbarer Schlüssel darf nie
-  als generische Einkaufstüte erscheinen.
+* Der Server übermittelt nur einen öffentlichen, sicheren Begriff an
+  Pictogramicl und liefert dessen Bild ausschließlich über eine account- und
+  Space-geschützte Item-Route aus. Der Browser erhält keine Service-Zugangsdaten
+  und lädt keine direkte Drittanbieter-URL. Für Cache, Retry, zulässige Inhalte
+  und Platzhalter ist `pictogram-catalog.md` maßgeblich.
   Für `Sonstiges` sind die ersten ein oder zwei Titelinitialen der verbindliche
   Fallback.
-* Eine sichtbare Illustrationauswahl darf die automatische Zuordnung
-  überschreiben. Die Wahl wird mit dem Eintrag gespeichert, als private,
-  konto-scoped Korrektur gelernt und als HMAC-basierte globale
-  Produkt-zu-Icon-Zuordnung freigegeben. Andere Konten erhalten so bei
-  identischem Begriff dasselbe geprüfte Symbol; sie können weder den
-  Ausgangsbegriff noch die Wahl eines anderen Kontos abrufen. Eine Space-Liste
-  gewährt dadurch keinen Zugriff auf die Präferenzen anderer Mitglieder.
-  `icon_key` akzeptiert ausschließlich bekannte lokale Schlüssel;
-  die früheren Kategorie-Schlüssel bleiben nur als kompatible Eingabe erhalten
-  und werden sofort auf ein konkretes Motiv normalisiert.
+* Eine browserseitige Illustrationauswahl oder Übermittlung visueller Overrides
+  existiert nicht. Pictogramicl ist allein für Generierung, Prüfung und
+  Veröffentlichung zuständig.
 
 ## UX-Vertrag
 
@@ -83,6 +70,6 @@ Zuordnung zeigen eine lokale Initialen-Kachel statt eines generischen Symbols.
 | Keine Owner-Felder im Browservertrag, neue Routes sichtbar | `backend/tests/test_shopping_contract.py`, `docs/contracts/openapi.json` |
 | Footer, Suche und Verwaltung sind tastatur- und touchbedienbar | `frontend` check/build und Accessibility-Review |
 | Unzugeordnete Artikel zeigen Titelinitialen, nicht ein generisches Icon | `frontend/scripts/test-shopping-tiles-ui.mjs` |
-| Katalog, Fallback und zulässige Icon-Schlüssel sind deterministisch | `backend/tests/test_shopping_contract.py` |
-| Illustrationsauswahl ist touch- und tastaturbedienbar | `frontend/scripts/test-shopping-icon-engine-ui.mjs`, `npm run check` |
+| Proxy, Cache und Pictogramicl-Platzhalter schützen Kontodaten | `backend/tests/test_pictogramicl.py` |
+| Vor der Piktogramm-Antwort zeigen Kacheln Initialen; keine browserseitige visuelle Übersteuerung existiert | `frontend/scripts/test-shopping-tiles-ui.mjs`, `frontend/scripts/test-shopping-icon-engine-ui.mjs`, `npm run check` |
 | Bestehende To-do- und Mahlzeitenflüsse bleiben erhalten | Backend- und Frontend-Gesamtgates |

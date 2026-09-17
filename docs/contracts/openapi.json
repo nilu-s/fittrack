@@ -3984,6 +3984,43 @@
         }
       }
     },
+    "/api/shopping/items/{item_id}/pictogram": {
+      "get": {
+        "tags": [
+          "shopping"
+        ],
+        "summary": "Shopping Item Pictogram",
+        "description": "Deliver Pictogramicl artwork through Cronicl's access boundary.",
+        "operationId": "shopping_item_pictogram_api_shopping_items__item_id__pictogram_get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/shopping": {
       "get": {
         "tags": [
@@ -10971,6 +11008,11 @@
           "icon_key": {
             "type": "string",
             "title": "Icon Key"
+          },
+          "pictogram_url": {
+            "type": "string",
+            "title": "Pictogram Url",
+            "default": ""
           },
           "quantity": {
             "anyOf": [
