@@ -247,7 +247,7 @@
               {#if noteBoardOpen}
                 <NoteBoard open notes={generalTodos} {spaces} date={$currentDate} loading={generalTodosLoading} inline on:close={() => { noteBoardOpen = false; noteAreaId = null; }} on:changed={onNoteChanged} on:areachange={(event) => noteAreaId = event.detail} />
               {:else if shoppingOpen}
-                <ShoppingQuickPanel open {shopping} loading={shoppingLoading} query={shoppingTitle} inline allowMealImport={!activeSpaceId} on:close={() => { shoppingOpen = false; shoppingSearchActive = false; }} on:choose={(event) => void addShoppingTitle(event.detail)} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
+                <ShoppingQuickPanel open {shopping} loading={shoppingLoading} query={shoppingTitle} inline allowMealImport={!activeSpaceId} searchActive={shoppingSearchActive} on:close={() => { shoppingOpen = false; shoppingSearchActive = false; }} on:choose={(event) => void addShoppingTitle(event.detail)} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
               {/if}
             </svelte:fragment>
           </UnifiedDay>
