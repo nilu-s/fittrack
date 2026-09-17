@@ -5,7 +5,7 @@ import uuid
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
@@ -17,7 +17,7 @@ from app.schemas import ShoppingItemCreate, ShoppingItemResponse, ShoppingItemUp
 from app.services.shopping_aggregation import planned_meal_requirements
 from app.services.shopping_icons import canonical_icon_key, catalog_term_fingerprint, category_for_icon, classify_article, normalize_article_title
 from app.services.spaces import member_space
-from app.services.pictogramicl import resolve_shopping_pictogram
+from app.services.pictogramicl import prepare_shopping_pictogram, refresh_shopping_pictogram
 
 router = APIRouter(prefix="/shopping", tags=["shopping"])
 
@@ -63,15 +63,17 @@ def _item_response(row: ShoppingItem) -> ShoppingItemResponse:
 
 
 @router.get("/items/{item_id}/pictogram", response_class=Response)
-async def shopping_item_pictogram(item_id: uuid.UUID, request: Request, account_id: uuid.UUID = Depends(get_current_user)):
+async def shopping_item_pictogram(item_id: uuid.UUID, request: Request, background_tasks: BackgroundTasks, account_id: uuid.UUID = Depends(get_current_user)):
     """Deliver Pictogramicl artwork through Cronicl's access boundary."""
     async with async_session() as session:
         item = await _accessible_item(session, item_id, account_id)
-        pictogram = await resolve_shopping_pictogram(session, item.title)
+        pictogram, refresh_due = await prepare_shopping_pictogram(session, item.title)
         await session.commit()
+    if refresh_due:
+        background_tasks.add_task(refresh_shopping_pictogram, item.title)
     if pictogram.etag and request.headers.get("if-none-match") == pictogram.etag:
-        return Response(status_code=304, headers={"ETag": pictogram.etag, "Cache-Control": "private, max-age=60"})
-    headers = {"Cache-Control": "private, max-age=60"}
+        return Response(status_code=304, headers={"ETag": pictogram.etag, "Cache-Control": "private, max-age=5", "X-Pictogram-State": pictogram.state})
+    headers = {"Cache-Control": "private, max-age=5", "X-Pictogram-State": pictogram.state}
     if pictogram.etag:
         headers["ETag"] = pictogram.etag
     return Response(pictogram.svg, media_type="image/svg+xml", headers=headers)

@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 import re
+import unicodedata
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
@@ -40,6 +41,16 @@ def _cache_key(term: str) -> str:
 
 def _fallback_key() -> str:
     return _cache_key("__private_or_unavailable__")
+
+
+def _placeholder_initial(term: str | None) -> str:
+    if not term:
+        return "_"
+    folded = unicodedata.normalize("NFKD", term)
+    for char in folded:
+        if char.isascii() and char.isalnum():
+            return char.upper()
+    return "_"
 
 
 def _now() -> datetime:
@@ -80,31 +91,54 @@ async def _save(session, key: str, *, svg: str, state: str, etag: str | None,
     return row
 
 
-async def _generic_placeholder(session) -> DeliveredPictogram:
-    """Use Pictogramicl's underscore placeholder without disclosing a private title."""
-    key = _fallback_key()
+async def _placeholder(session, initial: str) -> DeliveredPictogram:
+    """Fetch one immutable Pictogramicl initial, never a locally drawn glyph."""
+    key = _cache_key(f"__placeholder__:{initial}")
     cached = await session.scalar(select(PictogramDeliveryCache).where(PictogramDeliveryCache.cache_key == key))
     if cached is not None:
         return DeliveredPictogram(cached.svg_markup, cached.state, cached.etag)
-    url = f"/v1/styles/{quote(settings.PICTOGRAMICL_STYLE, safe='')}/placeholders/2/_.svg"
+    url = f"/v1/styles/{quote(settings.PICTOGRAMICL_STYLE, safe='')}/placeholders/2/{initial}.svg"
     async with httpx.AsyncClient(timeout=httpx.Timeout(15.0), follow_redirects=False) as client:
         svg, etag = await _asset(client, url)
-    row = await _save(session, key, svg=svg, state="unavailable", etag=etag,
-                      placeholder_initial="_", placeholder_revision=2)
+    row = await _save(session, key, svg=svg, state="placeholder", etag=etag,
+                      placeholder_initial=initial, placeholder_revision=2)
     return DeliveredPictogram(row.svg_markup, row.state, row.etag)
 
 
-async def resolve_shopping_pictogram(session, title: str) -> DeliveredPictogram:
+async def _generic_placeholder(session) -> DeliveredPictogram:
+    return await _placeholder(session, "_")
+
+
+async def prepare_shopping_pictogram(session, title: str) -> tuple[DeliveredPictogram, bool]:
+    """Return a placeholder immediately and report whether a background lookup is due."""
+    term = _normalise_public_term(title)
+    if term is None:
+        return await _generic_placeholder(session), False
+    key = _cache_key(term)
+    cached = await session.scalar(select(PictogramDeliveryCache).where(PictogramDeliveryCache.cache_key == key))
+    if cached is not None and cached.state == "available":
+        return DeliveredPictogram(cached.svg_markup, cached.state, cached.etag), False
+    if cached is not None and cached.retry_after and cached.retry_after > _now():
+        return DeliveredPictogram(cached.svg_markup, cached.state, cached.etag), False
+    placeholder = await _placeholder(session, _placeholder_initial(term))
+    row = await _save(session, key, svg=placeholder.svg, state="pending", etag=placeholder.etag,
+                      placeholder_initial=_placeholder_initial(term), placeholder_revision=2,
+                      retry_after=_now() + timedelta(minutes=2))
+    return DeliveredPictogram(row.svg_markup, row.state, row.etag), True
+
+
+async def resolve_shopping_pictogram(session, title: str, *, force: bool = False) -> DeliveredPictogram:
     """Resolve one shopping title without persisting or exposing it as catalogue data."""
     term = _normalise_public_term(title)
     if term is None:
         return await _generic_placeholder(session)
     key = _cache_key(term)
     cached = await session.scalar(select(PictogramDeliveryCache).where(PictogramDeliveryCache.cache_key == key))
-    if cached is not None and (cached.state == "available" or (cached.retry_after and cached.retry_after > _now())):
+    if cached is not None and not force and (cached.state == "available" or (cached.retry_after and cached.retry_after > _now())):
         return DeliveredPictogram(cached.svg_markup, cached.state, cached.etag)
     if not settings.PICTOGRAMICL_API_KEY.strip():
         return await _generic_placeholder(session)
+
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5.0, read=115.0, write=10.0, pool=5.0), follow_redirects=False) as client:
             response = await client.get(
@@ -135,3 +169,11 @@ async def resolve_shopping_pictogram(session, title: str) -> DeliveredPictogram:
         if cached is not None:
             return DeliveredPictogram(cached.svg_markup, cached.state, cached.etag)
         return await _generic_placeholder(session)
+
+
+async def refresh_shopping_pictogram(title: str) -> None:
+    """Run the potentially slow service lookup after the initial response."""
+    from app.database import async_session
+    async with async_session() as session:
+        await resolve_shopping_pictogram(session, title, force=True)
+        await session.commit()
