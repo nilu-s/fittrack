@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch for Codex credential rotation
+
+[Path]
+PathChanged=/root/.codex/auth.json
+PathModified=/root/.codex/auth.json
+Unit=cronicl-codex-auth-sync.service
+
+[Install]
+WantedBy=multi-user.target

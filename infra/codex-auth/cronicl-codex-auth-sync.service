@@ -1,0 +1,10 @@
+[Unit]
+Description=Synchronize the Codex credential used by Cronicl
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/cronicl-sync-codex-auth
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
