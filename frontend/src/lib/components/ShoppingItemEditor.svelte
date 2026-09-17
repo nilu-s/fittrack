@@ -2,15 +2,15 @@
   import { createEventDispatcher, tick } from 'svelte';
   import Icon from './Icon.svelte';
   import ShoppingArticleIcon from './ShoppingArticleIcon.svelte';
-  import { shoppingIcons } from '$lib/shopping-icons';
   import type { ShoppingItem } from '$lib/types';
   export let item: ShoppingItem | null = null;
+  const shoppingIcons: { key: string; label: string }[] = [];
   const dispatch = createEventDispatcher<{ close: void; save: { id: string; data: Partial<ShoppingItem> } }>();
   let dialog: HTMLDialogElement; let title = ''; let quantity = ''; let unit = ''; let note = ''; let iconKey = ''; let iconChanged = false; let opener: HTMLElement | null = null;
-  $: if (item && dialog && !dialog.open) { opener = document.activeElement instanceof HTMLElement ? document.activeElement : null; title = item.title; quantity = item.quantity == null ? '' : String(item.quantity); unit = item.unit ?? ''; note = item.note ?? ''; iconKey = item.icon_key; iconChanged = false; dialog.showModal(); tick().then(() => dialog.querySelector<HTMLButtonElement>('header button')?.focus()); }
+  $: if (item && dialog && !dialog.open) { opener = document.activeElement instanceof HTMLElement ? document.activeElement : null; title = item.title; quantity = item.quantity == null ? '' : String(item.quantity); unit = item.unit ?? ''; note = item.note ?? ''; dialog.showModal(); tick().then(() => dialog.querySelector<HTMLButtonElement>('header button')?.focus()); }
   $: if (!item && dialog?.open) dialog.close();
   function close() { dispatch('close'); }
-  function save() { if (!item || !title.trim()) return; const parsed = quantity.trim() ? Number(quantity) : null; if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) return; dispatch('save', { id: item.id, data: { title: title.trim(), quantity: parsed, unit: unit.trim() || null, note: note.trim() || null, ...(iconChanged ? { icon_key: iconKey } : {}) } }); close(); }
+  function save() { if (!item || !title.trim()) return; const parsed = quantity.trim() ? Number(quantity) : null; if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) return; dispatch('save', { id: item.id, data: { title: title.trim(), quantity: parsed, unit: unit.trim() || null, note: note.trim() || null } }); close(); }
 </script>
 
 <dialog bind:this={dialog} class="editor" aria-labelledby="shopping-editor-title" oncancel={(event) => { event.preventDefault(); close(); }} onclose={() => opener?.focus()}>{#if item}<form onsubmit={(event) => { event.preventDefault(); save(); }}><header><div><p>ARTIKEL</p><h2 id="shopping-editor-title">Einkauf bearbeiten</h2></div><button type="button" onclick={close} aria-label="Bearbeiten schließen"><Icon name="x" size={20}/></button></header><label>Artikel<input id="shopping-edit-title" bind:value={title} required/></label><fieldset><legend>Illustration</legend><p>Eine bewusste Auswahl wird anonymisiert für denselben Artikelnamen wiederverwendet.</p><div class="icon-grid">{#each shoppingIcons as icon}<button class:selected={icon.key === iconKey} type="button" onclick={() => { iconKey = icon.key; iconChanged = true; }} aria-pressed={icon.key === iconKey} aria-label={`${icon.label} auswählen`}><ShoppingArticleIcon iconKey={icon.key} size={34}/><span>{icon.label}</span></button>{/each}</div></fieldset><div class="two"><label>Menge<input type="number" min="0.001" step="0.001" bind:value={quantity}/></label><label>Einheit<input placeholder="z. B. g oder Stück" bind:value={unit}/></label></div><label>Notiz<input bind:value={note}/></label><footer><button type="button" onclick={close}>Abbrechen</button><button class="primary" type="submit">Speichern</button></footer></form>{/if}</dialog>

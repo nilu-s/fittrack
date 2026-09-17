@@ -24,6 +24,9 @@ services:
       APP_PUBLIC_ORIGIN: ${APP_PUBLIC_ORIGIN:?set APP_PUBLIC_ORIGIN in .env}
       DATABASE_URL: postgresql+asyncpg://app:${APP_DB_PASSWORD}@db:5432/app
       VISION_PROXY_URL: http://vision-proxy:8100
+      PICTOGRAMICL_URL: http://pictogramicl:8080
+      PICTOGRAMICL_API_KEY: ${PICTOGRAMICL_API_KEY:?set PICTOGRAMICL_API_KEY in .env}
+      PICTOGRAMICL_STYLE: ${PICTOGRAMICL_STYLE:-cronicl-fine-playful-v3}
       PHOTO_DIR: /app/photos
       APP_JWT_SECRET: ${APP_JWT_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
@@ -87,6 +90,18 @@ services:
       - app-net
     restart: unless-stopped
 
+  pictogramicl:
+    build: ../cronicl-pictograms
+    environment:
+      PICTOGRAMICL_CLIENTS_JSON: ${PICTOGRAMICL_CLIENTS_JSON:?set PICTOGRAMICL_CLIENTS_JSON in .env}
+      PICTOGRAMICL_CODEX_REASONING_EFFORT: low
+    volumes:
+      - pictogramicl_generated:/app/catalog/generated
+      - pictogramicl_worker_auth:/home/pictogramicl/.codex
+    networks:
+      - app-net
+    restart: unless-stopped
+
   caddy:
     image: caddy:2.9.1-alpine
     environment:
@@ -112,6 +127,8 @@ volumes:
   app_pgdata:
   app_caddy_data:
   app_caddy_config:
+  pictogramicl_generated:
+  pictogramicl_worker_auth:
 
 networks:
   app-net:

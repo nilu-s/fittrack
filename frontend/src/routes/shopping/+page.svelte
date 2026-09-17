@@ -6,13 +6,11 @@
   import ShoppingMealImport from '$lib/components/ShoppingMealImport.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import ShoppingArticleIcon from '$lib/components/ShoppingArticleIcon.svelte';
-  import { suggestedShoppingIcons } from '$lib/shopping-icons';
   import type { ShoppingItem, ShoppingList as ShoppingListType } from '$lib/types';
   let shopping: ShoppingListType | null = null; let query = ''; let loading = true; let importing = false;
-  let editing: ShoppingItem | null = null; let importingDialog = false;
+  let editing: ShoppingItem | null = null; let importingDialog = false; let iconSuggestions: { key: string; label: string }[] = [];
   onMount(async () => { shopping = await api.getShoppingList(); loading = false; });
-  $: iconSuggestions = suggestedShoppingIcons(query);
-  async function add(iconKey?: string) { const title = query.trim(); if (!title) return; const item = await api.createShoppingItem({ title, ...(iconKey ? { icon_key: iconKey } : {}) }); if (item && shopping) { shopping = { ...shopping, items: [...shopping.items, item] }; query = ''; } }
+  async function add(..._ignored: string[]) { const title = query.trim(); if (!title) return; const item = await api.createShoppingItem({ title }); if (item && shopping) { shopping = { ...shopping, items: [...shopping.items, item] }; query = ''; } }
   async function toggle(item: ShoppingItem) { const updated = await api.toggleShoppingItem(item.id); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === item.id ? updated : value) }; }
   async function remove(item: ShoppingItem) { if (await api.deleteShoppingItem(item.id) && shopping) shopping = { ...shopping, items: shopping.items.filter((value) => value.id !== item.id) }; }
   async function save(event: CustomEvent<{ id: string; data: Partial<ShoppingItem> }>) { const updated = await api.updateShoppingItem(event.detail.id, event.detail.data); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === updated.id ? updated : value) }; }

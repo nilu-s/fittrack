@@ -1,7 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import ShoppingArticleIcon from './ShoppingArticleIcon.svelte';
-  import { resolveShoppingIcon } from '$lib/shopping-icons';
   import type { ShoppingItem } from '$lib/types';
   export let items: ShoppingItem[] = [];
   export let busy = false;
@@ -20,9 +19,6 @@
     }
   }
   function quantity(item: ShoppingItem) { return item.quantity == null ? '' : `${Number(item.quantity.toFixed(3))} ${item.unit ?? ''}`.trim(); }
-  function initials(title: string) {
-    return title.trim().split(/[\s-]+/).filter(Boolean).slice(0, 2).map((word) => word.slice(0, 1)).join('').toLocaleUpperCase('de') || '?';
-  }
 </script>
 
 <div class="shopping-list" aria-live="polite">
@@ -35,11 +31,7 @@
           <li class:done={item.status === 'done'} class={`category-${item.category_key}`}>
             <button onfocus={() => focusedId = item.id} data-shopping-id={item.id} class="tile" type="button" role="checkbox" aria-checked={item.status === 'done'} onclick={() => dispatch('toggle', item)} disabled={busy} aria-label={item.status === 'done' ? `${item.title} erneut öffnen` : `${item.title} erledigen`}>
               <span class="state"><Icon name={item.status === 'done' ? 'check' : 'plus'} size={14} /></span>
-              {#if resolveShoppingIcon(item.icon_key)}
-                <ShoppingArticleIcon iconKey={item.icon_key} size={48} />
-              {:else}
-                <span class="initials" aria-hidden="true">{initials(item.title)}</span>
-              {/if}
+              <ShoppingArticleIcon pictogramUrl={item.pictogram_url} size={48} />
               <strong>{item.title}</strong>
               {#if quantity(item) || item.note}<small>{[quantity(item), item.note].filter(Boolean).join(' · ')}</small>{/if}
               {#if item.source !== 'manual'}<span class="source">Aus dem Plan</span>{/if}
@@ -67,7 +59,6 @@
   li.done { background:color-mix(in srgb,var(--tile-color) 65%,var(--surface-default)); opacity:.7; }
   .tile { position:absolute; inset:0 0 var(--control-min); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; width:100%; padding:8px; color:inherit; text-align:center; }
   .state { position:absolute; top:7px; right:7px; color:var(--text-on-accent); }
-  .initials { display:grid; place-items:center; width:42px; height:42px; border:2px solid var(--text-on-accent); border-radius:50%; background:transparent; color:var(--text-on-accent); font-size:13px; font-weight:800; letter-spacing:.04em; line-height:1; }
   strong { display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; max-width:100%; overflow-wrap:anywhere; font-size:14px; line-height:1.2; }
   small { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
   .source { font-size:9px; }

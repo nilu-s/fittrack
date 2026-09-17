@@ -557,6 +557,7 @@ export interface ShoppingItem {
   food_id?: string | null;
   category_key: string;
   icon_key: string;
+  pictogram_url: string;
   quantity?: number | null;
   unit?: string | null;
   note?: string | null;

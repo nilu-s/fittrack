@@ -1092,6 +1092,7 @@ class ShoppingItemResponse(_Base):
     food_id: Optional[uuid.UUID]
     category_key: str
     icon_key: str
+    pictogram_url: str = ""
     quantity: Optional[Decimal]
     unit: Optional[str]
     note: Optional[str]

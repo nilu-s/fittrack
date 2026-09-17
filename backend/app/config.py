@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://app:app@localhost:5432/app"
     APP_JWT_SECRET: str = _DEVELOPMENT_JWT_SECRET
     VISION_PROXY_URL: str = "http://host.docker.internal:8100"
+    # Pictogramicl owns all pictogram generation, validation and delivery.  The
+    # key deliberately stays server-side; browsers use Cronicl's scoped proxy.
+    PICTOGRAMICL_URL: str = "http://pictogramicl:8080"
+    PICTOGRAMICL_API_KEY: str = ""
+    PICTOGRAMICL_STYLE: str = "cronicl-fine-playful-v3"
     PHOTO_DIR: str = "/app/photos"
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_NATIVE_CLIENT_ID: str = ""
@@ -48,6 +53,8 @@ def validate_runtime_settings() -> None:
     secret = settings.APP_JWT_SECRET.strip()
     if secret == _DEVELOPMENT_JWT_SECRET or len(secret) < 32:
         raise RuntimeError("APP_JWT_SECRET must be a unique value of at least 32 characters in production")
+    if not settings.PICTOGRAMICL_API_KEY.strip():
+        raise RuntimeError("PICTOGRAMICL_API_KEY must be configured in production")
 
 
 def allowed_google_emails() -> set[str]:
