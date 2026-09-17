@@ -31,6 +31,7 @@
   let suggestedTravelMode: import('$lib/types').Todo['travel_mode'] = null;
   let assistantOpen = false;
   let shoppingOpen = false;
+  let shoppingSearchActive = false;
   let noteBoardOpen = false;
   let noteAreaId: string | null = null;
   let generalTodos: import('$lib/types').Note[] = [];
@@ -183,8 +184,8 @@
       if (requestId === shoppingRequestId) shoppingLoading = false;
     }
   }
-  async function addShopping(event: CustomEvent<string>) {
-    const title = event.detail.trim();
+  async function addShoppingTitle(value: string) {
+    const title = value.trim();
     if (shoppingAdding || !title) return;
     shoppingAdding = true;
     shoppingAddError = '';
@@ -193,23 +194,31 @@
       if (!item) throw new Error('Einkaufsartikel konnte nicht erstellt werden.');
       shopping = shopping ? { ...shopping, items: [...shopping.items, item] } : await api.getShoppingList(activeSpaceId ?? undefined);
       shoppingTitle = '';
+      await tick();
+      document.querySelector<HTMLInputElement>('#footer-entry-title')?.focus();
     } catch {
       shoppingAddError = 'Artikel konnte nicht hinzugefügt werden. Bitte versuche es erneut.';
     } finally {
       shoppingAdding = false;
     }
   }
+  async function addShopping(event: CustomEvent<string>) { await addShoppingTitle(event.detail); }
   async function toggleShopping(item: import('$lib/types').ShoppingItem) { const updated = await api.toggleShoppingItem(item.id); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === updated.id ? updated : value) }; }
   async function removeShopping(item: import('$lib/types').ShoppingItem) { if (await api.deleteShoppingItem(item.id) && shopping) shopping = { ...shopping, items: shopping.items.filter((value) => value.id !== item.id) }; }
   async function saveShopping(event: CustomEvent<{ id: string; data: Partial<import('$lib/types').ShoppingItem> }>) { const updated = await api.updateShoppingItem(event.detail.id, event.detail.data); if (updated && shopping) shopping = { ...shopping, items: shopping.items.map((value) => value.id === updated.id ? updated : value) }; }
   function openShoppingFromFooter() {
-    if (shoppingOpen) { shoppingOpen = false; return; }
+    if (shoppingOpen) { shoppingOpen = false; shoppingSearchActive = false; return; }
     noteBoardOpen = false;
     noteAreaId = null;
     shopping = null;
     shoppingOpen = true;
     void loadShopping();
   }
+  function startShoppingSearch() {
+    shoppingSearchActive = true;
+    if (!shoppingOpen) openShoppingFromFooter();
+  }
+  function endShoppingSearch() { shoppingSearchActive = false; }
 
   // Preload the drawer's content before it is opened, matching the day-view cache.
   onMount(() => { const saved = localStorage.getItem('active_space_id'); activeSpaceId = saved && saved !== 'all' ? saved : null; showAllTodos = !activeSpaceId; void loadShopping(); void loadGeneralTodos(); void loadSpaces(); const refreshSpaces = () => void loadSpaces(); const onVisibilityChange = () => { if (document.visibilityState === 'visible') refreshSpaces(); }; window.addEventListener('focus', refreshSpaces); window.addEventListener('pageshow', refreshSpaces); document.addEventListener('visibilitychange', onVisibilityChange); const interval = window.setInterval(refreshSpaces, 5_000); return () => { window.removeEventListener('focus', refreshSpaces); window.removeEventListener('pageshow', refreshSpaces); document.removeEventListener('visibilitychange', onVisibilityChange); window.clearInterval(interval); }; });
@@ -238,7 +247,7 @@
               {#if noteBoardOpen}
                 <NoteBoard open notes={generalTodos} {spaces} date={$currentDate} loading={generalTodosLoading} inline on:close={() => { noteBoardOpen = false; noteAreaId = null; }} on:changed={onNoteChanged} on:areachange={(event) => noteAreaId = event.detail} />
               {:else if shoppingOpen}
-                <ShoppingQuickPanel open {shopping} loading={shoppingLoading} query={shoppingTitle} inline allowMealImport={!activeSpaceId} on:close={() => shoppingOpen = false} on:choose={(event) => shoppingTitle = event.detail} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
+                <ShoppingQuickPanel open {shopping} loading={shoppingLoading} query={shoppingTitle} inline allowMealImport={!activeSpaceId} on:close={() => { shoppingOpen = false; shoppingSearchActive = false; }} on:choose={(event) => void addShoppingTitle(event.detail)} on:toggle={(event) => toggleShopping(event.detail)} on:edit={(event) => editingShopping = event.detail} on:remove={(event) => removeShopping(event.detail)} on:import={() => mealImportOpen = true} />
               {/if}
             </svelte:fragment>
           </UnifiedDay>
@@ -248,7 +257,7 @@
       <div class="loading" role="status" aria-live="polite"><div class="spinner"></div><span class="sr-only">Tagesdaten werden geladen</span></div>
     {/if}
   </main>
-  <DateNav bind:todoTitle bind:noteTitle bind:shoppingTitle {todoAdding} {noteAdding} {shoppingAdding} {todoAddError} {noteAddError} {shoppingAddError} {shoppingOpen} {noteBoardOpen} noteTargetName={spaces.find((space) => space.id === noteAreaId)?.name ?? ''} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} noteCount={generalTodos.filter((note) => !note.space_id && note.status === 'active').length} on:todoadd={addFooterTodo} on:noteadd={addNote} on:shoppingadd={addShopping} on:shoppingopen={openShoppingFromFooter} on:noteboardopen={openNoteBoard} on:aiplan={() => assistantOpen = true}>
+  <DateNav bind:todoTitle bind:noteTitle bind:shoppingTitle {todoAdding} {noteAdding} {shoppingAdding} {todoAddError} {noteAddError} {shoppingAddError} {shoppingOpen} {shoppingSearchActive} {noteBoardOpen} noteTargetName={spaces.find((space) => space.id === noteAreaId)?.name ?? ''} shoppingCount={shopping?.items.filter((item) => item.status === 'open').length ?? 0} noteCount={generalTodos.filter((note) => !note.space_id && note.status === 'active').length} on:todoadd={addFooterTodo} on:noteadd={addNote} on:shoppingadd={addShopping} on:shoppingopen={openShoppingFromFooter} on:shoppingsearchstart={startShoppingSearch} on:shoppingsearchend={endShoppingSearch} on:noteboardopen={openNoteBoard} on:aiplan={() => assistantOpen = true}>
     {#if data && renderedDate === $currentDate}
       <DayMetricStrip entry={data.dayEntry} mealEntries={data.mealEntries} on:open={(event) => unifiedDay?.openFooterMetricDetails(event.detail.metric, event.detail.trigger)} />
     {/if}
