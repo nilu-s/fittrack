@@ -35,6 +35,6 @@
     "@capacitor/push-notifications": "^8.1.2",
     "@fontsource/plus-jakarta-sans": "^5.3.0",
     "dexie": "^4.0.10",
-    "playwright": "^1.62.1"
+    "playwright": "^1.63.0"
   }
 }
